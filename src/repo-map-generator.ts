@@ -55,6 +55,10 @@ export class RepoMapGenerator {
         while (lines.join('\n').length > maxChars && lines.length > 0) {
           lines.pop()
         }
+        // Remove orphan directory headers left after trimming file entries
+        while (lines.length > 0 && !lines[lines.length - 1].startsWith('    ')) {
+          lines.pop()
+        }
         break
       }
     }

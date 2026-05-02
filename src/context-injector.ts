@@ -1,7 +1,7 @@
 import { relative } from 'node:path'
 import type { RepoIndex } from './types.js'
 
-const FILE_PATH_RE = /(?:^|[\s'"`(])([./\w-]+\/[\w./-]+\.(?:ts|tsx|py|rs))/g
+const FILE_PATH_RE = /(?:^|[\s'"`(])([./\w-]+\/[\w./-]+\.(?:tsx|ts|py|rs))/g
 
 interface Message {
   role: string
@@ -44,11 +44,12 @@ export class ContextInjector {
       if (!skeleton) continue
       const rel = relative(this.projectRoot, absPath)
       const entry = `### ${rel}\n${skeleton}`
-      if (estimateTokens(entry) > tokenBudget) continue
+      const cost = estimateTokens(entry)
+      if (cost > tokenBudget) continue
       activeLines.push(entry)
-      tokenBudget -= estimateTokens(entry)
+      tokenBudget -= cost
     }
-    sections.push(activeLines.join('\n'))
+    if (activeLines.length > 1) sections.push(activeLines.join('\n'))
 
     const depPaths = new Set<string>()
     for (const absPath of inFocus) {
@@ -64,11 +65,12 @@ export class ContextInjector {
         if (!skeleton) continue
         const rel = relative(this.projectRoot, dep)
         const entry = `### ${rel}\n${skeleton}`
-        if (estimateTokens(entry) > tokenBudget) continue
+        const cost = estimateTokens(entry)
+        if (cost > tokenBudget) continue
         depLines.push(entry)
-        tokenBudget -= estimateTokens(entry)
+        tokenBudget -= cost
       }
-      sections.push(depLines.join('\n'))
+      if (depLines.length > 1) sections.push(depLines.join('\n'))
     }
 
     const body = sections.join('\n\n')
