@@ -21,7 +21,10 @@ The genuine gap is **dependency-aware context injection**.
 
 ## Solution
 
-A pi extension (`packages/smart-context`) that builds an AST-based index of the project at startup, maintains a dependency graph, and automatically injects relevant file skeletons into the system prompt before each LLM turn.
+A pi extension (`packages/smart-context`) that builds an AST-based index of the project at startup, maintains a dependency graph, and provides two layers of context injection:
+
+1. **Repo Map** — a compressed bird's-eye skeleton of all project files injected once at session start, so the LLM can discover relevant files without blindly searching
+2. **Dependency Injection** — deep skeletons for in-focus files + their 1st-degree dependencies injected before every turn, so the LLM uses correct internal APIs
 
 ---
 
@@ -33,7 +36,8 @@ packages/smart-context/
 │   ├── index.ts                  # pi extension entry point
 │   ├── index-engine.ts           # orchestrates parsing + graph building
 │   ├── disk-cache.ts             # SHA-256 hash-based persistent cache
-│   ├── context-injector.ts       # beforeTurn hook, builds injection payload
+│   ├── repo-map-generator.ts     # global project skeleton, injected once at session start
+│   ├── context-injector.ts       # pre-turn hook, injects deep skeletons for in-focus files
 │   ├── parsers/
 │   │   ├── language-parser.ts    # interface definition
 │   │   ├── typescript-parser.ts
@@ -52,7 +56,11 @@ Project dir → IndexEngine → LanguageParser(s) → FileIndex[]
                                                       ↓
                                              DiskCache (read/write)
                                                       ↓
-                                             In-memory RepoIndex
+                                          In-memory RepoIndex
+                                                      ↓
+                                       RepoMapGenerator → compact global skeleton
+                                                      ↓
+                                       Injected once into system prompt
 ```
 
 **Per agent turn:**
@@ -66,7 +74,7 @@ pi pre-turn hook → ContextInjector
                            ↓
               Pull skeletons from SkeletonMap
                            ↓
-              Append <repo-context> block to system prompt
+              Append <dep-context> block to system prompt
 ```
 
 ---
@@ -179,7 +187,39 @@ interface CacheFile {
 
 ---
 
-### 4. ContextInjector
+### 4. RepoMapGenerator
+
+Runs once at session start. Produces a compressed global skeleton of the entire project and injects it into the system prompt so the LLM can navigate the codebase without needing to `find` or `read` blindly.
+
+**Output format:**
+```
+<repo-map>
+src/core/
+  agent-session.ts       AgentSession, createSession(), SessionState
+  agent-session-runtime  AgentSessionRuntime, run()
+  tools/
+    read.ts              readTool, ReadParams
+    edit.ts              editTool, EditParams
+    bash.ts              bashTool
+src/utils/
+  path-utils.ts          resolvePath(), normalizePath()
+</repo-map>
+```
+
+Each file shows only top-level names (class/function/type names) — no signatures, no bodies. This is intentionally more compressed than the per-turn injection, which shows full signatures.
+
+**Token budget management:** On large repos the full map can exceed budget. Apply this priority order when trimming:
+1. Always include all files that were touched in recent sessions (tracked in cache)
+2. Include remaining files by directory depth (shallower = more important)
+3. Drop deepest/least-touched files until under budget
+
+Default budget for the repo map: 4,000 tokens. Configurable via `SmartContextConfig`.
+
+**Injection target:** Written into the system prompt once when the pi session initializes — not repeated per turn.
+
+---
+
+### 5. ContextInjector
 
 Hooks into pi's extension lifecycle (exact hook name to confirm against pi's extension API — likely a pre-turn or system-prompt-generation event) and builds the injection payload.
 
@@ -214,7 +254,8 @@ Exposed via the pi extension config:
 ```typescript
 interface SmartContextConfig {
   enabled: boolean           // default: true
-  maxInjectionTokens: number // default: 8000
+  maxRepoMapTokens: number   // default: 4000 — budget for global repo map
+  maxInjectionTokens: number // default: 8000 — budget for per-turn dep injection
   scanLastNMessages: number  // default: 10
   exclude: string[]          // glob patterns to skip (e.g. ['**/*.test.ts'])
 }
