@@ -52,6 +52,9 @@ function walk(
       const sig = nodeSignature(decl, source)
       if (sig) { signatures.push('export ' + sig); return }
     }
+    // Note: `export { foo } from './bar'` and `export * from './bar'` are not
+    // captured in imports — the from-string is inside export_clause, not an
+    // import_statement. These re-export edges are missing from the dep graph.
     for (const child of node.children) walk(child, source, signatures, imports)
     return
   }

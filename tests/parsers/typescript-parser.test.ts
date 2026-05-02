@@ -41,6 +41,8 @@ export interface Config {
 }
 `)
     expect(result.skeleton).toContain('Config')
+    expect(result.skeleton).toContain('{ ... }')
+    expect(result.skeleton).not.toContain('name: string')
   })
 
   it('extracts type alias skeleton', () => {
@@ -48,6 +50,7 @@ export interface Config {
 export type Status = 'idle' | 'running' | 'done'
 `)
     expect(result.skeleton).toContain('Status')
+    // union type alias has no body to elide — full RHS is part of the signature
   })
 
   it('extracts relative imports', () => {
