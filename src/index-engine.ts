@@ -12,9 +12,10 @@ import type { FileIndex, RepoIndex, SmartContextConfig } from './types.js'
 
 const DEFAULT_IGNORES = ['node_modules', '.git', '.pi-cache', 'dist', 'build']
 
-function buildIgnore(projectRoot: string) {
+function buildIgnore(projectRoot: string, extraExcludes: string[] = []) {
   const ig = ignore()
   ig.add(DEFAULT_IGNORES)
+  if (extraExcludes.length) ig.add(extraExcludes)
   try {
     const gitignore = readFileSync(join(projectRoot, '.gitignore'), 'utf-8')
     ig.add(gitignore)
@@ -26,7 +27,10 @@ async function* walkDir(dir: string, root: string, ig: ReturnType<typeof ignore>
   let entries: Awaited<ReturnType<typeof readdir>>
   try {
     entries = await readdir(dir, { withFileTypes: true })
-  } catch { return }
+  } catch (err) {
+    console.warn(`[IndexEngine] Cannot read directory ${dir}:`, err)
+    return
+  }
 
   for (const entry of entries) {
     const full = join(dir, entry.name)
@@ -107,7 +111,7 @@ export class IndexEngine {
 
   async build(): Promise<void> {
     await this.cache.load()
-    const ig = buildIgnore(this.projectRoot)
+    const ig = buildIgnore(this.projectRoot, [...this.config.exclude])
     const fileIndexes: FileIndex[] = []
 
     for await (const filePath of walkDir(this.projectRoot, this.projectRoot, ig)) {
@@ -115,7 +119,13 @@ export class IndexEngine {
       const parser = this.parsers.get(ext)
       if (!parser) continue
 
-      const content = await readFile(filePath, 'utf-8')
+      let content: string
+      try {
+        content = await readFile(filePath, 'utf-8')
+      } catch (err) {
+        console.warn(`[IndexEngine] Cannot read file ${filePath}:`, err)
+        continue
+      }
       const hash = createHash('sha256').update(content).digest('hex')
       const cached = this.cache.get(filePath)
 
@@ -149,7 +159,6 @@ export class IndexEngine {
         const resolved = resolveImport(raw, f.path, ext)
         if (resolved && skeletons.has(resolved)) {
           deps.get(f.path)!.add(resolved)
-          if (!reverseDeps.has(resolved)) reverseDeps.set(resolved, new Set())
           reverseDeps.get(resolved)!.add(f.path)
         }
       }
