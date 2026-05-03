@@ -10,10 +10,10 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { smartContextDir } from './paths.js'
 import type { RepoIndex } from './types.js'
 
 const STORE_VERSION = 1
-const DIR_NAME = join('.pi', 'smart-context')
 
 interface StoredIndex {
   version: number
@@ -26,7 +26,7 @@ interface StoredIndex {
 }
 
 function storeDir(projectRoot: string): string {
-  return join(projectRoot, DIR_NAME)
+  return smartContextDir(projectRoot)
 }
 
 function indexPath(projectRoot: string): string {

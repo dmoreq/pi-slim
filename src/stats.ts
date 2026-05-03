@@ -8,6 +8,7 @@
 
 import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import { smartContextDir } from './paths.js'
 import { writeState } from './state.js'
 
 // ── Stored record (one per session in stats.jsonl) ────────────────────────
@@ -184,7 +185,7 @@ export class SessionStats {
    * save the latest session state to state.json for cross-session access.
    */
   async persist(projectRoot: string): Promise<void> {
-    const dir = join(projectRoot, '.pi', 'smart-context')
+    const dir = smartContextDir(projectRoot)
     await mkdir(dir, { recursive: true })
 
     // Append to historical log

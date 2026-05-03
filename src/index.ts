@@ -30,19 +30,24 @@
 
 import { relative } from 'node:path'
 import type { RepoIndex } from './types.js'
-import { IndexEngine } from './index-engine.js'
-import { RepoMapGenerator } from './repo-map-generator.js'
-import { ContextInjector } from './context-injector.js'
-import { DEFAULT_CONFIG, type SmartContextConfig } from './types.js'
+import { type SmartContextConfig } from './types.js'
+import { produceDefaults } from './config/schema.js'
 import { loadConfig } from './config.js'
-import { storeExists, saveStore, loadStore } from './store.js'
-import { readState } from './state.js'
-import { InjectionPipeline } from './pipeline.js'
-import { SessionStats } from './stats.js'
 import { loadContextFiles, formatContextSection, buildStartupNotification, type ContextFile } from './context-files.js'
 import { loadProviderGuidance, formatProviderGuidanceSection, buildGuidanceNotification, type ProviderGuidanceFile } from './provider-guidance.js'
 import { detectPathsInToolCall, detectPathsInOutput } from './file-detector.js'
 import { info as nInfo, warn as nWarn, error as nError, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './notify.js'
+
+// ── Core modules ──────────────────────────────────────────────────────────
+import { IndexEngine } from './index-engine.js'
+import { RepoMapGenerator } from './repo-map-generator.js'
+import { ContextInjector } from './context-injector.js'
+import { InjectionPipeline } from './pipeline.js'
+import { SessionStats } from './stats.js'
+import { storeExists, saveStore, loadStore } from './store.js'
+import { readState } from './state.js'
+import { extractText, extractInjectedFilePaths } from './utils/message.js'
+import { estimateTokens } from './utils/token.js'
 
 // ── Minimal pi ExtensionAPI types (only what we use) ──────────────────────
 
@@ -102,27 +107,6 @@ interface ExtensionAPI {
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-function textOf(msg: AgentMessage): string {
-  if (typeof msg.content === 'string') return msg.content
-  if (Array.isArray(msg.content)) {
-    return msg.content
-      .filter((c): c is { type: string; text?: string } => typeof c === 'object' && c !== null)
-      .map(c => c.text ?? '')
-      .join(' ')
-  }
-  return ''
-}
-
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4)
-}
-
-/** Extract injected file paths from a <dep-context> block. */
-function extractInjectedFiles(depContext: string): string[] {
-  const matches = [...depContext.matchAll(/^### (.+)$/gm)]
-  return matches.map(m => m[1])
-}
-
 /** Build StatusBarState from current session. */
 function statusBarState(s: SessionState): StatusBarState {
   return {
@@ -159,39 +143,39 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
 
   pi.registerFlag('smart-context.enabled', {
     type: 'boolean',
-    default: DEFAULT_CONFIG.enabled,
+    default: produceDefaults().enabled,
     description: 'Inject repo map and dependency skeletons into every LLM call',
   })
   pi.registerFlag('smart-context.maxRepoMapTokens', {
     type: 'number',
-    default: DEFAULT_CONFIG.maxRepoMapTokens,
+    default: produceDefaults().maxRepoMapTokens,
     description: 'Token budget for the global repo map (injected into system prompt)',
   })
   pi.registerFlag('smart-context.maxInjectionTokens', {
     type: 'number',
-    default: DEFAULT_CONFIG.maxInjectionTokens,
+    default: produceDefaults().maxInjectionTokens,
     description: 'Token budget for per-turn dependency skeleton injection',
   })
   pi.registerFlag('smart-context.scanLastNMessages', {
     type: 'number',
-    default: DEFAULT_CONFIG.scanLastNMessages,
+    default: produceDefaults().scanLastNMessages,
     description: 'How many recent messages to scan for file path mentions',
   })
 
   pi.registerFlag('smart-context.contextFiles.enabled', {
     type: 'boolean',
-    default: DEFAULT_CONFIG.contextFiles.enabled,
+    default: produceDefaults().contextFiles.enabled,
     description: 'Inject project-local context files (AGENTS.local.md, CLAUDE.md) into system prompt',
   })
   pi.registerFlag('smart-context.contextFiles.filenames', {
     type: 'string',
-    default: DEFAULT_CONFIG.contextFiles.filenames.join(','),
+    default: produceDefaults().contextFiles.filenames.join(','),
     description: 'Comma-separated context file names to search for in ancestor directories',
   })
 
   pi.registerFlag('smart-context.providerGuidance.enabled', {
     type: 'boolean',
-    default: DEFAULT_CONFIG.providerGuidance.enabled,
+    default: produceDefaults().providerGuidance.enabled,
     description: 'Inject provider-specific guidance files (CLAUDE.md, CODEX.md, GEMINI.md) into system prompt',
   })
 
@@ -430,7 +414,7 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
 
     const messages = event.messages.map(m => ({
       role: m.role ?? 'user',
-      content: textOf(m),
+      content: extractText(m.content),
     }))
 
     // Also scan tool calls and output for file paths (beyond free-text regex)
@@ -468,7 +452,7 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
 
     // Record stats
     const tokens = estimateTokens(depContext)
-    const files = extractInjectedFiles(depContext)
+    const files = extractInjectedFilePaths(depContext)
     session.stats.recordDepContextInjection(files, tokens)
 
     // Update status bar after per-turn injection

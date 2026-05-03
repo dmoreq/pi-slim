@@ -19,12 +19,13 @@
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { smartContextDir } from './paths.js'
 
 export type StateValue = string | number | boolean | null | StateValue[] | { [key: string]: StateValue }
 
-/** Base directory for smart-context state (inside .pi/smart-context/). */
+/** Base directory for smart-context state. */
 function stateDir(projectRoot: string): string {
-  return join(projectRoot, '.pi', 'smart-context')
+  return smartContextDir(projectRoot)
 }
 
 function statePath(projectRoot: string): string {

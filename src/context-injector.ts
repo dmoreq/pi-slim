@@ -1,23 +1,13 @@
 import { relative } from 'node:path'
+import { extractText } from './utils/message.js'
+import { estimateTokens } from './utils/token.js'
 import type { RepoIndex } from './types.js'
 
-const FILE_PATH_RE = /(?:^|[\s'"`(])([./\w-]+\/[\w./-]+\.(?:tsx|ts|py|rs))/g
+const FILE_PATH_RE = /(?:^|[\s'"`(])([.\/\w-]+\/[\w.\/-]+\.(?:tsx|ts|py|rs))/g
 
 interface Message {
   role: string
   content: string | Array<{ type: string; text?: string }>
-}
-
-function textContent(msg: Message): string {
-  if (typeof msg.content === 'string') return msg.content
-  return msg.content
-    .filter(c => c.type === 'text')
-    .map(c => c.text ?? '')
-    .join(' ')
-}
-
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4)
 }
 
 export class ContextInjector {
@@ -85,22 +75,19 @@ export class ContextInjector {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()
 
-    // ── Scan message text ──────────────────────────────────────────────
     for (const msg of recent) {
-      const text = textContent(msg)
+      const text = extractText(msg.content)
       for (const match of text.matchAll(FILE_PATH_RE)) {
         mentioned.add(match[1])
       }
     }
 
-    // ── Merge extra paths from tool calls/output ───────────────────────
     if (extraPaths) {
       for (const p of extraPaths) {
         mentioned.add(p)
       }
     }
 
-    // ── Match against indexed files ────────────────────────────────────
     const inFocus = new Set<string>()
     for (const absPath of index.skeletons.keys()) {
       const rel = relative(this.projectRoot, absPath)

@@ -1,53 +1,18 @@
 /**
- * Typed configuration for pi-smart-context.
+ * Config loader for pi-smart-context.
  *
- * Loads from:
- *   1. Project-local:  <project-root>/.pi/smart-context.jsonc
- *   2. Global:         ~/.pi/agent/smart-context.jsonc
- *   3. Flags:          CLI flags (passed in at runtime)
- *   4. Defaults:       Fallback hardcoded values
- *
- * Each layer overrides the previous. Supports JSONC format (comments,
- * trailing commas) via the jsonc-parser.
- *
- * Schema defined with zod for runtime validation and clear error messages.
+ * Loads from 4 layers (highest priority wins):
+ *   1. CLI flag overrides
+ *   2. Project-local .pi/smart-context.jsonc
+ *   3. Global ~/.pi/agent/smart-context.jsonc
+ *   4. Hardcoded defaults (from schema defaults)
  */
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { parse, printParseErrorCode, type ParseError } from 'jsonc-parser'
-import { z } from 'zod'
-import type { SmartContextConfig } from './types.js'
-
-// ── Zod schema (mirrors SmartContextConfig) ───────────────────────────────
-
-const ContextFilesSchema = z.object({
-  enabled: z.boolean().default(true),
-  filenames: z.array(z.string()).default(['AGENTS.local.md', 'CLAUDE.local.md']),
-  sectionTitle: z.string().default('Extra Context Files'),
-})
-
-const ProviderGuidanceSchema = z.object({
-  enabled: z.boolean().default(true),
-})
-
-export const SmartContextConfigSchema = z.object({
-  enabled: z.boolean().default(true),
-  maxRepoMapTokens: z.number().int().positive().default(4000),
-  maxInjectionTokens: z.number().int().positive().default(8000),
-  scanLastNMessages: z.number().int().positive().default(10),
-  exclude: z.array(z.string()).default([
-    '**/node_modules/**',
-    '**/.git/**',
-    '**/.pi-cache/**',
-    '**/dist/**',
-  ]),
-  contextFiles: ContextFilesSchema.default({}),
-  providerGuidance: ProviderGuidanceSchema.default({}),
-}).default({})
-
-export type SmartContextConfigInput = z.input<typeof SmartContextConfigSchema>
+import { SmartContextConfigSchema, type SmartContextConfig } from './config/schema.js'
 
 // ── JSONC parsing ─────────────────────────────────────────────────────────
 
@@ -71,9 +36,7 @@ function parseJsonc(filePath: string, content: string): unknown {
     const err = errors[0]!
     const location = getLineAndColumn(content, err.offset)
     const code = printParseErrorCode(err.error)
-    throw new Error(
-      `Invalid JSONC in ${filePath}:${location.line}:${location.column}: ${code}`,
-    )
+    throw new Error(`Invalid JSONC in ${filePath}:${location.line}:${location.column}: ${code}`)
   }
 
   return value
@@ -87,21 +50,13 @@ function getLineAndColumn(content: string, offset: number) {
 
 // ── Deep merge ────────────────────────────────────────────────────────────
 
-function deepMerge<T extends Record<string, unknown>>(
-  defaults: T,
-  overrides: Partial<T>,
-): T {
+function deepMerge<T extends Record<string, unknown>>(defaults: T, overrides: Partial<T>): T {
   const result = { ...defaults }
-
   for (const key of Object.keys(overrides) as Array<keyof T>) {
     const overrideVal = overrides[key]
     if (overrideVal === undefined) continue
-
     const defaultVal = defaults[key]
-    if (
-      isPlainObject(defaultVal) &&
-      isPlainObject(overrideVal)
-    ) {
+    if (isPlainObject(defaultVal) && isPlainObject(overrideVal)) {
       result[key] = deepMerge(
         defaultVal as Record<string, unknown>,
         overrideVal as Record<string, unknown>,
@@ -110,7 +65,6 @@ function deepMerge<T extends Record<string, unknown>>(
       result[key] = overrideVal as T[keyof T]
     }
   }
-
   return result
 }
 
@@ -130,26 +84,23 @@ const PROJECT_CONFIG_REL = '.pi/smart-context.jsonc'
  *   1. CLI flag overrides (passed as `flags`)
  *   2. Project-local .pi/smart-context.jsonc
  *   3. Global ~/.pi/agent/smart-context.jsonc
- *   4. Hardcoded defaults
- *
- * @param projectRoot  Project root directory
- * @param flags        CLI flag overrides (from pi extension API)
+ *   4. Hardcoded defaults from schema
  */
 export function loadConfig(
   projectRoot: string,
   flags?: Record<string, unknown>,
 ): SmartContextConfig {
-  // ── Layer 1: Defaults ─────────────────────────────────────────────────
-  let merged: Record<string, unknown> = SmartContextConfigSchema.parse({})
+  // Layer 1: Defaults
+  let merged: Record<string, unknown> = SmartContextConfigSchema.parse({}) as Record<string, unknown>
 
-  // ── Layer 2: Global config ────────────────────────────────────────────
+  // Layer 2: Global config
   const globalRaw = readConfigFile(GLOBAL_CONFIG_PATH)
   if (globalRaw) {
     const globalValue = parseJsonc(GLOBAL_CONFIG_PATH, globalRaw)
     merged = deepMerge(merged, globalValue as Record<string, unknown>)
   }
 
-  // ── Layer 3: Project-local config ─────────────────────────────────────
+  // Layer 3: Project-local config
   const projectPath = resolve(projectRoot, PROJECT_CONFIG_REL)
   const projectRaw = readConfigFile(projectPath)
   if (projectRaw) {
@@ -157,10 +108,9 @@ export function loadConfig(
     merged = deepMerge(merged, projectValue as Record<string, unknown>)
   }
 
-  // ── Layer 4: CLI flags ────────────────────────────────────────────────
+  // Layer 4: CLI flags
   if (flags) {
     const flagConfig: Record<string, unknown> = {}
-
     if (flags['smart-context.enabled'] !== undefined) {
       flagConfig.enabled = Boolean(flags['smart-context.enabled'])
     }
@@ -185,16 +135,13 @@ export function loadConfig(
         enabled: Boolean(flags['smart-context.providerGuidance.enabled']),
       }
     }
-
     merged = deepMerge(merged, flagConfig)
   }
 
-  // ── Validate final merged config ──────────────────────────────────────
+  // Validate final merged config
   const result = SmartContextConfigSchema.safeParse(merged)
   if (!result.success) {
-    throw new Error(
-      `[smart-context] Invalid configuration:\n${result.error.message}`,
-    )
+    throw new Error(`[smart-context] Invalid configuration:\n${result.error.message}`)
   }
 
   return result.data as SmartContextConfig

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { loadConfig, SmartContextConfigSchema } from '../src/config.js'
+import { loadConfig } from '../src/config.js'
+import { SmartContextConfigSchema } from '../src/config/schema.js'
 
 let tmpDir: string
 

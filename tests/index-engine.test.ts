@@ -3,7 +3,9 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { IndexEngine } from '../src/index-engine.js'
-import { DEFAULT_CONFIG } from '../src/types.js'
+import { produceDefaults } from '../src/config/schema.js'
+
+const DEFAULT_CONFIG = produceDefaults()
 
 let tmpDir: string
 
