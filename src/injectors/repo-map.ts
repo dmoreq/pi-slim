@@ -1,5 +1,5 @@
 import { relative, dirname } from 'node:path'
-import type { RepoIndex } from './types.js'
+import type { RepoIndex } from '../types.js'
 
 function extractNames(skeleton: string): string {
   return skeleton

@@ -19,7 +19,7 @@
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { smartContextDir } from './paths.js'
+import { smartContextDir } from '../paths.js'
 
 export type StateValue = string | number | boolean | null | StateValue[] | { [key: string]: StateValue }
 

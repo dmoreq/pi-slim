@@ -5,7 +5,7 @@
  * dep-context), orders by priority, trims to a shared token budget,
  * and produces a single combined block for system prompt injection.
  */
-import { estimateTokens } from './utils/token.js'
+import { estimateTokens } from '../utils/token.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 

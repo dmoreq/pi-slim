@@ -10,8 +10,8 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { smartContextDir } from './paths.js'
-import type { RepoIndex } from './types.js'
+import { smartContextDir } from '../paths.js'
+import type { RepoIndex } from '../types.js'
 
 const STORE_VERSION = 1
 

@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { parse, printParseErrorCode, type ParseError } from 'jsonc-parser'
-import { SmartContextConfigSchema, type SmartContextConfig } from './config/schema.js'
+import { SmartContextConfigSchema, type SmartContextConfig } from './schema.js'
 
 // ── JSONC parsing ─────────────────────────────────────────────────────────
 

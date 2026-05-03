@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
-import { ContextInjector } from '../src/context-injector.js'
-import type { RepoIndex } from '../src/types.js'
+import { ContextInjector } from '../../src/injectors/dep-context.js'
+import type { RepoIndex } from '../../src/types.js'
 
 const ROOT = '/project'
 const FOO = join(ROOT, 'src/foo.ts')

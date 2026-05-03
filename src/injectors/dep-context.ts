@@ -1,7 +1,7 @@
 import { relative } from 'node:path'
-import { extractText } from './utils/message.js'
-import { estimateTokens } from './utils/token.js'
-import type { RepoIndex } from './types.js'
+import { extractText } from '../utils/message.js'
+import { estimateTokens } from '../utils/token.js'
+import type { RepoIndex } from '../types.js'
 
 const FILE_PATH_RE = /(?:^|[\s'"`(])([.\/\w-]+\/[\w.\/-]+\.(?:tsx|ts|py|rs))/g
 

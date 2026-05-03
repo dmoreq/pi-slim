@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { readState, writeState, readStateSync, writeStateSync, removeState } from '../src/state.js'
+import { readState, writeState, readStateSync, writeStateSync, removeState } from '../../src/persistence/runtime-state.js'
 
 let tmpDir: string
 

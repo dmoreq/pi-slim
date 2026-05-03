@@ -8,12 +8,12 @@ import { createRequire } from 'node:module'
 const _require = createRequire(import.meta.url)
 type IgnoreInstance = { add(p: string | string[]): IgnoreInstance; ignores(p: string): boolean }
 const ignore: () => IgnoreInstance = _require('ignore')
-import { DiskCache } from './disk-cache.js'
-import { TypeScriptParser } from './parsers/typescript-parser.js'
-import { PythonParser } from './parsers/python-parser.js'
-import { RustParser } from './parsers/rust-parser.js'
-import type { LanguageParser } from './parsers/language-parser.js'
-import type { FileIndex, RepoIndex, SmartContextConfig } from './types.js'
+import { DiskCache } from './cache.js'
+import { TypeScriptParser } from '../parsers/typescript-parser.js'
+import { PythonParser } from '../parsers/python-parser.js'
+import { RustParser } from '../parsers/rust-parser.js'
+import type { LanguageParser } from '../parsers/language-parser.js'
+import type { FileIndex, RepoIndex, SmartContextConfig } from '../types.js'
 
 const DEFAULT_IGNORES = ['node_modules', '.git', '.pi-cache', 'dist', 'build']
 

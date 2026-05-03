@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
-import type { FileIndex, CacheFile } from './types.js'
-import { CACHE_VERSION } from './types.js'
+import type { FileIndex, CacheFile } from '../types.js'
+import { CACHE_VERSION } from '../types.js'
 
 export class DiskCache {
   private readonly cachePath: string

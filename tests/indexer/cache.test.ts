@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { DiskCache } from '../src/disk-cache.js'
-import type { FileIndex } from '../src/types.js'
+import { DiskCache } from '../../src/indexer/cache.js'
+import type { FileIndex } from '../../src/types.js'
 
 const SAMPLE: FileIndex = {
   path: '/project/src/foo.ts',

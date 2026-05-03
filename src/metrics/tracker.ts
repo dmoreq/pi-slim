@@ -8,8 +8,8 @@
 
 import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { smartContextDir } from './paths.js'
-import { writeState } from './state.js'
+import { smartContextDir } from '../paths.js'
+import { writeState } from '../persistence/runtime-state.js'
 
 // ── Stored record (one per session in stats.jsonl) ────────────────────────
 
