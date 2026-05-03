@@ -75,7 +75,6 @@ for (const p of [new TypeScriptParser(), new PythonParser(), new RustParser(), n
 3. Add import resolution in `resolveImport()` in `engine.ts`.
 4. Add file extension to `FILE_PATH_RE` in `injectors/dep-context.ts`.
 5. Add tests in `tests/parsers/<lang>-parser.test.ts`.
-6. Update the language support matrix in `docs/usage.md`.
 
 ## Adding an Injection Source
 
@@ -93,7 +92,7 @@ npm run test:watch       # Watch mode for development
 npm run build            # Verify TypeScript compilation
 ```
 
-Tests live in `tests/` mirroring the `src/` structure. Use Vitest with temporary file fixtures for disk-dependent tests.
+Tests live in `tests/` mirroring the source tree structure. Use Vitest with temporary file fixtures for disk-dependent tests.
 
 ### Test conventions
 
