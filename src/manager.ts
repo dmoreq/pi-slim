@@ -23,6 +23,7 @@ import { loadProviderGuidance, formatProviderGuidanceSection, buildGuidanceNotif
 import { detectPathsInToolCall, detectPathsInOutput } from './detect/file-detector.js'
 import { info as nInfo, warn as nWarn, error as nError, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
 import { loadConfig } from './config/loader.js'
+import { estimateFileSavings, buildCostEstimate } from './metrics/cost-estimator.js'
 
 // ── Types (mirroring pi extension API surface) ────────────────────────────
 
@@ -264,6 +265,17 @@ export class SessionManager {
     const s = this.state
     if (!s) return undefined
 
+    // Early-exit: skip scanning if no file-like patterns in recent messages
+    const recentMessages = event.messages.slice(-s.config.scanLastNMessages)
+    const hasFilePattern = recentMessages.some(m => {
+      const text = extractText(m.content)
+      return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) ||
+        /['"`]\.\.?\/[^'"`]+/.test(text)
+    })
+    if (!hasFilePattern && !recentMessages.some(m => (m as Record<string, unknown>).toolName)) {
+      return undefined
+    }
+
     const messages = event.messages.map(m => ({ role: m.role ?? 'user', content: extractText(m.content) }))
 
     // Scan tool calls + output for extra file paths
@@ -288,12 +300,23 @@ export class SessionManager {
 
     const tokens = estimateTokens(depContext)
     const files = extractInjectedFilePaths(depContext)
-    s.stats.recordDepContextInjection(files, tokens)
+
+    // Estimate cost savings: sum full-file estimates for injected files
+    let fullTokens = 0
+    for (const f of files) {
+      const skel = s.index.skeletons.get(f)
+      if (skel) {
+        const est = estimateFileSavings(f, skel)
+        fullTokens += est.fullTokens
+      }
+    }
+    s.stats.recordDepContextInjection(files, tokens, fullTokens)
 
     this.updateStatusBar(ctx)
 
     const fileNames = files.map(f => relative(s.projectRoot, f)).join(', ')
-    ctx.ui.notify(nInfo(`injecting ${files.length} file(s) (~${tokens} tokens): ${fileNames}`), 'info')
+    const pct = s.stats.savingsRatio > 0 ? ` (${Math.round(s.stats.savingsRatio * 100)}% saved)` : ''
+    ctx.ui.notify(nInfo(`injecting ${files.length} file(s) (~${tokens} tokens${pct}): ${fileNames}`), 'info')
 
     const contextMsg: AgentMessage = { role: 'developer', content: depContext }
     return { messages: [contextMsg, ...event.messages] }
@@ -333,6 +356,9 @@ export class SessionManager {
           `  Dep-context tkns: ~${ls.depContextTotalTokens ?? 0} total`,
           `  Context files   : ${ls.contextFilesCount ?? 0} file(s)`,
           `  Provider guid.  : ${ls.providerGuidanceCount ?? 0} file(s)`,
+          ls.totalTokensSaved
+            ? `  Token savings   : ~${ls.totalTokensSaved}t (${Math.round(Number(ls.savingsRatio ?? 0) * 100)}% vs full reads)`
+            : '',
           '─────────────────────────────────────────────────────',
         ].join('\n'), 'info')
       } else {
