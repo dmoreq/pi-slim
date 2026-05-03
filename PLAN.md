@@ -1,4 +1,4 @@
-# pi-smart-context: Optimization & Refactor Plan
+# pi-slim: Optimization & Refactor Plan
 
 **Goal:** Reduce token waste for LLM agents via DRY code, SOLID architecture, and cost-aware design.
 **Target:** v1.0.0 — production-ready plugin.
@@ -91,16 +91,16 @@ export function extractText(content: unknown): string
 
 **A3:** Create `src/config/schema.ts`
 ```typescript
-/** Single source of truth for SmartContextConfig defaults. */
-export const DEFAULT_CONFIG: SmartContextConfig = produceDefaults()
+/** Single source of truth for SlimConfig defaults. */
+export const DEFAULT_CONFIG: SlimConfig = produceDefaults()
 ```
 → Remove `DEFAULT_CONFIG` from `types.ts`, derive from zod schema
 
 **A4:** Create `src/paths.ts`
 ```typescript
 /** Unified path constants for .pi/smart-context directory. */
-export const SMART_CONTEXT_DIR = join('.pi', 'smart-context')
-export function smartContextDir(projectRoot: string): string
+export const SLIM_DIR = join('.pi', 'smart-context')
+export function slimDir(projectRoot: string): string
 ```
 → Use in `store.ts`, `state.ts`, `stats.ts`
 
@@ -383,17 +383,17 @@ Phase A (DRY fixes) ──────→ Phase B (restructure) ─────�
 ### Phase A2: `src/paths.ts`
 
 **Files to create:**
-- `src/paths.ts` — `SMART_CONTEXT_DIR`, `smartContextDir()`
+- `src/paths.ts` — `SLIM_DIR`, `slimDir()`
 
 **Files to modify:**
-- `src/store.ts` — use `smartContextDir()`
-- `src/state.ts` — use `smartContextDir()`
-- `src/stats.ts` — use `smartContextDir()`
+- `src/store.ts` — use `slimDir()`
+- `src/state.ts` — use `slimDir()`
+- `src/stats.ts` — use `slimDir()`
 
 ### Phase A3: `src/config/schema.ts`
 
 **Files to create:**
-- `src/config/schema.ts` — move `SmartContextConfigSchema` + `DEFAULT_CONFIG` here
+- `src/config/schema.ts` — move `SlimConfigSchema` + `DEFAULT_CONFIG` here
 
 **Files to modify:**
 - `src/types.ts` — remove `DEFAULT_CONFIG`

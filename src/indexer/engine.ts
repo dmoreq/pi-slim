@@ -13,7 +13,7 @@ import { TypeScriptParser } from '../parsers/typescript-parser.js'
 import { PythonParser } from '../parsers/python-parser.js'
 import { RustParser } from '../parsers/rust-parser.js'
 import type { LanguageParser } from '../parsers/language-parser.js'
-import type { FileIndex, RepoIndex, SmartContextConfig } from '../types.js'
+import type { FileIndex, RepoIndex, SlimConfig } from '../types.js'
 
 const DEFAULT_IGNORES = ['node_modules', '.git', '.pi-cache', 'dist', 'build']
 
@@ -95,7 +95,7 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
 
 export class IndexEngine {
   private readonly projectRoot: string
-  private readonly config: SmartContextConfig
+  private readonly config: SlimConfig
   private readonly parsers: Map<string, LanguageParser> = new Map()
   private readonly cache: DiskCache
   private repoIndex: RepoIndex = {
@@ -104,7 +104,7 @@ export class IndexEngine {
     reverseDeps: new Map(),
   }
 
-  constructor(projectRoot: string, config: SmartContextConfig) {
+  constructor(projectRoot: string, config: SlimConfig) {
     this.projectRoot = projectRoot
     this.config = config
     this.cache = new DiskCache(projectRoot)

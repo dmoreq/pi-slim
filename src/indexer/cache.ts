@@ -8,7 +8,7 @@ export class DiskCache {
   private entries: Map<string, FileIndex> = new Map()
 
   constructor(projectRoot: string) {
-    this.cachePath = join(projectRoot, '.pi-cache', 'smart-context.json')
+    this.cachePath = join(projectRoot, '.pi-cache', 'slim.json')
   }
 
   async load(): Promise<void> {

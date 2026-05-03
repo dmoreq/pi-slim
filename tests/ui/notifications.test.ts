@@ -12,7 +12,7 @@ import {
 
 describe('message formatting', () => {
   it('info adds prefix', () => {
-    expect(info('hello')).toContain('[smart-context]')
+    expect(info('hello')).toContain('[slim]')
     expect(info('hello')).toContain('hello')
   })
 

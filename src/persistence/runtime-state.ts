@@ -4,7 +4,7 @@
  * Ported from pi-me shared/ext-state.ts
  * ─────────────────────────────────────
  * Persists lightweight runtime state (e.g., last session stats, build
- * metadata) to <project>/.pi/smart-context/state.json so it survives
+ * metadata) to <project>/.pi/slim/state.json so it survives
  * across session restarts.
  *
  * For the heavy data (index, repo map), use store.ts which has atomic
@@ -19,13 +19,13 @@
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { smartContextDir } from '../paths.js'
+import { slimDir } from '../paths.js'
 
 export type StateValue = string | number | boolean | null | StateValue[] | { [key: string]: StateValue }
 
-/** Base directory for smart-context state. */
+/** Base directory for slim state. */
 function stateDir(projectRoot: string): string {
-  return smartContextDir(projectRoot)
+  return slimDir(projectRoot)
 }
 
 function statePath(projectRoot: string): string {
@@ -57,7 +57,7 @@ export async function writeState<T extends Record<string, StateValue> = Record<s
     await mkdir(stateDir(projectRoot), { recursive: true })
     await writeFile(statePath(projectRoot), JSON.stringify(state, null, 2), 'utf-8')
   } catch (err) {
-    console.error('[smart-context/state] Failed to write state:', err)
+    console.error('[slim/state] Failed to write state:', err)
   }
 }
 
@@ -88,7 +88,7 @@ export function writeStateSync<T extends Record<string, StateValue> = Record<str
     mkdirSync(stateDir(projectRoot), { recursive: true })
     writeFileSync(statePath(projectRoot), JSON.stringify(state, null, 2), 'utf-8')
   } catch (err) {
-    console.error('[smart-context/state] Failed to write state:', err)
+    console.error('[slim/state] Failed to write state:', err)
   }
 }
 

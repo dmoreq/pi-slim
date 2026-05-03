@@ -108,7 +108,7 @@ extension.ts (80 lines — lifecycle wiring)
 ## Extension Lifecycle Hook Map
 
 ```
-pi lifecycle              smart-context handler           what happens
+pi lifecycle              slim handler           what happens
 ─────────────              ─────────────────────          ─────────────
 session_start              SessionManager.start()         Load/build index
                                                           Load context files
@@ -144,10 +144,10 @@ Sources register with a numeric priority. Lower = higher priority (injected firs
 ## Storage Layout
 
 ```
-.pid/smart-context/
+.pid/slim/
 ├── index.json       # Serialized RepoIndex (skeletons + dep graph)
 ├── repo-map.txt     # Generated repo-map string
-├── state.json       # Latest session state (for cross-session /smart-context)
+├── state.json       # Latest session state (for cross-session /slim)
 ├── stats.jsonl      # Historical session records (one JSON line per session)
-└── smart-context.jsonc  # Project-local config (optional)
+└── slim.jsonc  # Project-local config (optional)
 ```

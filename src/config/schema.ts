@@ -1,5 +1,5 @@
 /**
- * Configuration schema for pi-smart-context.
+ * Configuration schema for pi-slim.
  *
  * Single source of truth for all config defaults and validation.
  * Used by both `config/loader.ts` and `types.ts`.
@@ -7,7 +7,7 @@
 
 import { z } from 'zod'
 
-export type SmartContextConfig = z.infer<typeof SmartContextConfigSchema>
+export type SlimConfig = z.infer<typeof SlimConfigSchema>
 
 // ── Sub-schemas ───────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ const ProviderGuidanceSchema = z.object({
 
 // ── Root schema ───────────────────────────────────────────────────────────
 
-export const SmartContextConfigSchema = z.object({
+export const SlimConfigSchema = z.object({
   enabled: z.boolean().default(true),
   maxRepoMapTokens: z.number().int().positive().default(4000),
   maxInjectionTokens: z.number().int().positive().default(8000),
@@ -38,12 +38,12 @@ export const SmartContextConfigSchema = z.object({
   providerGuidance: ProviderGuidanceSchema.default({}),
 }).default({})
 
-export type SmartContextConfigInput = z.input<typeof SmartContextConfigSchema>
+export type SlimConfigInput = z.input<typeof SlimConfigSchema>
 
 /**
  * Produce the fully-resolved default configuration.
  * This is the single source of truth — `types.ts` imports this value.
  */
-export function produceDefaults(): SmartContextConfig {
-  return SmartContextConfigSchema.parse({}) as SmartContextConfig
+export function produceDefaults(): SlimConfig {
+  return SlimConfigSchema.parse({}) as SlimConfig
 }

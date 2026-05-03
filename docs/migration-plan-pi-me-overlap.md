@@ -1,8 +1,8 @@
-# Migration Plan: Move Overlap from pi-me → pi-smart-context
+# Migration Plan: Move Overlap from pi-me → pi-slim
 
 **Date:** 2026-05-03
-**Goal:** Smaller pi-me, smarter pi-smart-context
-**Strategy:** Move context-injection infrastructure from pi-me into pi-smart-context, then enrich pi-smart-context with unified injection orchestration
+**Goal:** Smaller pi-me, smarter pi-slim
+**Strategy:** Move context-injection infrastructure from pi-me into pi-slim, then enrich pi-slim with unified injection orchestration
 
 ---
 
@@ -12,14 +12,14 @@ After deep-diving both codebases, I identified **7 areas of genuine overlap** pl
 
 ### Genuine Overlap (migration candidates)
 
-| # | Feature | pi-me file | pi-smart-context analog | Migration direction |
+| # | Feature | pi-me file | pi-slim analog | Migration direction |
 |---|---------|-----------|------------------------|-------------------|
-| 1 | System prompt augmentation | `foundation/extra-context-files.ts` | `index.ts` → `before_agent_start` handler | **Merge into pi-smart-context** |
-| 2 | Provider-specific guidance injection | `session-lifecycle/agent-guidance/` | `index.ts` → `before_agent_start` handler | **Merge into pi-smart-context** |
-| 3 | Config loading (typed) | `shared/pi-config.ts` | Inline `DEFAULT_CONFIG` in `types.ts` | **Adopt pattern in pi-smart-context** |
-| 4 | State file persistence | `shared/ext-state.ts` | `store.ts` + `stats.ts` (stats.jsonl) | **Unify under pi-smart-context** |
-| 5 | File path detection from tool output | `core-tools/file-collector/` | `context-injector.ts` (message-only regex) | **Adopt pattern in pi-smart-context** |
-| 6 | Background notification | `shared/notify-utils.ts` | `stats.ts` UI notifications | **Adopt pattern in pi-smart-context** |
+| 1 | System prompt augmentation | `foundation/extra-context-files.ts` | `index.ts` → `before_agent_start` handler | **Merge into pi-slim** |
+| 2 | Provider-specific guidance injection | `session-lifecycle/agent-guidance/` | `index.ts` → `before_agent_start` handler | **Merge into pi-slim** |
+| 3 | Config loading (typed) | `shared/pi-config.ts` | Inline `DEFAULT_CONFIG` in `types.ts` | **Adopt pattern in pi-slim** |
+| 4 | State file persistence | `shared/ext-state.ts` | `store.ts` + `stats.ts` (stats.jsonl) | **Unify under pi-slim** |
+| 5 | File path detection from tool output | `core-tools/file-collector/` | `context-injector.ts` (message-only regex) | **Adopt pattern in pi-slim** |
+| 6 | Background notification | `shared/notify-utils.ts` | `stats.ts` UI notifications | **Adopt pattern in pi-slim** |
 | 7 | Event-based context hooks | `context-pruning/events/context.ts` | `index.ts` → `context` handler | **Unify injection pipeline** |
 
 ### False Overlap (keep separate)
@@ -49,16 +49,16 @@ After deep-diving both codebases, I identified **7 areas of genuine overlap** pl
 
 ---
 
-### Phase 1: Absorb System Prompt Augmentation (pi-smart-context v0.2)
+### Phase 1: Absorb System Prompt Augmentation (pi-slim v0.2)
 
-**What:** Move `extra-context-files.ts` + `agent-guidance/agent-guidance.ts` logic into pi-smart-context.
+**What:** Move `extra-context-files.ts` + `agent-guidance/agent-guidance.ts` logic into pi-slim.
 
-**Why:** Both systems already inject into `before_agent_start`. pi-smart-context currently only injects `<repo-map>`. Adding file-based and provider-based augmentation creates a unified injection pipeline.
+**Why:** Both systems already inject into `before_agent_start`. pi-slim currently only injects `<repo-map>`. Adding file-based and provider-based augmentation creates a unified injection pipeline.
 
 #### 1A: Multi-source Context File Injection
 
 **Source:** `pi-me/foundation/extra-context-files.ts`
-**Target:** `pi-smart-context/src/context-files.ts`
+**Target:** `pi-slim/src/context-files.ts`
 
 **Key logic to port:**
 
@@ -71,7 +71,7 @@ After deep-diving both codebases, I identified **7 areas of genuine overlap** pl
 // 5. Append to systemPrompt in before_agent_start
 ```
 
-**Integration into pi-smart-context:**
+**Integration into pi-slim:**
 
 ```typescript
 // src/index.ts — unified before_agent_start pipeline
@@ -92,12 +92,12 @@ before_agent_start → {
 
 **Dependency:**
 - pi-me must remove the extension path from `package.json` `pi.extensions`
-- pi-smart-context becomes a required dependency for users who relied on AGENTS.local.md injection
+- pi-slim becomes a required dependency for users who relied on AGENTS.local.md injection
 
 #### 1B: Provider-Specific Guidance Injection
 
 **Source:** `pi-me/session-lifecycle/agent-guidance/agent-guidance.ts`
-**Target:** `pi-smart-context/src/provider-guidance.ts`
+**Target:** `pi-slim/src/provider-guidance.ts`
 
 **Key logic to port:**
 
@@ -117,20 +117,20 @@ before_agent_start → {
 - `session-lifecycle/agent-guidance/agent-guidance.ts`
 
 **Config to port:**
-- `agent-guidance.json` loading → move to pi-smart-context config schema
+- `agent-guidance.json` loading → move to pi-slim config schema
 
 ---
 
-### Phase 2: Typed Config + State Tools (pi-smart-context v0.3)
+### Phase 2: Typed Config + State Tools (pi-slim v0.3)
 
 **What:** Adopt pi-me's proven utility patterns.
 
 #### 2A: Typed Configuration (pi-config pattern)
 
 **Source:** `pi-me/shared/pi-config.ts`
-**Target:** `pi-smart-context/src/config.ts`
+**Target:** `pi-slim/src/config.ts`
 
-**Current state in pi-smart-context:**
+**Current state in pi-slim:**
 ```typescript
 // types.ts — inline constants, no validation
 export const DEFAULT_CONFIG = { ... }
@@ -161,14 +161,14 @@ export function loadConfig(projectRoot?: string): SmartContextConfig
 - `src/config.ts` — Extracted from shared/pi-config.ts pattern + enhanced
 
 **Add dependency:**
-- `zod` to pi-smart-context `package.json`
+- `zod` to pi-slim `package.json`
 
 #### 2B: Event Auditing (ext-state pattern)
 
 **Source:** `pi-me/shared/ext-state.ts`
-**Target:** `pi-smart-context/src/state.ts`
+**Target:** `pi-slim/src/state.ts`
 
-**Current state in pi-smart-context:**
+**Current state in pi-slim:**
 ```typescript
 // stats.ts — appends to stats.jsonl with fire-and-forget
 stats.persist(projectRoot)  // custom path logic
@@ -177,24 +177,24 @@ stats.persist(projectRoot)  // custom path logic
 **Enhanced state:**
 ```typescript
 // state.ts — standard read/write/remove pattern
-readExtState("smart-context")   // returns any
-writeExtState("smart-context", data)
+readExtState("slim")   // returns any
+writeExtState("slim", data)
 ```
 
 Keep the stats pipeline but standardize the persistence layer:
 - `stats.ts` → uses `state.ts` internally
-- `.pi/smart-context/stats.jsonl` → stays as-is (append-only log)
-- `.pi/smart-context/index.json` → stays (already versioned)
-- New: `.pi/smart-context/state.json` → runtime state (last session stats, etc.)
+- `.pi/slim/stats.jsonl` → stays as-is (append-only log)
+- `.pi/slim/index.json` → stays (already versioned)
+- New: `.pi/slim/state.json` → runtime state (last session stats, etc.)
 
 **New files:**
-- `src/state.ts` — Wraps ext-state.ts pattern for pi-smart-context
+- `src/state.ts` — Wraps ext-state.ts pattern for pi-slim
 
 ---
 
-### Phase 3: Unify Context Injection Pipeline (pi-smart-context v0.4)
+### Phase 3: Unify Context Injection Pipeline (pi-slim v0.4)
 
-**What:** pi-smart-context becomes the single orchestrator for all context injections before LLM calls.
+**What:** pi-slim becomes the single orchestrator for all context injections before LLM calls.
 
 #### Current state (fragmented across 2 codebases):
 
@@ -202,24 +202,24 @@ Keep the stats pipeline but standardize the persistence layer:
 pi extension lifecycle (per-LLM-call):
 
   context event triggered
-    ├── pi-smart-context: injects <dep-context> (code skeletons of mentioned files)
+    ├── pi-slim: injects <dep-context> (code skeletons of mentioned files)
     ├── context-pruning: deduplicates/supersedes/error-purges messages
     ├── memory: injects <memory> block (facts/lessons)
     └── (no coordination between them)
 
   before_agent_start event triggered
-    ├── pi-smart-context: injects <repo-map>
+    ├── pi-slim: injects <repo-map>
     ├── extra-context-files: injects AGENTS.local.md
     ├── agent-guidance: injects CLAUDE.md/CODEX.md/GEMINI.md
     ├── memory: injects memory block
     └── (multiple append operations, no ordering)
 ```
 
-#### Target state (pi-smart-context as orchestrator):
+#### Target state (pi-slim as orchestrator):
 
 ```
 before_agent_start:
-  └── pi-smart-context orchestrator:
+  └── pi-slim orchestrator:
       1. Build token budget remaining (configurable)
       2. Collect all injection sources:
          a. <repo-map>              — file skeleton map
@@ -232,7 +232,7 @@ before_agent_start:
       6. Return { systemPrompt }
 
 context event:
-  └── pi-smart-context delegates:
+  └── pi-slim delegates:
       1. Run dep-context detection (file mentions → <dep-context>)
       2. Call registered external hooks (context-pruning, memory injector)
       3. Compose final message array
@@ -240,9 +240,9 @@ context event:
 ```
 
 **Key architectural change:**
-- pi-smart-context exports an `InjectionPipeline` interface that other extensions can register hooks on
+- pi-slim exports an `InjectionPipeline` interface that other extensions can register hooks on
 - pi-me's remaining context-injecting extensions (memory, context-pruning) become optional hooks
-- pi-smart-context manages the merge/priority/trim logic centrally
+- pi-slim manages the merge/priority/trim logic centrally
 
 **New files:**
 - `src/pipeline.ts` — Injection orchestration
@@ -250,16 +250,16 @@ context event:
 
 ---
 
-### Phase 4: Smarter File Detection (pi-smart-context v0.5)
+### Phase 4: Smarter File Detection (pi-slim v0.5)
 
-**What:** Enhance pi-smart-context's file path detection to cover more sources.
+**What:** Enhance pi-slim's file path detection to cover more sources.
 
 #### 4A: Tool Output Scanning (file-collector pattern)
 
 **Source:** `pi-me/core-tools/file-collector/extension.ts`
-**Target:** `pi-smart-context/src/file-detector.ts`
+**Target:** `pi-slim/src/file-detector.ts`
 
-**Current pi-smart-context detection:**
+**Current pi-slim detection:**
 ```typescript
 // context-injector.ts — regex on user messages only
 const FILE_PATH_RE = /(?:^|[\s'"`(])([./\w-]+\/[\w./-]+\.(?:tsx|ts|py|rs))/g
@@ -281,7 +281,7 @@ const FILE_PATH_RE = /(?:^|[\s'"`(])([./\w-]+\/[\w./-]+\.(?:tsx|ts|py|rs))/g
 #### 4B: Bash File Reference Parsing
 
 **Source:** `pi-me/core-tools/file-collector/extension.ts` (bashShimCommands)
-**Target:** `pi-smart-context/src/file-detector.ts`
+**Target:** `pi-slim/src/file-detector.ts`
 
 Parse `read`, `write`, `edit`, `bash` tool invocations for file path arguments:
 - `read("src/foo.ts")` → detect `src/foo.ts`
@@ -291,14 +291,14 @@ Parse `read`, `write`, `edit`, `bash` tool invocations for file path arguments:
 
 ---
 
-### Phase 5: Notifications & Diagnostics (pi-smart-context v0.6)
+### Phase 5: Notifications & Diagnostics (pi-slim v0.6)
 
 **What:** Cherry-pick pi-me's notification patterns.
 
 #### 5A: Background Notify
 
 **Source:** `pi-me/shared/notify-utils.ts`
-**Target:** `pi-smart-context/src/notify.ts`
+**Target:** `pi-slim/src/notify.ts`
 
 Port the notification capability (beep, OS focus, say) as optional diagnostics for:
 - Index build completion
@@ -325,16 +325,16 @@ After each phase, remove the migrated extension from pi-me:
 | 2A | `shared/pi-config.ts` (if fully ported) | ~120 lines |
 | 2B | `shared/ext-state.ts` (if fully ported) | ~140 lines |
 | 3 | `context-pruning/` event hooks (simplified to hook-only) | TBD |
-| 4A | `core-tools/file-collector/` (if replaced by pi-smart-context) | ~200 lines |
+| 4A | `core-tools/file-collector/` (if replaced by pi-slim) | ~200 lines |
 
 **Total estimated pi-me reduction: ~700+ lines of extension code + package.json entries**
 
 ---
 
-## File Map: Target pi-smart-context Structure
+## File Map: Target pi-slim Structure
 
 ```
-pi-smart-context/
+pi-slim/
 ├── src/
 │   ├── index.ts                  # Extension entry → unified pipeline orchestrator
 │   ├── config.ts                 # Typed config loading (zod schema + JSONC)
@@ -363,7 +363,7 @@ pi-smart-context/
 │
 ├── tests/                        # Existing + new
 ├── docs/
-│   ├── smart-context-skill.md    # Update skill description
+│   ├── slim-skill.md    # Update skill description
 │   └── migration-plan-pi-me-overlap.md  # This document
 │
 ├── package.json
@@ -375,7 +375,7 @@ pi-smart-context/
 
 ## Dependency Changes
 
-### pi-smart-context additions
+### pi-slim additions
 
 | Package | Used by | Phase |
 |---------|---------|-------|
@@ -397,12 +397,12 @@ pi-smart-context/
 
 Each phase produces a working, testable increment:
 
-| Phase | pi-smart-context version | pi-me version | Verification |
+| Phase | pi-slim version | pi-me version | Verification |
 |-------|-------------------------|---------------|-------------|
 | 0 | v0.1 (current) | v0.2 (current) | Both pass existing tests |
-| 1A | v0.2-alpha | v0.2-slim | AGENTS.local.md injected by smart-context instead of pi-me |
-| 1B | v0.2-beta | v0.2-slim | CLAUDE.md/CODEX.md/GEMINI.md injected by smart-context |
-| 2A | v0.3 | v0.2-slim | JSONC .pi/smart-context.json config works |
+| 1A | v0.2-alpha | v0.2-slim | AGENTS.local.md injected by slim instead of pi-me |
+| 1B | v0.2-beta | v0.2-slim | CLAUDE.md/CODEX.md/GEMINI.md injected by slim |
+| 2A | v0.3 | v0.2-slim | JSONC .pi/slim.json config works |
 | 2B | v0.3 | v0.2-slim | ext-state path works; old stats.jsonl still works |
 | 3 | v0.4 | v0.2-slim | All context injection flows through pipeline |
 | 4 | v0.5 | v0.2-slim | File detection from tool output works |
@@ -413,11 +413,11 @@ Each phase produces a working, testable increment:
 
 For each phase, users see:
 1. **Before:** pi-me injects AGENTS.local.md (for example)
-2. **Migration window:** Both pi-me and pi-smart-context have the feature (dual injection)
+2. **Migration window:** Both pi-me and pi-slim have the feature (dual injection)
 3. **After upgrade:** User runs `pi update pi-me` to get v0.2-slim (feature removed from pi-me)
-4. **Cleanup:** pi-smart-context handles it alone
+4. **Cleanup:** pi-slim handles it alone
 
-**Dual-injection guard:** pi-smart-context checks if pi-me is installed and skips features that pi-me still handles during the migration window.
+**Dual-injection guard:** pi-slim checks if pi-me is installed and skips features that pi-me still handles during the migration window.
 
 ---
 
@@ -426,7 +426,7 @@ For each phase, users see:
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
 | Dual injection (both extensions add same content) | High | Context bloat | Version negotiation or env-var guard during migration |
-| pi-me users who don't install pi-smart-context lose features | Medium | Missing context files | Announcement + migration guide; extend pi-me deprecation window |
+| pi-me users who don't install pi-slim lose features | Medium | Missing context files | Announcement + migration guide; extend pi-me deprecation window |
 | import resolution in shared config migrates poorly | Low | Config breakage | Full test suite for config parser |
 | Tree-sitter version conflict with other pi packages | Low | Build failure | Pin tree-sitter version; use bundled grammars |
 | Pipeline orchestration introduces latency | Medium | Slower agent start | Keep pipeline sync; benchmark trim step |
@@ -435,9 +435,9 @@ For each phase, users see:
 
 ## Success Criteria
 
-pi-smart-context v0.6 is complete when:
+pi-slim v0.6 is complete when:
 
-1. **All context injections** (repo-map, dep-context, context-files, provider-guidance) flow through a single pi-smart-context pipeline
+1. **All context injections** (repo-map, dep-context, context-files, provider-guidance) flow through a single pi-slim pipeline
 2. **pi-me is smaller** — at least 4 extension files removed, ~700 fewer lines
 3. **Existing test suites pass** for both packages
 4. **No duplicate context injection** — the same file/clause never appears twice
@@ -456,12 +456,12 @@ Extensions hooking before_agent_start in pi-me:
   - foundation/extra-context-files.ts
   - session-lifecycle/agent-guidance/agent-guidance.ts
   - core-tools/memory/index.ts
-  - (smart-context hooks this externally)
+  - (slim hooks this externally)
 
 Extensions hooking context event in pi-me:
   - session-lifecycle/context-pruning/index.ts
   - core-tools/memory/index.ts
-  - (smart-context hooks this externally)
+  - (slim hooks this externally)
 
 Total: 2 (soon 4) extensions sharing the same 2 lifecycle events
 ```

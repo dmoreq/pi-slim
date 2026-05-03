@@ -35,7 +35,7 @@ describe('state persistence (async)', () => {
 
   it('writes to correct path', async () => {
     await writeState(tmpDir, { foo: 'bar' })
-    const raw = await readFile(join(tmpDir, '.pi', 'smart-context', 'state.json'), 'utf-8')
+    const raw = await readFile(join(tmpDir, '.pi', 'slim', 'state.json'), 'utf-8')
     expect(JSON.parse(raw)).toEqual({ foo: 'bar' })
   })
 

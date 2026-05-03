@@ -9,7 +9,7 @@
 
 ```bash
 git clone <your-fork>
-cd pi-smart-context
+cd pi-slim
 npm install --legacy-peer-deps
 npm run build
 ```
@@ -123,4 +123,4 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ## Questions?
 
-Open a [GitHub Issue](https://github.com/dmoreq/pi-smart-context/issues).
+Open a [GitHub Issue](https://github.com/dmoreq/pi-slim/issues).

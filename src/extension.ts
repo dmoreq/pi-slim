@@ -1,5 +1,5 @@
 /**
- * @pi/smart-context — pi agent extension
+ * pi-slim — pi agent extension
  *
  * Thin lifecycle wiring. All business logic lives in SessionManager.
  * Adding a new injection source? Add a handler to INJECTION_HANDLERS
@@ -22,19 +22,19 @@ interface ExtensionAPI {
 // ── Flag definitions (static) ─────────────────────────────────────────────
 
 const FLAGS: Array<{ name: string; description: string }> = [
-  { name: 'smart-context.enabled',              description: 'Inject repo map and dependency skeletons into every LLM call' },
-  { name: 'smart-context.maxRepoMapTokens',     description: 'Token budget for the global repo map (injected into system prompt)' },
-  { name: 'smart-context.maxInjectionTokens',   description: 'Token budget for per-turn dependency skeleton injection' },
-  { name: 'smart-context.scanLastNMessages',    description: 'How many recent messages to scan for file path mentions' },
-  { name: 'smart-context.contextFiles.enabled', description: 'Inject project-local context files into system prompt' },
-  { name: 'smart-context.contextFiles.filenames', description: 'Comma-separated context file names to search for' },
-  { name: 'smart-context.providerGuidance.enabled', description: 'Inject provider-specific guidance files' },
-  { name: 'smart-context.config',               description: 'Path to JSONC config file' },
+  { name: 'slim.enabled',              description: 'Inject repo map and dependency skeletons into every LLM call' },
+  { name: 'slim.maxRepoMapTokens',     description: 'Token budget for the global repo map (injected into system prompt)' },
+  { name: 'slim.maxInjectionTokens',   description: 'Token budget for per-turn dependency skeleton injection' },
+  { name: 'slim.scanLastNMessages',    description: 'How many recent messages to scan for file path mentions' },
+  { name: 'slim.contextFiles.enabled', description: 'Inject project-local context files into system prompt' },
+  { name: 'slim.contextFiles.filenames', description: 'Comma-separated context file names to search for' },
+  { name: 'slim.providerGuidance.enabled', description: 'Inject provider-specific guidance files' },
+  { name: 'slim.config',               description: 'Path to JSONC config file' },
 ]
 
 function registerFlags(pi: ExtensionAPI): void {
   const defs = produceDefaults()
-  pi.setLabel('Smart Context')
+  pi.setLabel('Slim')
   for (const { name, description } of FLAGS) {
     const val = name.split('.').reduce((o: Record<string, unknown> | undefined, k) => o?.[k] as Record<string, unknown> | undefined, defs as unknown as Record<string, unknown>)
     pi.registerFlag(name, { type: typeof val === 'boolean' ? 'boolean' : 'string', default: val ?? '', description })
@@ -48,8 +48,8 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
 
   const manager = new SessionManager()
 
-  pi.registerCommand('smart-context', {
-    description: 'Show smart-context stats for the current or last session',
+  pi.registerCommand('slim', {
+    description: 'Show slim stats for the current or last session',
     handler: async (_args: unknown, ctx: unknown) => {
       await manager.showStats(ctx as Parameters<SessionManager['showStats']>[0])
     },

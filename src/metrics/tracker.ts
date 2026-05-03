@@ -1,5 +1,5 @@
 /**
- * Session-scoped usage statistics for the smart-context extension.
+ * Session-scoped usage statistics for the slim extension.
  *
  * Tracks every injection, computes token savings vs full file reads,
  * and persists a summary to stats.jsonl + state.json.
@@ -7,7 +7,7 @@
 
 import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { smartContextDir } from '../paths.js'
+import { slimDir } from '../paths.js'
 import { writeState } from '../persistence/runtime-state.js'
 
 // ── Stored record ────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export class SessionStats {
   }
 
   report(): string {
-    const lines: string[] = ['── smart-context session stats ──────────────────']
+    const lines: string[] = ['── slim session stats ───────────────────────────']
     lines.push(`  Index source     : ${this.indexSource}`)
     lines.push(`  Files indexed    : ${this.indexedFiles}`)
     lines.push(`  Dep edges        : ${this.depEdges}`)
@@ -151,7 +151,7 @@ export class SessionStats {
   }
 
   async persist(projectRoot: string): Promise<void> {
-    const dir = smartContextDir(projectRoot)
+    const dir = slimDir(projectRoot)
     await mkdir(dir, { recursive: true })
     const line = JSON.stringify(this.toRecord()) + '\n'
     await appendFile(join(dir, 'stats.jsonl'), line, 'utf-8')

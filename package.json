@@ -1,5 +1,5 @@
 {
-  "name": "@pi/smart-context",
+  "name": "pi-slim",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/extension.js",

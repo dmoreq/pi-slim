@@ -1,5 +1,5 @@
 /**
- * SessionManager — owns all session lifecycle logic for smart-context.
+ * SessionManager — owns all session lifecycle logic for pi-slim.
  *
  * Extracted from extension.ts to satisfy SRP:
  * - extension.ts → lifecycle wiring only (< 100 lines)
@@ -8,7 +8,7 @@
 
 import { relative } from 'node:path'
 import type { RepoIndex } from './types.js'
-import { type SmartContextConfig } from './types.js'
+import { type SlimConfig } from './types.js'
 import { IndexEngine } from './indexer/engine.js'
 import { RepoMapGenerator } from './injectors/repo-map.js'
 import { ContextInjector } from './injectors/dep-context.js'
@@ -105,7 +105,7 @@ export interface SessionState {
   index: RepoIndex
   repoMap: string
   injector: ContextInjector
-  config: SmartContextConfig
+  config: SlimConfig
   stats: SessionStats
   projectRoot: string
   repoMapInjected: boolean
@@ -125,14 +125,14 @@ export class SessionManager {
   async start(projectRoot: string, getFlag: (name: string) => unknown, ctx: ExtensionContext): Promise<void> {
     const sessionId = ctx.sessionManager.getSessionId()
     const flags: Record<string, unknown> = {
-      'smart-context.enabled': getFlag('smart-context.enabled'),
-      'smart-context.maxRepoMapTokens': getFlag('smart-context.maxRepoMapTokens'),
-      'smart-context.maxInjectionTokens': getFlag('smart-context.maxInjectionTokens'),
-      'smart-context.scanLastNMessages': getFlag('smart-context.scanLastNMessages'),
-      'smart-context.contextFiles.enabled': getFlag('smart-context.contextFiles.enabled'),
-      'smart-context.providerGuidance.enabled': getFlag('smart-context.providerGuidance.enabled'),
+      'slim.enabled': getFlag('slim.enabled'),
+      'slim.maxRepoMapTokens': getFlag('slim.maxRepoMapTokens'),
+      'slim.maxInjectionTokens': getFlag('slim.maxInjectionTokens'),
+      'slim.scanLastNMessages': getFlag('slim.scanLastNMessages'),
+      'slim.contextFiles.enabled': getFlag('slim.contextFiles.enabled'),
+      'slim.providerGuidance.enabled': getFlag('slim.providerGuidance.enabled'),
     }
-    const config: SmartContextConfig = loadConfig(projectRoot, flags)
+    const config: SlimConfig = loadConfig(projectRoot, flags)
     if (!config.enabled) return
 
     const stats = new SessionStats(sessionId)
@@ -140,7 +140,7 @@ export class SessionManager {
 
     // Try loading from cache
     if (await storeExists(projectRoot)) {
-      ctx.ui.notify(nInfo('loading index from .pi/smart-context/…'), 'info')
+      ctx.ui.notify(nInfo('loading index from .pi/slim/…'), 'info')
       try {
         const { index, repoMap, builtAt, fileCount } = await loadStore(projectRoot)
         stats.indexSource = 'cache'
@@ -168,7 +168,7 @@ export class SessionManager {
       stats.indexSource = 'fresh'
       stats.indexedFiles = index.skeletons.size
       stats.depEdges = edgeCount
-      ctx.ui.notify(nSuccess(`indexed ${index.skeletons.size} files, ${edgeCount} edges → .pi/smart-context/`), 'info')
+      ctx.ui.notify(nSuccess(`indexed ${index.skeletons.size} files, ${edgeCount} edges → .pi/slim/`), 'info')
 
       const contextFiles = config.contextFiles.enabled
         ? loadContextFiles(projectRoot, { filenames: config.contextFiles.filenames })
@@ -187,7 +187,7 @@ export class SessionManager {
 
   private initState(opts: {
     index: RepoIndex; repoMap: string; injector: ContextInjector
-    config: SmartContextConfig; stats: SessionStats; projectRoot: string
+    config: SlimConfig; stats: SessionStats; projectRoot: string
     contextFiles?: ContextFile[]
   }): SessionState {
     return {
@@ -347,7 +347,7 @@ export class SessionManager {
       if (state?.lastSession) {
         const ls = state.lastSession as Record<string, unknown>
         ctx.ui.notify([
-          '── smart-context last session stats ────────────────',
+          '── slim last session stats ─────────────────────────',
           `  Session ID      : ${ls.sessionId ?? 'unknown'}`,
           `  Index source    : ${ls.indexSource ?? 'unknown'}`,
           `  Files indexed   : ${ls.indexedFiles ?? 0}`,

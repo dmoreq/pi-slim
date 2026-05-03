@@ -1,16 +1,16 @@
 /**
- * Persists the generated RepoIndex and repo map to .pi/smart-context/ inside
+ * Persists the generated RepoIndex and repo map to .pi/slim/ inside
  * the project root so they survive across sessions.
  *
  * Layout:
- *   .pi/smart-context/
+ *   .pi/slim/
  *     repo-map.txt   — the <repo-map>…</repo-map> string
  *     index.json     — serialised skeletons + dep graph + metadata
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { smartContextDir } from '../paths.js'
+import { slimDir } from '../paths.js'
 import type { RepoIndex } from '../types.js'
 
 const STORE_VERSION = 1
@@ -26,7 +26,7 @@ interface StoredIndex {
 }
 
 function storeDir(projectRoot: string): string {
-  return smartContextDir(projectRoot)
+  return slimDir(projectRoot)
 }
 
 function indexPath(projectRoot: string): string {
@@ -48,7 +48,7 @@ export async function storeExists(projectRoot: string): Promise<boolean> {
   }
 }
 
-/** Serialize and write RepoIndex + repo map to .pi/smart-context/. */
+/** Serialize and write RepoIndex + repo map to .pi/slim/. */
 export async function saveStore(
   projectRoot: string,
   index: RepoIndex,
@@ -81,7 +81,7 @@ export async function saveStore(
   ])
 }
 
-/** Load and deserialize RepoIndex + repo map from .pi/smart-context/. */
+/** Load and deserialize RepoIndex + repo map from .pi/slim/. */
 export async function loadStore(
   projectRoot: string,
 ): Promise<{ index: RepoIndex; repoMap: string; builtAt: string; fileCount: number }> {

@@ -1,4 +1,4 @@
-# @pi/smart-context
+# pi-slim
 
 **AST-powered project context for the pi coding agent.** Reduces token waste by injecting compact code skeletons (not full files) into every LLM call, automatically resolving imports and dependencies.
 
@@ -12,9 +12,9 @@
 ## Quick Start
 
 ```bash
-pi install @pi/smart-context
+pi install pi-slim
 # Or from source:
-pi install /path/to/pi-smart-context
+pi install /path/to/pi-slim
 ```
 
 Restart pi. The first session in each project will index your source files (takes ~1-2 seconds for 1,000 files). Subsequent sessions load from cache instantly.
@@ -32,7 +32,7 @@ The extension builds an **AST-based index** of all `.ts`, `.tsx`, `.py`, and `.r
 1. **Parse** — each file is parsed via [tree-sitter](https://tree-sitter.github.io/)
 2. **Extract** — only signatures are kept (function headers, class shapes, type definitions) — no bodies, no comments
 3. **Graph** — import statements are resolved into a dependency graph
-4. **Cache** — the index is saved to `.pi/smart-context/` for instant reload
+4. **Cache** — the index is saved to `.pi/slim/` for instant reload
 
 ### On every LLM call
 
@@ -58,15 +58,15 @@ The pipeline orders these by priority and trims to a shared token budget, so you
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `smart-context.enabled` | boolean | `true` | Master switch |
-| `smart-context.maxRepoMapTokens` | number | `4000` | Token budget for repo map |
-| `smart-context.maxInjectionTokens` | number | `8000` | Token budget for per-turn dep-context |
-| `smart-context.scanLastNMessages` | number | `10` | Messages to scan for file mentions |
-| `smart-context.contextFiles.enabled` | boolean | `true` | Load AGENTS.local.md etc. |
-| `smart-context.contextFiles.filenames` | string | `AGENTS.local.md,CLAUDE.local.md` | Comma-separated filenames |
-| `smart-context.providerGuidance.enabled` | boolean | `true` | Load CLAUDE.md/CODEX.md/GEMINI.md |
+| `slim.enabled` | boolean | `true` | Master switch |
+| `slim.maxRepoMapTokens` | number | `4000` | Token budget for repo map |
+| `slim.maxInjectionTokens` | number | `8000` | Token budget for per-turn dep-context |
+| `slim.scanLastNMessages` | number | `10` | Messages to scan for file mentions |
+| `slim.contextFiles.enabled` | boolean | `true` | Load AGENTS.local.md etc. |
+| `slim.contextFiles.filenames` | string | `AGENTS.local.md,CLAUDE.local.md` | Comma-separated filenames |
+| `slim.providerGuidance.enabled` | boolean | `true` | Load CLAUDE.md/CODEX.md/GEMINI.md |
 
-### Config file (`.pi/smart-context.jsonc`)
+### Config file (`.pi/slim.jsonc`)
 
 Project-local config with comments:
 
@@ -81,7 +81,7 @@ Project-local config with comments:
 }
 ```
 
-Global config at `~/.pi/agent/smart-context.jsonc` overrides defaults; project config overrides global.
+Global config at `~/.pi/agent/slim.jsonc` overrides defaults; project config overrides global.
 
 ---
 

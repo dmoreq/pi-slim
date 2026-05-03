@@ -1,5 +1,5 @@
 /**
- * Notification utilities for pi-smart-context.
+ * Notification utilities for pi-slim.
  *
  * Provides consistent formatting for TUI notifications and a status bar
  * entry that displays live context injection stats.
@@ -12,7 +12,7 @@
 
 // ── Prefix ─────────────────────────────────────────────────────────────────
 
-const PREFIX = '[smart-context]'
+const PREFIX = '[slim]'
 
 // ── Message formatting ─────────────────────────────────────────────────────
 

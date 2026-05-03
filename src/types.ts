@@ -11,7 +11,7 @@ export interface RepoIndex {
   reverseDeps: Map<string, Set<string>>
 }
 
-export interface SmartContextConfig {
+export interface SlimConfig {
   enabled: boolean
   maxRepoMapTokens: number
   maxInjectionTokens: number

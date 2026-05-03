@@ -3,7 +3,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { loadConfig } from '../../src/config/loader.js'
-import { SmartContextConfigSchema } from '../../src/config/schema.js'
+import { SlimConfigSchema } from '../../src/config/schema.js'
 
 let tmpDir: string
 
@@ -32,9 +32,9 @@ describe('loadConfig', () => {
     expect(config.providerGuidance.enabled).toBe(true)
   })
 
-  it('reads project-local .pi/smart-context.jsonc', async () => {
+  it('reads project-local .pi/slim.jsonc', async () => {
     await writeProjectConfig(
-      '.pi/smart-context.jsonc',
+      '.pi/slim.jsonc',
       JSON.stringify({ maxRepoMapTokens: 6000, contextFiles: { enabled: false } }),
     )
     const config = loadConfig(tmpDir)
@@ -47,7 +47,7 @@ describe('loadConfig', () => {
 
   it('handles JSONC with comments and trailing commas', async () => {
     await writeProjectConfig(
-      '.pi/smart-context.jsonc',
+      '.pi/slim.jsonc',
       '{\n  // My config\n  "maxRepoMapTokens": 3000,\n  "exclude": ["**/vendor/**",],\n}',
     )
     const config = loadConfig(tmpDir)
@@ -57,12 +57,12 @@ describe('loadConfig', () => {
 
   it('applies CLI flag overrides on top of project config', async () => {
     await writeProjectConfig(
-      '.pi/smart-context.jsonc',
+      '.pi/slim.jsonc',
       JSON.stringify({ maxRepoMapTokens: 5000, contextFiles: { enabled: false } }),
     )
     const config = loadConfig(tmpDir, {
-      'smart-context.enabled': false,
-      'smart-context.contextFiles.enabled': true,
+      'slim.enabled': false,
+      'slim.contextFiles.enabled': true,
     })
     // Flag overrides both defaults and project config
     expect(config.enabled).toBe(false)
@@ -73,7 +73,7 @@ describe('loadConfig', () => {
 
   it('validates config and throws on invalid values', async () => {
     await writeProjectConfig(
-      '.pi/smart-context.jsonc',
+      '.pi/slim.jsonc',
       JSON.stringify({ maxRepoMapTokens: -1 }),
     )
     expect(() => loadConfig(tmpDir)).toThrow()
@@ -81,24 +81,24 @@ describe('loadConfig', () => {
 
   it('applies flag overrides on top of defaults alone', () => {
     const config = loadConfig(tmpDir, {
-      'smart-context.enabled': false,
-      'smart-context.maxRepoMapTokens': 9999,
+      'slim.enabled': false,
+      'slim.maxRepoMapTokens': 9999,
     })
     expect(config.enabled).toBe(false)
     expect(config.maxRepoMapTokens).toBe(9999)
   })
 })
 
-describe('SmartContextConfigSchema', () => {
+describe('SlimConfigSchema', () => {
   it('parses an empty object with all defaults', () => {
-    const result = SmartContextConfigSchema.parse({})
+    const result = SlimConfigSchema.parse({})
     expect(result.enabled).toBe(true)
     expect(result.contextFiles.filenames).toContain('AGENTS.local.md')
     expect(result.providerGuidance.enabled).toBe(true)
   })
 
   it('merges partial nested objects', () => {
-    const result = SmartContextConfigSchema.parse({
+    const result = SlimConfigSchema.parse({
       contextFiles: { enabled: false },
     })
     expect(result.contextFiles.enabled).toBe(false)
@@ -108,7 +108,7 @@ describe('SmartContextConfigSchema', () => {
 
   it('rejects negative integers', () => {
     expect(() =>
-      SmartContextConfigSchema.parse({ maxInjectionTokens: -100 }),
+      SlimConfigSchema.parse({ maxInjectionTokens: -100 }),
     ).toThrow()
   })
 })

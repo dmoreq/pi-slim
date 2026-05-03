@@ -5,7 +5,7 @@
 ### Via pi CLI
 
 ```bash
-pi install @pi/smart-context
+pi install @pi/slim
 ```
 
 ### Via settings.json
@@ -14,17 +14,17 @@ Add to `~/.pi/agent/settings.json`:
 
 ```json
 {
-  "packages": ["@pi/smart-context"]
+  "packages": ["@pi/slim"]
 }
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/dmoreq/pi-smart-context.git
-cd pi-smart-context
+git clone https://github.com/dmoreq/pi-slim.git
+cd pi-slim
 npm install && npm run build
-pi install ./path/to/pi-smart-context
+pi install ./path/to/pi-slim
 ```
 
 ## First Run
@@ -32,14 +32,14 @@ pi install ./path/to/pi-smart-context
 On the first `pi` session in a project, you'll see:
 
 ```
-[smart-context] first run — indexing project (this takes a few seconds)…
-[smart-context] ✓ indexed 1,234 files, 567 edges → .pi/smart-context/
+[slim] first run — indexing project (this takes a few seconds)…
+[slim] ✓ indexed 1,234 files, 567 edges → .pi/slim/
 ```
 
 Subsequent sessions load instantly from cache:
 
 ```
-[smart-context] ✓ 1,234 files loaded (built May 3 2026)
+[slim] ✓ 1,234 files loaded (built May 3 2026)
 ```
 
 ## What Gets Injected
@@ -103,13 +103,13 @@ Additional project instructions and guidelines:
 ### Layer priority
 
 1. **CLI flags** (highest) — set via `pi` config or command-line
-2. **Project config** — `.pi/smart-context.jsonc`
-3. **Global config** — `~/.pi/agent/smart-context.jsonc`
+2. **Project config** — `.pi/slim.jsonc`
+3. **Global config** — `~/.pi/agent/slim.jsonc`
 4. **Defaults** — hardcoded in `config/schema.ts`
 
 ### JSONC Config Format
 
-Global config (`~/.pi/agent/smart-context.jsonc`):
+Global config (`~/.pi/agent/slim.jsonc`):
 
 ```jsonc
 {
@@ -121,7 +121,7 @@ Global config (`~/.pi/agent/smart-context.jsonc`):
 }
 ```
 
-Project config (`.pi/smart-context.jsonc`):
+Project config (`.pi/slim.jsonc`):
 
 ```jsonc
 {
@@ -154,12 +154,12 @@ The combined budget for `before_agent_start` is `maxRepoMapTokens + maxInjection
 
 ## Commands
 
-### `/smart-context`
+### `/slim`
 
 Shows injection statistics for the current or last session:
 
 ```
-── smart-context session stats ──────────────────
+── slim session stats ──────────────────
   Index source     : fresh
   Files indexed    : 1,234
   Dep edges        : 567
@@ -181,7 +181,7 @@ Shows injection statistics for the current or last session:
 Large projects (10,000+ files) take longer. The cache reduces subsequent sessions to near-instant:
 
 ```
-[smart-context] first run — indexing project…
+[slim] first run — indexing project…
 # Wait 3-5 seconds for large projects. Subsequent sessions are instant.
 ```
 
@@ -205,7 +205,7 @@ If a file isn't detected, check:
 
 ### Seeing duplicate context
 
-If you also have `pi-me` installed, you may get duplicate injection of `AGENTS.local.md` and `CLAUDE.md`. This is because pi-me's `extra-context-files` and `agent-guidance` were migrated into pi-smart-context. Update pi-me to the latest version which no longer includes those extensions:
+If you also have `pi-me` installed, you may get duplicate injection of `AGENTS.local.md` and `CLAUDE.md`. This is because pi-me's `extra-context-files` and `agent-guidance` were migrated into pi-slim. Update pi-me to the latest version which no longer includes those extensions:
 
 ```bash
 pi update pi-me
@@ -222,6 +222,6 @@ pi update pi-me
 ## Uninstalling
 
 ```bash
-pi uninstall @pi/smart-context
-rm -rf .pi/smart-context/  # Remove cached index (optional)
+pi uninstall @pi/slim
+rm -rf .pi/slim/  # Remove cached index (optional)
 ```

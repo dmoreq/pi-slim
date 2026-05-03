@@ -1,16 +1,16 @@
 /**
- * Unified path constants for the smart-context data directory.
+ * Unified path constants for the slim data directory.
  *
- * All persistence paths derive from `SMART_CONTEXT_DIR` so a single
+ * All persistence paths derive from `SLIM_DIR` so a single
  * change propagates everywhere.
  */
 
 import { join } from 'node:path'
 
-/** Relative path from project root to the smart-context data directory. */
-export const SMART_CONTEXT_DIR = join('.pi', 'smart-context')
+/** Relative path from project root to the slim data directory. */
+export const SLIM_DIR = join('.pi', 'slim')
 
-/** Absolute path to the smart-context data directory for a project. */
-export function smartContextDir(projectRoot: string): string {
-  return join(projectRoot, SMART_CONTEXT_DIR)
+/** Absolute path to the slim data directory for a project. */
+export function slimDir(projectRoot: string): string {
+  return join(projectRoot, SLIM_DIR)
 }
