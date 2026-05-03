@@ -20,6 +20,7 @@ import { extractText, extractInjectedFilePaths } from './shared/message.js'
 import { estimateTokens } from './shared/token.js'
 import { loadContextFiles, formatContextSection, buildStartupNotification, type ContextFile } from './injectors/context-files.js'
 import { loadProviderGuidance, formatProviderGuidanceSection, buildGuidanceNotification, type ProviderGuidanceFile } from './injectors/guidance.js'
+import { getTelemetry } from 'pi-telemetry'
 import { detectPathsInToolCall, detectPathsInOutput } from './detect/file-detector.js'
 import { info as nInfo, warn as nWarn, error as nError, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
 import { loadConfig } from './config/loader.js'
@@ -70,6 +71,8 @@ const INJECTION_HANDLERS: Record<string, InjectionHandler> = {
     onInject: (s, e) => {
       s.repoMapInjected = true
       s.stats.recordRepoMapInjection(e.tokens)
+      getTelemetry()?.recordToolInvocation('pi-slim', 'repo-map')
+      getTelemetry()?.recordToolResult('pi-slim', 'repo-map', 0, false)
     },
     onTrimmed: () => {},
   },
@@ -82,19 +85,25 @@ const INJECTION_HANDLERS: Record<string, InjectionHandler> = {
           nInfo(buildGuidanceNotification(s.providerGuidanceFiles, s.projectRoot)),
           'info',
         )
+        getTelemetry()?.recordToolInvocation('pi-slim', 'provider-guidance')
+        getTelemetry()?.recordToolResult('pi-slim', 'provider-guidance', 0, false)
       }
     },
     onTrimmed: (s, e, ctx) => {
       ctx.ui.notify(nWarn(`${e.name} trimmed (${e.tokens} tokens > budget)`), 'warn')
+      getTelemetry()?.recordError('pi-slim', 'trimmed', `${e.name} trimmed (${e.tokens} tokens > budget)`)
     },
   },
   'context-files': {
     onInject: (s, e) => {
       s.contextFilesInjected = true
       s.stats.recordContextFilesInjection(e.tokens, s.contextFiles.length)
+      getTelemetry()?.recordToolInvocation('pi-slim', 'context-files')
+      getTelemetry()?.recordToolResult('pi-slim', 'context-files', 0, false)
     },
     onTrimmed: (s, e, ctx) => {
       ctx.ui.notify(nWarn(`${e.name} trimmed (${e.tokens} tokens > budget)`), 'warn')
+      getTelemetry()?.recordError('pi-slim', 'trimmed', `${e.name} trimmed (${e.tokens} tokens > budget)`)
     },
   },
 }
@@ -138,6 +147,16 @@ export class SessionManager {
     const stats = new SessionStats(sessionId)
     const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
 
+    // Register pi-slim package with telemetry
+    const t = getTelemetry()
+    t?.register({
+      name: 'pi-slim',
+      version: '0.1.0',
+      description: 'AST-powered slim context injection for pi',
+      tools: ['repo-map', 'dep-context', 'context-files', 'provider-guidance'],
+      events: ['session_start', 'before_agent_start', 'context', 'session_shutdown'],
+    })
+
     // Try loading from cache
     if (await storeExists(projectRoot)) {
       ctx.ui.notify(nInfo('loading index from .pi/slim/…'), 'info')
@@ -149,8 +168,10 @@ export class SessionManager {
         ctx.ui.notify(nSuccess(`${fileCount} files loaded (built ${new Date(builtAt).toLocaleDateString()})`), 'info')
         this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot })
         this.updateStatusBar(ctx)
+        t?.heartbeat('pi-slim', { status: 'healthy' })
         return
       } catch (err) {
+        t?.recordError('pi-slim', 'cache_corrupt', `Store corrupted: ${String(err)}`)
         ctx.ui.notify(nWarn(`store corrupted, rebuilding… (${String(err)})`), 'warn')
       }
     }
@@ -168,6 +189,7 @@ export class SessionManager {
       stats.indexSource = 'fresh'
       stats.indexedFiles = index.skeletons.size
       stats.depEdges = edgeCount
+      t?.heartbeat('pi-slim', { status: 'healthy' })
       ctx.ui.notify(nSuccess(`indexed ${index.skeletons.size} files, ${edgeCount} edges → .pi/slim/`), 'info')
 
       const contextFiles = config.contextFiles.enabled
@@ -180,6 +202,8 @@ export class SessionManager {
       this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot, contextFiles })
       this.updateStatusBar(ctx)
     } catch (err) {
+      t?.recordError('pi-slim', 'index_failed', `Indexing failed: ${String(err)}`)
+      t?.heartbeat('pi-slim', { status: 'error', error: `Indexing failed: ${String(err)}` })
       ctx.ui.notify(nError(`indexing failed: ${String(err)}`), 'error')
       this.state = null
     }
@@ -311,6 +335,10 @@ export class SessionManager {
       }
     }
     s.stats.recordDepContextInjection(files, tokens, fullTokens)
+
+    // Record telemetry for dep-context injection
+    getTelemetry()?.recordToolInvocation('pi-slim', 'dep-context')
+    getTelemetry()?.recordToolResult('pi-slim', 'dep-context', 0, false)
 
     this.updateStatusBar(ctx)
 

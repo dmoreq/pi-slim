@@ -8,7 +8,8 @@
     "strict": true,
     "declaration": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true
   },
   "include": ["*.ts", "shared/**/*", "config/**/*", "detect/**/*", "indexer/**/*", "injectors/**/*", "metrics/**/*", "parsers/**/*", "persistence/**/*", "ui/**/*"],
   "exclude": ["node_modules", "dist", "tests"]

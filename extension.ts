@@ -6,18 +6,11 @@
  * in manager.ts — no changes needed here.
  */
 
+import type { ExtensionAPI, ExtensionContext as PiExtensionContext, ContextEvent, BeforeAgentStartEvent } from '@mariozechner/pi-coding-agent'
+import telemetry from 'pi-telemetry'
+import { getTelemetry } from 'pi-telemetry'
 import { produceDefaults } from './config/schema.js'
-import { SessionManager } from './manager.js'
-
-// ── Minimal pi ExtensionAPI types ─────────────────────────────────────────
-
-interface ExtensionAPI {
-  setLabel(label: string): void
-  registerFlag(name: string, opts: { type: string; default: unknown; description: string }): void
-  getFlag(name: string): unknown
-  registerCommand(name: string, opts: { description?: string; handler: (...args: unknown[]) => void }): void
-  on(event: string, handler: (...args: unknown[]) => unknown): void
-}
+import { type ExtensionContext, SessionManager } from './manager.js'
 
 // ── Flag definitions (static) ─────────────────────────────────────────────
 
@@ -33,48 +26,60 @@ const FLAGS: Array<{ name: string; description: string }> = [
 ]
 
 function registerFlags(pi: ExtensionAPI): void {
-  const defs = produceDefaults()
-  pi.setLabel('Slim')
+  const defs: Record<string, unknown> = produceDefaults() as Record<string, unknown>
+  pi.setLabel('slim', 'Slim')
   for (const { name, description } of FLAGS) {
-    const val = name.split('.').reduce((o: Record<string, unknown> | undefined, k) => o?.[k] as Record<string, unknown> | undefined, defs as unknown as Record<string, unknown>)
-    pi.registerFlag(name, { type: typeof val === 'boolean' ? 'boolean' : 'string', default: val ?? '', description })
+    const parts = name.split('.')
+    const val = parts.reduce((o: unknown, k) => (o as Record<string, unknown> | undefined)?.[k], defs)
+    pi.registerFlag(name, { type: typeof val === 'boolean' ? 'boolean' : 'string', default: typeof val === 'boolean' || typeof val === 'string' ? val : undefined, description })
   }
 }
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type AnyFn = (...args: any[]) => any
 
 // ── Extension factory ─────────────────────────────────────────────────────
 
 export default function smartContextExtension(pi: ExtensionAPI): void {
   registerFlags(pi)
 
+  // Initialize telemetry framework first (must be before other registrations)
+  telemetry(pi)
+
   const manager = new SessionManager()
 
   pi.registerCommand('slim', {
     description: 'Show slim stats for the current or last session',
-    handler: async (_args: unknown, ctx: unknown) => {
-      await manager.showStats(ctx as Parameters<SessionManager['showStats']>[0])
+    handler: async (_args: string, _ctx: PiExtensionContext) => {
+      await manager.showStats(_ctx as unknown as ExtensionContext)
     },
   })
 
-  pi.on('session_start', async (_event: unknown, ctx: unknown) => {
-    const c = ctx as Parameters<SessionManager['start']>[2]
-    await manager.start((c as { cwd: string }).cwd, (name) => pi.getFlag(name), c)
-  })
+  pi.on('session_start', ((_event: unknown, ctx: PiExtensionContext) => {
+    // Emit a quick heartbeat to confirm telemetry is alive
+    getTelemetry()?.heartbeat('pi-slim')
+    void manager.start(
+      ctx.cwd,
+      (name: string) => pi.getFlag(name) as unknown,
+      ctx as unknown as ExtensionContext,
+    )
+  }) as AnyFn)
 
-  pi.on('before_agent_start', (event: unknown, ctx: unknown) => {
+  pi.on('before_agent_start', ((event: BeforeAgentStartEvent, ctx: PiExtensionContext) => {
     return manager.handleBeforeAgentStart(
       event as Parameters<SessionManager['handleBeforeAgentStart']>[0],
-      ctx as Parameters<SessionManager['handleBeforeAgentStart']>[1],
+      ctx as unknown as ExtensionContext,
     )
-  })
+  }) as AnyFn)
 
-  pi.on('context', (event: unknown, ctx: unknown) => {
+  pi.on('context', ((event: ContextEvent, ctx: PiExtensionContext) => {
     return manager.handleContext(
-      event as Parameters<SessionManager['handleContext']>[0],
-      ctx as Parameters<SessionManager['handleContext']>[1],
+      event as unknown as Parameters<SessionManager['handleContext']>[0],
+      ctx as unknown as ExtensionContext,
     )
-  })
+  }) as AnyFn)
 
-  pi.on('session_shutdown', async (_event: unknown, ctx: unknown) => {
-    await manager.shutdown(ctx as Parameters<SessionManager['shutdown']>[0])
-  })
+  pi.on('session_shutdown', ((_event: unknown, ctx: PiExtensionContext) => {
+    void manager.shutdown(ctx as unknown as ExtensionContext)
+  }) as AnyFn)
 }
