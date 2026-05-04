@@ -29,10 +29,10 @@ function nodeSig(node: SyntaxNode, source: string): string | null {
   return source.slice(node.startIndex, node.endIndex)
 }
 
-function walk(node: SyntaxNode, source: string, sigs: string[], imports: string[]): void {
+function walk(node: SyntaxNode, source: string, sigs: string[], imports: string[], exports: string[]): void {
   if (node.type === 'mod_item') {
     const name = node.childForFieldName('name')
-    if (name) imports.push('mod:' + name.text)
+    if (name) { exports.push(name.text); imports.push('mod:' + name.text) }
     return
   }
 
@@ -49,9 +49,14 @@ function walk(node: SyntaxNode, source: string, sigs: string[], imports: string[
   }
 
   const sig = nodeSig(node, source)
-  if (sig) { sigs.push(sig); return }
+  if (sig) {
+    sigs.push(sig)
+    const name = node.childForFieldName('name')
+    if (name) exports.push(name.text)
+    return
+  }
 
-  for (const child of node.children) walk(child, source, sigs, imports)
+  for (const child of node.children) walk(child, source, sigs, imports, exports)
 }
 
 export class RustParser implements LanguageParser {
@@ -62,12 +67,13 @@ export class RustParser implements LanguageParser {
     const sigs: string[] = []
     const imports: string[] = []
 
-    walk(tree.rootNode, content, sigs, imports)
+    const exports: string[] = []; walk(tree.rootNode, content, sigs, imports, exports)
 
     return {
       path,
       skeleton: sigs.join('\n'),
       imports,
+      exports,
       contentHash: createHash('sha256').update(content).digest('hex'),
     }
   }

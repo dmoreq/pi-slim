@@ -111,7 +111,7 @@ export async function loadStore(
   console.log(`[slim/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes`)
 
   return {
-    index: { skeletons, deps },
+    index: { skeletons, deps, reverseDeps: new Map(), symbolIndex: new Map() },
     repoMap,
     builtAt: stored.builtAt,
     fileCount: stored.fileCount,

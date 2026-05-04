@@ -101,6 +101,8 @@ export class IndexEngine {
   private repoIndex: RepoIndex = {
     skeletons: new Map(),
     deps: new Map(),
+    reverseDeps: new Map(),
+    symbolIndex: new Map(),
   }
 
   constructor(projectRoot: string, config: SlimConfig) {
@@ -155,17 +157,30 @@ export class IndexEngine {
       deps.set(f.path, new Set())
     }
 
+    // Forward deps + reverse deps
+    const reverseDeps = new Map<string, Set<string>>()
     for (const f of files) {
       const ext = extname(f.path)
       for (const raw of f.imports) {
         const resolved = resolveImport(raw, f.path, ext)
         if (resolved && skeletons.has(resolved)) {
           deps.get(f.path)!.add(resolved)
+          if (!reverseDeps.has(resolved)) reverseDeps.set(resolved, new Set())
+          reverseDeps.get(resolved)!.add(f.path)
         }
       }
     }
 
-    return { skeletons, deps }
+    // Build symbol index: symbol => files[]
+    const symbolIndex = new Map<string, string[]>()
+    for (const f of files) {
+      for (const sym of f.exports) {
+        if (!symbolIndex.has(sym)) symbolIndex.set(sym, [])
+        symbolIndex.get(sym)!.push(f.path)
+      }
+    }
+
+    return { skeletons, deps, reverseDeps, symbolIndex }
   }
 
   getRepoIndex(): RepoIndex {

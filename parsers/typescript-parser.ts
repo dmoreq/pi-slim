@@ -39,6 +39,7 @@ function walk(
   source: string,
   signatures: string[],
   imports: string[],
+  exports: string[],
 ): void {
   if (node.type === 'import_statement') {
     const src = node.childForFieldName('source')
@@ -50,19 +51,19 @@ function walk(
     const decl = node.children.find(c => DECLARATION_TYPES.has(c.type))
     if (decl) {
       const sig = nodeSignature(decl, source)
-      if (sig) { signatures.push('export ' + sig); return }
+      if (sig) { signatures.push('export ' + sig); const name = decl.childForFieldName('name'); if (name) exports.push(name.text); return }
     }
     // Note: `export { foo } from './bar'` and `export * from './bar'` are not
     // captured in imports — the from-string is inside export_clause, not an
     // import_statement. These re-export edges are missing from the dep graph.
-    for (const child of node.children) walk(child, source, signatures, imports)
+    for (const child of node.children) walk(child, source, signatures, imports, exports)
     return
   }
 
   const sig = nodeSignature(node, source)
-  if (sig) { signatures.push(sig); return }
+  if (sig) { signatures.push(sig); const name = node.childForFieldName('name'); if (name) exports.push(name.text); return }
 
-  for (const child of node.children) walk(child, source, signatures, imports)
+  for (const child of node.children) walk(child, source, signatures, imports, exports)
 }
 
 export class TypeScriptParser implements LanguageParser {
@@ -83,12 +84,13 @@ export class TypeScriptParser implements LanguageParser {
     const signatures: string[] = []
     const imports: string[] = []
 
-    walk(tree.rootNode, content, signatures, imports)
+    const exports: string[] = []; walk(tree.rootNode, content, signatures, imports, exports)
 
     return {
       path,
       skeleton: signatures.join('\n'),
       imports,
+      exports,
       contentHash: createHash('sha256').update(content).digest('hex'),
     }
   }

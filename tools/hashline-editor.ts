@@ -64,6 +64,7 @@ async function readOrCreate(
 }
 
 async function makeEdit(
+  dryRun: boolean = false,
   path: string,
   edits: Array<{ loc?: unknown; content?: string[] | null }>,
   cwd: string,
@@ -107,7 +108,7 @@ async function makeEdit(
     noopEdits: result.noopEdits,
   };
 
-  const textContent = isNew ? `Created ${path}` : `Updated ${path}`;
+  const textContent = dryRun ? `[DRY RUN] Would update ${path}` : (isNew ? `Created ${path}` : `Updated ${path}`);
 
   if (result.lines === normalizedContent) {
     let msg = `No changes made to ${path}.`;
@@ -117,9 +118,11 @@ async function makeEdit(
     return { content: [{ type: "text" as const, text: msg }], details };
   }
 
-  const finalContent = bom + restoreLineEndings(result.lines, originalEnding);
-  await mkdir(dirname(absPath), { recursive: true });
-  await writeFile(absPath, finalContent, "utf-8");
+  const finalContent = bom + restoreLineEndings(result.lines, originalEnding)
+  if (!dryRun) {
+    await mkdir(dirname(absPath), { recursive: true })
+    await writeFile(absPath, finalContent, "utf-8")
+  }
 
   const diffResult = generateDiffString(normalizedContent, result.lines);
   const preview = buildCompactHashlineDiffPreview(diffResult.diff);
@@ -172,13 +175,14 @@ const hashlineTool = defineTool({
 
   async execute(
     _toolCallId: string,
-    params: { path: string; edits: Array<{ loc?: unknown; content?: string[] | null }> },
+    params: { path: string; edits: Array<{ loc?: unknown; content?: string[] | null }>; dry_run?: boolean | string },
     _signal: AbortSignal | undefined,
     _onUpdate: unknown,
     _ctx: unknown,
   ) {
     const cwd = (_ctx as { cwd?: string })?.cwd ?? process.cwd();
-    return makeEdit(params.path, params.edits, cwd);
+    // @ts-ignore dry_run from LLM string
+    return makeEdit(params.path, params.edits, cwd, !!params.dry_run as unknown as boolean);
   },
 });
 

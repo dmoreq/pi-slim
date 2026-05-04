@@ -59,6 +59,11 @@ export class ContextPruningPlugin implements Plugin {
         const t = getTelemetry();
         t?.recordToolInvocation('pi-slim', 'pruning');
         t?.recordToolResult('pi-slim', 'pruning', 0, false);
+        const pct = Math.round((removed / (removed + messages.length)) * 100)
+        t?.notify(`\u2702\ufe0f Pruned ${removed}/${removed + messages.length} messages (${pct}%)`, {
+          severity: 'info',
+          badge: { text: 'pruning', variant: 'info' },
+        })
       } catch {
         // Telemetry is best-effort
       }

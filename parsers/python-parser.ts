@@ -23,6 +23,7 @@ function walk(
   source: string,
   lines: string[],
   imports: string[],
+  exports: string[],
   indent = '',
 ): void {
   if (node.type === 'import_from_statement') {
@@ -37,23 +38,26 @@ function walk(
 
   if (node.type === 'function_definition') {
     lines.push(indent + extractFunctionSig(node, source))
+    const name = node.childForFieldName('name')
+    if (name) exports.push(name.text)
     return
   }
 
   if (node.type === 'class_definition') {
     const name = node.childForFieldName('name')
+    if (name) exports.push(name.text)
     lines.push(indent + `class ${name?.text ?? '?'}:`)
     const body = node.childForFieldName('body')
     if (body) {
       for (const child of body.children) {
-        walk(child, source, lines, imports, indent + '    ')
+        walk(child, source, lines, imports, exports, indent + '    ')
       }
     }
     return
   }
 
   for (const child of node.children) {
-    walk(child, source, lines, imports, indent)
+    walk(child, source, lines, imports, exports, indent)
   }
 }
 
@@ -66,12 +70,13 @@ export class PythonParser implements LanguageParser {
     const lines: string[] = []
     const imports: string[] = []
 
-    walk(tree.rootNode, content, lines, imports)
+    const exports: string[] = []; walk(tree.rootNode, content, lines, imports, exports)
 
     return {
       path,
       skeleton: lines.join('\n'),
       imports,
+      exports,
       contentHash: createHash('sha256').update(content).digest('hex'),
     }
   }

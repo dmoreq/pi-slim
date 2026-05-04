@@ -15,6 +15,7 @@ import { type SlimConfig } from './shared/types.js'
 import { IndexEngine } from './indexer/engine.js'
 import { RepoMapGenerator } from './context/repo-map.js'
 import { ContextInjector } from './context/dep-context.js'
+import { RetrievalEngine } from './context/retrieval.js'
 import { InjectionPipeline } from './context/pipeline.js'
 import { SessionStats } from './metrics/tracker.js'
 import { storeExists, saveStore, loadStore } from './indexer/index-store.js'
@@ -75,6 +76,7 @@ export interface SessionState {
   contextFilesInjected: boolean
   providerGuidanceFiles: ProviderGuidanceFile[]
   providerGuidanceInjected: boolean
+  retrieval: RetrievalEngine | undefined
 }
 
 // ── Manager ───────────────────────────────────────────────────────────────
@@ -143,7 +145,9 @@ export class SessionManager {
         stats.indexedFiles = fileCount
         stats.depEdges = [...index.deps.values()].reduce((s, v) => s + v.size, 0)
         ctx.ui.notify(nSuccess(`${fileCount} files loaded (built ${new Date(builtAt).toLocaleDateString()})`), 'info')
+        const retrieval = new RetrievalEngine(index)
         this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot })
+        this.state.retrieval = retrieval
         this.updateStatusBar(ctx)
         recordHeartbeat('healthy')
         return
@@ -176,7 +180,9 @@ export class SessionManager {
         ctx.ui.notify(nInfo(buildStartupNotification(contextFiles, projectRoot, config.contextFiles)), 'info')
       }
 
+      const retrieval = new RetrievalEngine(index)
       this.state = this.initState({ index, repoMap, injector, config, stats, projectRoot, contextFiles })
+      this.state.retrieval = retrieval
       this.updateStatusBar(ctx)
     } catch (err) {
       recordSessionError('index_failed', `Indexing failed: ${String(err)}`)
@@ -203,6 +209,7 @@ export class SessionManager {
       contextFilesInjected: false,
       providerGuidanceFiles: [],
       providerGuidanceInjected: false,
+      retrieval: undefined,
     }
   }
 
@@ -247,13 +254,10 @@ export class SessionManager {
 
     // Append hashline usage guidance to system prompt
     const hashlineGuidance =
-      '\n\n## Hashline Edit Tool\n' +
-      'When you need to edit a file, use the `hashline_edit` tool instead of the built-in `edit` tool.\n' +
-      'First read the file with the `read` tool to see hashline anchors (e.g. `1tz|function hi()`).\n' +
-      'Then reference specific lines by their LINE+BIGRAM anchor (e.g. `"1tz"` to target line 1).\n' +
-      'This avoids re-reading the file — the anchor is checked against the current content.\n' +
-      'Supported operations: append, prepend, append_at, prepend_at, replace_line with a single\n' +
-      'anchor, and replace_range with pos+end anchors.';
+      '\n\n## pi-slim Tools\n' +
+      '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n' +
+      '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n' +
+      '- `/hashline-read <file>`: Read a file with hash anchors for editing.';
 
     // Dispatch injection telemetry (replaces INJECTION_HANDLERS)
     for (const entry of result.sources) {
@@ -320,7 +324,7 @@ export class SessionManager {
       }
     }
 
-    const depContext = s.injector.buildInjection(s.index, messages, extraPaths.size > 0 ? extraPaths : undefined)
+    const depContext = s.injector.buildInjection(s.index, messages, extraPaths.size > 0 ? extraPaths : undefined, s.retrieval, s.config.dependencyDepth ?? 1)
     if (!depContext) return undefined
 
     const tokens = estimateTokens(depContext)

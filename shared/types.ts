@@ -2,12 +2,15 @@ export interface FileIndex {
   path: string
   skeleton: string
   imports: string[]
+  exports: string[]
   contentHash: string
 }
 
 export interface RepoIndex {
   skeletons: Map<string, string>
   deps: Map<string, Set<string>>
+  reverseDeps: Map<string, Set<string>>
+  symbolIndex: Map<string, string[]>
 }
 
 // ── Context Monitor Types (merged from context-intel) ──────────────────────
@@ -44,6 +47,7 @@ export interface SlimConfig {
   maxRepoMapTokens: number
   maxInjectionTokens: number
   scanLastNMessages: number
+  dependencyDepth: number
   exclude: string[]
 
   /** Context files (AGENTS.local.md, CLAUDE.md, etc.) injected into system prompt. */

@@ -28,6 +28,7 @@ export const SlimConfigSchema = z.object({
   maxRepoMapTokens: z.number().int().positive().default(4000),
   maxInjectionTokens: z.number().int().positive().default(8000),
   scanLastNMessages: z.number().int().positive().default(10),
+  dependencyDepth: z.number().int().min(0).max(3).default(1),
   exclude: z.array(z.string()).default([
     '**/node_modules/**',
     '**/.git/**',
