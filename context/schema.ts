@@ -1,5 +1,5 @@
 /**
- * Configuration schema for pi-slim.
+ * Configuration schema for pi-scope.
  *
  * Single source of truth for all config defaults and validation.
  * Used by both `config/loader.ts` and `types.ts`.

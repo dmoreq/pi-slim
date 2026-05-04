@@ -41,16 +41,16 @@ describe('telemetry-helpers', () => {
     it('records tool invocation, result, and tokens', () => {
       recordInjection('repo-map', 3500);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-slim', 'repo-map');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-slim', 'repo-map', 0, false);
-      expect(mockRecordTokens).toHaveBeenCalledWith('pi-slim', { input: 3500, output: 0 });
+      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'repo-map');
+      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'repo-map', 0, false);
+      expect(mockRecordTokens).toHaveBeenCalledWith('pi-scope', { input: 3500, output: 0 });
     });
 
     it('handles optional file list', () => {
       recordInjection('dep-context', 2400, ['src/auth.ts', 'src/db.ts']);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-slim', 'dep-context');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-slim', 'dep-context', 0, false);
+      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'dep-context');
+      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'dep-context', 0, false);
     });
 
     it('is safe when telemetry is null', () => {
@@ -63,8 +63,8 @@ describe('telemetry-helpers', () => {
     it('records pruning operation', () => {
       recordPruning(['dedup', 'error-purge'], 5, 20);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-slim', 'pruning');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-slim', 'pruning', 0, false);
+      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'pruning');
+      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'pruning', 0, false);
     });
   });
 
@@ -72,8 +72,8 @@ describe('telemetry-helpers', () => {
     it('records context monitoring', () => {
       recordContextUsage(50, 20, 10);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-slim', 'context-monitor');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-slim', 'context-monitor', 0, false);
+      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'context-monitor');
+      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'context-monitor', 0, false);
     });
   });
 
@@ -82,7 +82,7 @@ describe('telemetry-helpers', () => {
     it('records error events', () => {
       recordSessionError('cache_corrupt', 'Store corrupted');
 
-      expect(mockRecordError).toHaveBeenCalledWith('pi-slim', 'cache_corrupt', 'Store corrupted');
+      expect(mockRecordError).toHaveBeenCalledWith('pi-scope', 'cache_corrupt', 'Store corrupted');
     });
   });
 
@@ -90,13 +90,13 @@ describe('telemetry-helpers', () => {
     it('records heartbeats', () => {
       recordHeartbeat('healthy');
 
-      expect(mockHeartbeat).toHaveBeenCalledWith('pi-slim', { status: 'healthy', error: undefined });
+      expect(mockHeartbeat).toHaveBeenCalledWith('pi-scope', { status: 'healthy', error: undefined });
     });
 
     it('records error heartbeats', () => {
       recordHeartbeat('error', 'Indexing failed');
 
-      expect(mockHeartbeat).toHaveBeenCalledWith('pi-slim', { status: 'error', error: 'Indexing failed' });
+      expect(mockHeartbeat).toHaveBeenCalledWith('pi-scope', { status: 'error', error: 'Indexing failed' });
     });
   });
 

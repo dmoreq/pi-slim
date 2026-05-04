@@ -1,5 +1,5 @@
 /**
- * SessionManager — owns all session lifecycle logic for pi-slim.
+ * SessionManager — owns all session lifecycle logic for pi-scope.
  *
  * Uses PluginManager for OCP compliance:
  * - Built-in plugins: ContextPruningPlugin, ReadAwarenessPlugin
@@ -87,7 +87,7 @@ function _ensureTelemetry(): void {
   _telemetryRegistered = true;
   try {
     getTelemetry()?.register({
-      name: "pi-slim",
+      name: "pi-scope",
       version: "0.3.0",
       description: "AST-powered context + pruning + LSP navigation for pi",
       tools: ["repo-map", "dep-context", "context-files", "provider-guidance", "pruning"],
@@ -97,7 +97,7 @@ function _ensureTelemetry(): void {
 }
 
 export class SessionManager {
-  readonly name = 'pi-slim'
+  readonly name = 'pi-scope'
   readonly version = '0.2.0'
   protected readonly description = 'AST-powered context + pruning + LSP navigation for pi'
   protected readonly tools = ['repo-map', 'dep-context', 'context-files', 'provider-guidance', 'pruning']
@@ -254,7 +254,7 @@ export class SessionManager {
 
     // Append hashline usage guidance to system prompt
     const hashlineGuidance =
-      '\n\n## pi-slim Tools\n' +
+      '\n\n## pi-scope Tools\n' +
       '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n' +
       '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n' +
       '- `/hashline-read <file>`: Read a file with hash anchors for editing.';
@@ -277,7 +277,7 @@ export class SessionManager {
         recordInjection('context-files', tokens)
       } else if (entry.trimmed) {
         ctx.ui.notify(nWarn(`${entry.name} trimmed (${tokens} tokens > budget)`), 'warn')
-        getTelemetry()?.recordError('pi-slim', 'trimmed', `${entry.name} trimmed (${tokens} tokens > budget)`)
+        getTelemetry()?.recordError('pi-scope', 'trimmed', `${entry.name} trimmed (${tokens} tokens > budget)`)
       }
     }
 

@@ -1,5 +1,5 @@
 /**
- * LSP Client for pi-slim (adapted from pi-lens).
+ * LSP Client for pi-scope (adapted from pi-lens).
  *
  * Handles JSON-RPC communication with language servers:
  * - Initialize/shutdown lifecycle
@@ -402,7 +402,7 @@ export async function createLSPClient(
     'initialize',
     {
       processId: process.pid,
-      clientInfo: { name: 'pi-slim', version: '0.1.0' },
+      clientInfo: { name: 'pi-scope', version: '0.1.0' },
       rootUri,
       capabilities: {
         textDocument: {

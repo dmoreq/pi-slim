@@ -2,7 +2,7 @@
  * Centralized telemetry helper functions — DRY principle.
  *
  * Consolidates all pi-telemetry interaction patterns used throughout
- * pi-slim, replacing ~40 lines of inline telemetry boilerplate.
+ * pi-scope, replacing ~40 lines of inline telemetry boilerplate.
  *
  * Usage:
  * ```typescript
@@ -27,13 +27,13 @@ import { getTelemetry } from 'pi-telemetry';
 export function recordInjection(source: string, tokens: number, files?: string[]): void {
   try {
     const t = getTelemetry();
-    t?.recordToolInvocation('pi-slim', source);
-    t?.recordToolResult('pi-slim', source, 0, false);
-    t?.recordTokens('pi-slim', { input: tokens, output: 0 });
+    t?.recordToolInvocation('pi-scope', source);
+    t?.recordToolResult('pi-scope', source, 0, false);
+    t?.recordTokens('pi-scope', { input: tokens, output: 0 });
 
     if (files && files.length > 0) {
       // Track file counts via heartbeat metadata
-      t?.heartbeat('pi-slim', { status: 'healthy', error: undefined });
+      t?.heartbeat('pi-scope', { status: 'healthy', error: undefined });
     }
   } catch {
     // Telemetry is best-effort
@@ -50,10 +50,10 @@ export function recordInjection(source: string, tokens: number, files?: string[]
 export function recordPruning(rulesApplied: string[], removed: number, total: number): void {
   try {
     const t = getTelemetry();
-    t?.recordToolInvocation('pi-slim', 'pruning');
-    t?.recordToolResult('pi-slim', 'pruning', 0, false);
+    t?.recordToolInvocation('pi-scope', 'pruning');
+    t?.recordToolResult('pi-scope', 'pruning', 0, false);
     // Record ratio as a metric via heartbeat
-    t?.heartbeat('pi-slim', { status: 'healthy', error: undefined });
+    t?.heartbeat('pi-scope', { status: 'healthy', error: undefined });
   } catch {
     // Telemetry is best-effort
   }
@@ -69,8 +69,8 @@ export function recordPruning(rulesApplied: string[], removed: number, total: nu
 export function recordContextUsage(messageCount: number, toolCalls: number, filesTouched: number): void {
   try {
     const t = getTelemetry();
-    t?.recordToolInvocation('pi-slim', 'context-monitor');
-    t?.recordToolResult('pi-slim', 'context-monitor', 0, false);
+    t?.recordToolInvocation('pi-scope', 'context-monitor');
+    t?.recordToolResult('pi-scope', 'context-monitor', 0, false);
   } catch {
     // Telemetry is best-effort
   }
@@ -91,7 +91,7 @@ export function recordContextUsage(messageCount: number, toolCalls: number, file
  */
 export function recordSessionError(type: string, message: string): void {
   try {
-    getTelemetry()?.recordError('pi-slim', type, message);
+    getTelemetry()?.recordError('pi-scope', type, message);
   } catch {
     // Telemetry is best-effort
   }
@@ -105,7 +105,7 @@ export function recordSessionError(type: string, message: string): void {
  */
 export function recordHeartbeat(status: 'healthy' | 'degraded' | 'error' | 'stale', error?: string): void {
   try {
-    getTelemetry()?.heartbeat('pi-slim', { status, error });
+    getTelemetry()?.heartbeat('pi-scope', { status, error });
   } catch {
     // Telemetry is best-effort
   }

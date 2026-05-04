@@ -1,5 +1,5 @@
 /**
- * pi-slim — pi agent extension
+ * pi-scope — pi agent extension
  *
  * Thin lifecycle wiring. All business logic lives in SessionManager.
  * Registers hashline_edit tool, LSP navigation tools, and /hashline-read command.
@@ -76,7 +76,7 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   })
 
   pi.on('session_start', ((_event: unknown, ctx: PiExtensionContext) => {
-    getTelemetry()?.heartbeat('pi-slim')
+    getTelemetry()?.heartbeat('pi-scope')
     void manager.start(
       ctx.cwd,
       (name: string) => pi.getFlag(name) as unknown,

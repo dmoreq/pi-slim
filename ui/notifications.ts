@@ -1,5 +1,5 @@
 /**
- * Notification utilities for pi-slim.
+ * Notification utilities for pi-scope.
  *
  * Provides consistent formatting for TUI notifications and a status bar
  * entry that displays live context injection stats.

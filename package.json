@@ -1,7 +1,7 @@
 {
-  "name": "pi-slim",
+  "name": "pi-scope",
   "version": "0.7.0",
-  "description": "AST-powered context for pi \u2014 skeleton injection, code navigation, hashline editing, pruning, and smart automation",
+  "description": "AST-powered context, retrieval, and code intelligence for pi",
   "type": "module",
   "main": "./dist/extension.js",
   "types": "./dist/extension.d.ts",
@@ -10,10 +10,11 @@
     "pi-coding-agent",
     "ast",
     "context",
-    "pruning",
+    "retrieval",
     "skeleton",
     "hashline",
-    "lsp"
+    "lsp",
+    "code-intelligence"
   ],
   "license": "MIT",
   "scripts": {

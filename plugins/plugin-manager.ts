@@ -145,7 +145,7 @@ export class PluginManager {
         await fn.apply(plugin, args);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[pi-slim] Plugin ${pluginName} hook ${hook} failed: ${errMsg}`);
+        console.error(`[pi-scope] Plugin ${pluginName} hook ${hook} failed: ${errMsg}`);
         // Continue with next plugin — one failure doesn't stop others
       }
     }
@@ -172,7 +172,7 @@ export class PluginManager {
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[pi-slim] Plugin ${pluginName} onToolCall failed: ${errMsg}`);
+        console.error(`[pi-scope] Plugin ${pluginName} onToolCall failed: ${errMsg}`);
         // Continue with next plugin
       }
     }

@@ -1,7 +1,7 @@
 /**
  * ContextPruningPlugin — removes duplicate/obsolete messages before LLM context.
  *
- * Implements the Plugin interface for integration with pi-slim's plugin system.
+ * Implements the Plugin interface for integration with pi-scope's plugin system.
  * Uses pure-function pruning rules from pruning-rules.ts (SRP: rules are separate).
  *
  * Pruning rules (applied in order):
@@ -57,8 +57,8 @@ export class ContextPruningPlugin implements Plugin {
       // Report pruning activity via telemetry
       try {
         const t = getTelemetry();
-        t?.recordToolInvocation('pi-slim', 'pruning');
-        t?.recordToolResult('pi-slim', 'pruning', 0, false);
+        t?.recordToolInvocation('pi-scope', 'pruning');
+        t?.recordToolResult('pi-scope', 'pruning', 0, false);
         const pct = Math.round((removed / (removed + messages.length)) * 100)
         t?.notify(`\u2702\ufe0f Pruned ${removed}/${removed + messages.length} messages (${pct}%)`, {
           severity: 'info',

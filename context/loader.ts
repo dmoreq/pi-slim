@@ -1,5 +1,5 @@
 /**
- * Config loader for pi-slim.
+ * Config loader for pi-scope.
  *
  * Loads from 4 layers (highest priority wins):
  *   1. CLI flag overrides

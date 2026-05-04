@@ -1,5 +1,5 @@
 /**
- * Plugin interface — contract for extending pi-slim with custom behavior.
+ * Plugin interface — contract for extending pi-scope with custom behavior.
  *
  * Satisfies OCP (Open/Closed Principle):
  *   - Extensions add new features by implementing this interface
