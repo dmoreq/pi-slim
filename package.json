@@ -1,6 +1,6 @@
 {
   "name": "pi-slim",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "AST-powered context for pi \u2014 skeleton injection, code navigation, hashline editing, pruning, and smart automation",
   "type": "module",
   "main": "./dist/extension.js",
