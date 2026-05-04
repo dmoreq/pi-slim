@@ -10,7 +10,7 @@
 import { Type } from "@mariozechner/pi-ai";
 import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { resolve } from "node:path";
-import { LspNavigationService } from "./lsp-navigation-service.js";
+import { LspNavigationService } from "../lsp/service.js";
 
 let service: LspNavigationService | null = null;
 

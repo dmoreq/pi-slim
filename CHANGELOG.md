@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.5.0] - 2026-05-04
+
+### Changed (Naming & Folder Structure Refactor)
+
+| Directory | Before | After | Rationale |
+|-----------|--------|-------|----------|
+| `injectors/` + `config/` | 7 files in 2 dirs | `context/` (7 files) | "injectors" is vague — "context" describes what it builds. Config is part of context. |
+| `detect/` + `persistence/` | 2 single-file dirs | Merged into `shared/` | Single utility files don't need their own directories. |
+| `shared/plugin.ts` + `plugin-manager.ts` | In `shared/` | `plugins/` | Plugin interfaces belong with the plugins, not in a catch-all shared bucket. |
+| `tools/lsp-navigation-service.ts` | In `tools/` | `lsp/service.ts` | Service belongs with the LSP client, not among tool registrations. |
+| `plugins/pruning-rules.ts` | Separate file | Merged into `context-pruning.ts` | Only one consumer — unnecessary split. |
+
+**Deleted empty directories**: `injectors/`, `config/`, `detect/`, `persistence/`, `core/`, `types/`
+
+### Impact
+- All 300 tests passing, tsc clean
+- Import paths updated across 40+ files
+- No functional changes — pure reorganization
+
 ## [0.4.0] - 2026-05-04
 
 ### Removed (Dead Code Cleanup)

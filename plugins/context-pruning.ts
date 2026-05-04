@@ -18,7 +18,7 @@
  * ```
  */
 
-import type { Plugin } from '../shared/plugin.js';
+import type { Plugin } from '../plugins/plugin.js';
 import type { ExtensionContext } from '../extension.js';
 import { applyPruningRules, DEFAULT_RULE_CONFIG, type PruningRuleConfig } from './pruning-rules.js';
 import { getTelemetry } from 'pi-telemetry';

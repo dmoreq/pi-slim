@@ -3,7 +3,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { IndexEngine } from '../../indexer/engine.js'
-import { produceDefaults } from '../../config/schema.js'
+import { produceDefaults } from '../../context/schema.js'
 
 const DEFAULT_CONFIG = produceDefaults()
 

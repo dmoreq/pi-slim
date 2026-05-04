@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { join } from 'node:path'
-import { RepoMapGenerator } from '../../injectors/repo-map.js'
+import { RepoMapGenerator } from '../../context/repo-map.js'
 import type { RepoIndex } from '../../types.js'
 
 function makeIndex(files: Record<string, string>): RepoIndex {

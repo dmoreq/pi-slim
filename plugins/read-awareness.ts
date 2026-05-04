@@ -12,7 +12,7 @@
  * ```
  */
 
-import type { Plugin, PluginToolCallResult } from '../shared/plugin.js';
+import type { Plugin, PluginToolCallResult } from '../plugins/plugin.js';
 import type { ExtensionContext } from '../extension.js';
 
 // ── Read Awareness Plugin ──────────────────────────────────────────────────

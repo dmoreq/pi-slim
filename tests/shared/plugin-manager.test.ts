@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PluginManager, PluginError } from '../../shared/plugin-manager.js';
-import type { Plugin, PluginToolCallResult } from '../../shared/plugin.js';
+import { PluginManager, PluginError } from '../../plugins/plugin-manager.js';
+import type { Plugin, PluginToolCallResult } from '../../plugins/plugin.js';
 import type { ExtensionContext } from '../../extension.js';
 
 // ── Mock Plugins ───────────────────────────────────────────────────────────

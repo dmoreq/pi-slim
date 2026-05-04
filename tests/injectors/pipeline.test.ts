@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { InjectionPipeline } from '../../injectors/pipeline.js'
+import { InjectionPipeline } from '../../context/pipeline.js'
 
 describe('InjectionPipeline', () => {
   it('returns empty result when no sources registered', () => {

@@ -1,11 +1,20 @@
 {
   "name": "pi-slim",
-  "version": "0.3.0",
-  "description": "AST-powered context for pi — skeleton injection, code navigation, hashline editing, pruning, and smart automation",
+  "version": "0.5.0",
+  "description": "AST-powered context for pi \u2014 skeleton injection, code navigation, hashline editing, pruning, and smart automation",
   "type": "module",
   "main": "./dist/extension.js",
   "types": "./dist/extension.d.ts",
-  "keywords": ["pi", "pi-coding-agent", "ast", "context", "pruning", "skeleton", "hashline", "lsp"],
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "ast",
+    "context",
+    "pruning",
+    "skeleton",
+    "hashline",
+    "lsp"
+  ],
   "license": "MIT",
   "scripts": {
     "build": "tsc",
