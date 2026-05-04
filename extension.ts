@@ -12,6 +12,7 @@ import telemetry from 'pi-telemetry'
 import { getTelemetry } from 'pi-telemetry'
 import { produceDefaults } from './config/schema.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
+import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
 
 export type { ExtensionContext }
@@ -43,8 +44,9 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   registerFlags(pi)
   telemetry(pi)
 
-  // Register hashline_edit tool
+  // Register tools
   registerHashlineTool(pi)
+  registerLspTools(pi)
 
   const manager = new SessionManager()
 
@@ -96,7 +98,8 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     )
   }) as AnyFn)
 
-  pi.on('session_shutdown', ((_event: unknown, ctx: PiExtensionContext) => {
+  pi.on('session_shutdown', (async (_event: unknown, ctx: PiExtensionContext) => {
+    await shutdownLsp()
     void manager.shutdown(ctx as unknown as ExtensionContext)
   }) as AnyFn)
 }

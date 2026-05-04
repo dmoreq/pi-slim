@@ -19,6 +19,13 @@
   - Returns compact diff preview with added/removed line counts
   - Hashline usage guidance injected into system prompt via `before_agent_start`
 - **`/hashline-read` command** — reads a file and outputs hashline-annotated content
+- **LSP Navigation System** — three tools for code intelligence:
+  - `lsp_go_to_definition` — find where a symbol is defined
+  - `lsp_find_references` — find all usages of a symbol
+  - `lsp_hover` — get type info and documentation at cursor
+  - Lazy server startup (TypeScript, Python, Go, Rust) on first call
+  - Graceful shutdown on session end
+  - Wraps the adopted LSP client from pi-lens in `lsp/`
 
 ### SOLID / DRY Compliance
 | Principle | Implementation |
