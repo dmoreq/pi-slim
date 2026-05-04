@@ -236,6 +236,16 @@ export class SessionManager extends ExtensionLifecycle {
     const result = pipeline.build(combinedBudget)
     if (!result.content) return undefined
 
+    // Append hashline usage guidance to system prompt
+    const hashlineGuidance =
+      '\n\n## Hashline Edit Tool\n' +
+      'When you need to edit a file, use the `hashline_edit` tool instead of the built-in `edit` tool.\n' +
+      'First read the file with the `read` tool to see hashline anchors (e.g. `1tz|function hi()`).\n' +
+      'Then reference specific lines by their LINE+BIGRAM anchor (e.g. `"1tz"` to target line 1).\n' +
+      'This avoids re-reading the file — the anchor is checked against the current content.\n' +
+      'Supported operations: append, prepend, append_at, prepend_at, replace_line with a single\n' +
+      'anchor, and replace_range with pos+end anchors.';
+
     // Dispatch injection telemetry (replaces INJECTION_HANDLERS)
     for (const entry of result.sources) {
       const tokens = entry.tokens
@@ -259,7 +269,7 @@ export class SessionManager extends ExtensionLifecycle {
     }
 
     this.updateStatusBar(ctx)
-    return { systemPrompt: event.systemPrompt + '\n\n' + result.content }
+    return { systemPrompt: event.systemPrompt + '\n\n' + result.content + hashlineGuidance }
   }
 
   // ── Context (per-turn) ───────────────────────────────────────────────

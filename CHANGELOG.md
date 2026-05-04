@@ -12,6 +12,13 @@
   - `hashline/streaming.ts` — streaming hashline-formatted output for large files
 - **94 new tests** across 5 test files for hashline modules (419 total, all passing)
 - **New dependencies**: `xxhash-wasm` (replace `Bun.hash.xxHash32`), `diff` (for diff generation)
+- **`hashline_edit` tool** — registered via `defineTool`/`registerTool`, wraps hashline core with file I/O:
+  - Handles file read, BOM/line-ending normalization, edit validation, write-back
+  - Auto-rebases anchors within ±5 lines on hash mismatch
+  - File creation via `append`/`prepend` loc when file doesn't exist
+  - Returns compact diff preview with added/removed line counts
+  - Hashline usage guidance injected into system prompt via `before_agent_start`
+- **`/hashline-read` command** — reads a file and outputs hashline-annotated content
 
 ### SOLID / DRY Compliance
 | Principle | Implementation |

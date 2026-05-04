@@ -2,22 +2,19 @@
  * pi-slim — pi agent extension
  *
  * Thin lifecycle wiring. All business logic lives in SessionManager.
- * Adding a new injection source? Add a handler to INJECTION_HANDLERS
- * in manager.ts — no changes needed here.
+ * Registers hashline_edit tool and /hashline-read command for hashline workflow.
  */
 
 import type { ExtensionAPI, ExtensionContext as PiExtensionContext, ContextEvent, BeforeAgentStartEvent } from '@mariozechner/pi-coding-agent'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import telemetry from 'pi-telemetry'
 import { getTelemetry } from 'pi-telemetry'
 import { produceDefaults } from './config/schema.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
-import { initHash } from './hashline/line-hash.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
 
-// Re-export ExtensionContext type for other modules (lifecycle.ts, plugins, etc.)
 export type { ExtensionContext }
-
-// ── Flag definitions (static) ─────────────────────────────────────────────
 
 const FLAGS: Array<{ name: string; description: string }> = [
   { name: 'slim.enabled',              description: 'Inject repo map and dependency skeletons into every LLM call' },
@@ -40,16 +37,14 @@ function registerFlags(pi: ExtensionAPI): void {
   }
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyFn = (...args: any[]) => any
-
-// ── Extension factory ─────────────────────────────────────────────────────
 
 export default function smartContextExtension(pi: ExtensionAPI): void {
   registerFlags(pi)
-
-  // Initialize telemetry framework first (must be before other registrations)
   telemetry(pi)
+
+  // Register hashline_edit tool
+  registerHashlineTool(pi)
 
   const manager = new SessionManager()
 
@@ -60,8 +55,25 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     },
   })
 
+  pi.registerCommand('hashline-read', {
+    description: 'Read a file with hashline anchors (e.g. "42nd|content")',
+    handler: async (args: string, _ctx: PiExtensionContext) => {
+      const path = args.trim()
+      if (!path) { _ctx.ui.notify('Usage: /hashline-read <filepath>', 'warning'); return }
+      const absPath = resolve(process.cwd(), path)
+      try {
+        const content = await readFile(absPath, 'utf-8')
+        const { initHash, formatHashLines } = await import('./hashline/line-hash.js')
+        await initHash()
+        const hashed = formatHashLines(content)
+        _ctx.ui.notify(hashed, 'info')
+      } catch (err) {
+        _ctx.ui.notify(`Error reading ${path}: ${err}`, 'error')
+      }
+    },
+  })
+
   pi.on('session_start', ((_event: unknown, ctx: PiExtensionContext) => {
-    // Emit a quick heartbeat to confirm telemetry is alive
     getTelemetry()?.heartbeat('pi-slim')
     void manager.start(
       ctx.cwd,
