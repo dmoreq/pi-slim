@@ -82,15 +82,6 @@ export function recordContextUsage(messageCount: number, toolCalls: number, file
  * @param triggerId - The triggered automation name
  * @param suggestion - Human-readable suggestion text
  */
-export function recordAutomation(triggerId: string, suggestion: string): void {
-  try {
-    const t = getTelemetry();
-    t?.recordToolInvocation('pi-slim', 'automation');
-    t?.recordToolResult('pi-slim', 'automation', 0, false);
-  } catch {
-    // Telemetry is best-effort
-  }
-}
 
 /**
  * Record a session error.

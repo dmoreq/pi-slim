@@ -69,7 +69,7 @@ export interface Plugin {
 
   /**
    * Called after each turn completes.
-   * Use for post-turn automation, tracking, or metrics.
+   * Use for post-turn processing, tracking, or metrics.
    */
   onTurnEnd?(ctx: ExtensionContext): Promise<void>;
 

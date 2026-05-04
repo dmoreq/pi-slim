@@ -87,7 +87,7 @@ function _ensureTelemetry(): void {
     getTelemetry()?.register({
       name: "pi-slim",
       version: "0.3.0",
-      description: "AST-powered context + pruning + automation for pi",
+      description: "AST-powered context + pruning + LSP navigation for pi",
       tools: ["repo-map", "dep-context", "context-files", "provider-guidance", "pruning"],
       events: ["session_start", "before_agent_start", "context", "session_shutdown"],
     });
@@ -97,7 +97,7 @@ function _ensureTelemetry(): void {
 export class SessionManager {
   readonly name = 'pi-slim'
   readonly version = '0.2.0'
-  protected readonly description = 'AST-powered context + pruning + automation for pi'
+  protected readonly description = 'AST-powered context + pruning + LSP navigation for pi'
   protected readonly tools = ['repo-map', 'dep-context', 'context-files', 'provider-guidance', 'pruning']
   protected readonly events = ['session_start', 'before_agent_start', 'context', 'session_shutdown']
 

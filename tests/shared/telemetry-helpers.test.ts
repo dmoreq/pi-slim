@@ -29,7 +29,7 @@ vi.mock('pi-telemetry', () => ({
 }));
 
 // Import the module under test AFTER the mock
-const { recordInjection, recordPruning, recordContextUsage, recordAutomation, recordSessionError, recordHeartbeat }
+const { recordInjection, recordPruning, recordContextUsage, recordSessionError, recordHeartbeat }
   = await import('../../shared/telemetry-helpers.js');
 
 describe('telemetry-helpers', () => {
@@ -77,14 +77,6 @@ describe('telemetry-helpers', () => {
     });
   });
 
-  describe('recordAutomation', () => {
-    it('records automation event', () => {
-      recordAutomation('recap-hint', 'Consider /recap');
-
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-slim', 'automation');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-slim', 'automation', 0, false);
-    });
-  });
 
   describe('recordSessionError', () => {
     it('records error events', () => {
@@ -116,7 +108,6 @@ describe('telemetry-helpers', () => {
         recordInjection('test', 100);
         recordPruning(['a', 'b'], 1, 10);
         recordContextUsage(1, 1, 1);
-        recordAutomation('test', 'test');
         recordSessionError('test', 'test');
         recordHeartbeat('healthy');
       }).not.toThrow();

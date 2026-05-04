@@ -2,7 +2,7 @@
  * pi-slim — pi agent extension
  *
  * Thin lifecycle wiring. All business logic lives in SessionManager.
- * Registers hashline_edit tool and /hashline-read command for hashline workflow.
+ * Registers hashline_edit tool, LSP navigation tools, and /hashline-read command.
  */
 
 import type { ExtensionAPI, ExtensionContext as PiExtensionContext, ContextEvent, BeforeAgentStartEvent } from '@mariozechner/pi-coding-agent'
@@ -44,7 +44,7 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   registerFlags(pi)
   telemetry(pi)
 
-  // Register tools
+  // Register tools: hashline_edit for precise edits, lsp_* for code navigation
   registerHashlineTool(pi)
   registerLspTools(pi)
 

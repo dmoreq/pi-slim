@@ -10,7 +10,7 @@
 ```bash
 git clone <your-fork>
 cd pi-slim
-npm install --legacy-peer-deps
+npm install
 npm run build
 ```
 
@@ -26,25 +26,25 @@ npm run build
 ## Project Structure
 
 ```
-src/
-├── extension.ts          # Lifecycle wiring (< 100 lines)
-├── manager.ts            # All business logic
-├── types.ts              # Core shared types
-├── paths.ts              # Path constants
-├── config/               # Schema + loader
-├── indexer/              # Index engine, cache, store
-├── injectors/            # Pipeline, repo-map, dep-context, etc.
-├── detect/               # File path detection
-├── metrics/              # Stats tracking, cost estimator
-├── persistence/          # Runtime state file I/O
-├── ui/                   # TUI notifications
-├── utils/                # Shared utilities (token, message)
-└── parsers/              # Language-specific AST parsers
+pi-slim/
+├── extension.ts              # Extension entry point (< 100 lines)
+├── manager.ts                # SessionManager — all business logic
+├── context/                  # LLM context injection pipeline
+├── hashline/                 # Pure hashline edit modules
+├── lsp/                      # LSP client, launcher, service
+├── indexer/                  # Index engine, cache, store
+├── parsers/                  # Language-specific AST parsers
+├── plugins/                  # Plugin interface + built-in plugins
+├── tools/                    # Pi tool definitions
+├── metrics/                  # Session stats + cost estimation
+├── shared/                   # Shared utilities
+├── ui/                       # TUI notifications
+└── tests/                    # Test suite (mirrors source structure)
 ```
 
 ## Adding a Language Parser
 
-1. Create `src/parsers/<lang>-parser.ts` implementing `LanguageParser`:
+1. Create `parsers/<lang>-parser.ts` implementing `LanguageParser`:
 
 ```typescript
 import type { LanguageParser } from './language-parser.js'
@@ -61,11 +61,10 @@ export class GoParser implements LanguageParser {
 }
 ```
 
-2. Register it in `src/indexer/engine.ts`:
+2. Register it in `indexer/engine.ts`:
 
 ```typescript
 import { GoParser } from '../parsers/go-parser.js'
-
 // In IndexEngine constructor:
 for (const p of [new TypeScriptParser(), new PythonParser(), new RustParser(), new GoParser()]) {
   for (const ext of p.extensions) this.parsers.set(ext, p)
@@ -73,22 +72,57 @@ for (const p of [new TypeScriptParser(), new PythonParser(), new RustParser(), n
 ```
 
 3. Add import resolution in `resolveImport()` in `engine.ts`.
-4. Add file extension to `FILE_PATH_RE` in `injectors/dep-context.ts`.
+4. Add file extension to `FILE_PATH_RE` in `context/dep-context.ts`.
 5. Add tests in `tests/parsers/<lang>-parser.test.ts`.
 
-## Adding an Injection Source
+## Adding a Hashline Edit Operation
 
-1. Add a pipeline source in `manager.ts` `handleBeforeAgentStart()`.
-2. Add a handler in `INJECTION_HANDLERS` registry (no switch statement needed).
-3. Add stats tracking fields in `metrics/tracker.ts`.
-4. Update the schema defaults in `config/schema.ts` if configurable.
-5. Add tests.
+Hashline edit operations are defined in `hashline/core.ts` as a union type:
+
+```typescript
+export type HashlineEdit =
+  | { op: "replace_line"; pos: Anchor; lines: string[] }
+  | { op: "replace_range"; pos: Anchor; end: Anchor; lines: string[] }
+  | { op: "append_at"; pos: Anchor; lines: string[] }
+  | { op: "prepend_at"; pos: Anchor; lines: string[] }
+  | { op: "append_file"; lines: string[] }
+  | { op: "prepend_file"; lines: string[] };
+```
+
+To add a new operation:
+
+1. Add a new variant to the `HashlineEdit` union type in `hashline/core.ts`
+2. Implement the apply logic in `applyHashlineEditToLines()` in the same file
+3. Add a sort key in `getHashlineEditSortKey()`
+4. Add the anchor validation in `validateHashlineEditRefs()`
+5. Add tool schema support in `tools/hashline-editor.ts` `resolveEdit()` helper
+6. Add tests in `tests/hashline/core.test.ts`
+
+## Adding an LSP Server Definition
+
+LSP server definitions are in `lsp/service.ts`:
+
+```typescript
+const SERVERS: Record<string, ServerDef> = {
+  // Add your language server here:
+  java: { command: "jdtls", args: [] },
+};
+```
+
+1. Add the server binary name and arguments
+2. Add the file extension mapping in `lsp/language.ts`:
+
+```typescript
+'.java': 'java',
+```
+
+3. Add tests if possible (integration tests with mocked servers)
 
 ## Testing
 
 ```bash
 npm test                 # Run all tests (vitest)
-npm run test:watch       # Watch mode for development
+npm run test:watch       # Watch mode
 npm run build            # Verify TypeScript compilation
 ```
 
@@ -107,7 +141,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 - `feat:` — new feature
 - `fix:` — bug fix
-- `refactor:` — code change that doesn't add feature or fix bug
+- `refactor:` — code change without feature/bug
 - `docs:` — documentation only
 - `test:` — test-only changes
 - `chore:` — build/config changes
@@ -115,8 +149,8 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 ## Release Process
 
 1. Update version in `package.json`
-2. Run full test suite
-3. Run build
+2. Run full test suite (`npm test`)
+3. Run build (`npm run build`)
 4. Publish: `npm publish`
 5. Tag: `git tag v<version> && git push --tags`
 

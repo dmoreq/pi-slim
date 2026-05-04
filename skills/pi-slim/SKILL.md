@@ -1,13 +1,15 @@
 ---
 name: pi-slim
-description: Use when working with AST-indexed projects where pi-slim provides skeleton-based dependency context, repo maps, and token-efficient code awareness
+description: Use when working with AST-indexed projects where pi-slim provides skeleton-based dependency context, repo maps, hashline editing, LSP navigation, and token-efficient code awareness
 ---
 
 # pi-slim: AST-Powered Context Injection
 
-pi-slim is an automatic context injection plugin for pi. It parses your project's source files into compact AST **skeletons** (signatures only, no bodies) and injects them into every LLM call — saving ~85-92% tokens vs full file reads.
+pi-slim is an automatic context injection plugin for pi. It parses your project's source files into compact AST **skeletons** (signatures only, no bodies), injects them into every LLM call, and provides hash-verified editing and LSP code navigation — saving ~85-96% tokens vs naive full-file reads.
 
 ## What pi-slim Does for You
+
+### Context Injection (Automatic)
 
 | Layer | Injected | What it provides |
 |-------|----------|-----------------|
@@ -16,40 +18,60 @@ pi-slim is an automatic context injection plugin for pi. It parses your project'
 | `<context-files>` | Once | AGENTS.local.md, CLAUDE.local.md (if present) |
 | `<provider-guidance>` | Once | Provider-specific CLAUDE.md / CODEX.md / GEMINI.md |
 
+### Hashline Editing (Tools for LLM)
+
+The `hashline_edit` tool edits files using `LINE+BIGRAM` anchors (e.g. `42nd`). The agent sees hash-annotated file content from reads, then references specific lines by their anchor — no file re-read needed.
+
+### LSP Navigation (Tools for LLM)
+
+Three tools provide code intelligence via lazily-started language servers:
+
+| Tool | What it does |
+|------|-------------|
+| `lsp_go_to_definition` | Find where a symbol is defined |
+| `lsp_find_references` | Find all usages of a symbol |
+| `lsp_hover` | Get type info at cursor position |
+
 **You don't need to configure anything** — it works automatically.
 
 ## Interpreting the Output
 
 ### `<repo-map>`
-A compact directory tree with exported names:
+
 ```xml
 <repo-map>
   (root)
     index.ts  createApp, defineRoutes
     src/
       auth.ts  authenticate, authorize
-    config/
-      db.ts  DatabaseConfig
 </repo-map>
 ```
 
 ### `<dep-context>`
-When you mention `auth.ts`, pi-slim injects:
-- The skeleton of `auth.ts` (function headers, no bodies)
-- The skeleton of everything `auth.ts` imports (1st-degree deps only)
 
-```
+When you mention `auth.ts`, pi-slim injects the skeleton of `auth.ts` plus everything it imports:
+
+```xml
 <dep-context>
 ## Active files
 ### src/auth.ts
 export function authenticate(token: string): User { ... }
-export function authorize(role: Role): boolean { ... }
 
 ## Direct dependencies
 ### src/auth/models.ts
 export interface User { ... }
-export enum Role { ... }
 </dep-context>
+```
+
+### `/slim` Command
+
+Shows injection stats for the session:
+
+```
+── slim session stats ──────────────────
+  Dep-context      : 12x, ~2,400t total
+  Token savings    : ~18,000t (88% vs full reads)
+─────────────────────────────────────────
 ```
 
 ## When to Use Other Tools
@@ -58,30 +80,29 @@ pi-slim provides **forward** dependency info (what does X import?). For other an
 
 | You want | Use | Why |
 |---------|-----|-----|
-| "What files import X?" | `search` / `ripgrep` | Reverse dependency lookup — not in pi-slim's dep graph |
+| "What files import X?" | `search` / `ripgrep` | Reverse dependency lookup |
 | "Find where function Y is called" | `search` | Text-based call site discovery |
 | "Find code with a specific structure" | `ast_grep` (semgrep) | AST-level pattern matching |
 | "How many LOC in this project?" | `count_lines` (tokei) | Code statistics |
-| "Find all files matching a regex" | `search` | Content search |
-| "Find a file by name" | `find_files` (fd) | File path search |
-
-**pi-slim's dep graph is one-directional** — it answers "what does this file depend on?" not "what depends on this file?". For the latter, use `search` or `ripgrep` on import statements.
 
 ## Performance Notes
 
 - First session in a project indexes ~1K files in 1-2 seconds
 - Subsequent sessions load from `.pi/slim/` cache instantly
 - Index is gzip-compressed (~84% smaller on disk)
-- Data is cached at `.pi/slim/index.json.gz` and `.pi-cache/slim.json`
+- Hashline anchors add ~2 tokens per line to output
+- LSP servers start lazily on first navigation call
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/smart-context` | Show injection stats for current/last session |
+| `/slim` | Show injection stats for current/last session |
+| `/hashline-read <file>` | Read a file with hashline anchors |
 
 ## Common Pitfalls
 
-- **Very large projects (>10K files):** First indexing takes longer; set `exclude` patterns in `.pi/slim.jsonc` to skip vendor/test dirs
+- **Very large projects (>10K files):** First indexing takes longer; set `exclude` patterns in `.pi/slim.jsonc`
 - **pi-slim doesn't do reverse dep lookups:** Use `search "import.*from.*foo"` via pi-sherlock tools
 - **The dep graph only covers 1st-degree imports** (direct imports, not transitive chains)
+- **LSP requires language server binaries on $PATH:** `typescript-language-server`, `gopls`, `pyright-langserver`, or `rust-analyzer`
