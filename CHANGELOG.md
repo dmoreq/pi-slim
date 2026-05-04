@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.3.0] - 2026-05-04
+
+### Added
+- **Hashline Edit System** — precise line-targeted edits via hash-verified anchors (no file re-read needed):
+  - `hashline/line-hash.ts` — xxHash32 bigram hashing (compatible with oh-my-pi/Bun, uses xxhash-wasm)
+  - `hashline/normalize.ts` — line ending, BOM, Unicode, and indentation normalization utilities
+  - `hashline/core.ts` — anchor parsing, hash validation, auto-rebase, edit application, diff preview
+  - `hashline/diff.ts` — numbered-line diff generation for hashline previews
+  - `hashline/diff-preview.ts` — compact diff preview builder (pairs -/+ into modifications)
+  - `hashline/streaming.ts` — streaming hashline-formatted output for large files
+- **94 new tests** across 5 test files for hashline modules (419 total, all passing)
+- **New dependencies**: `xxhash-wasm` (replace `Bun.hash.xxHash32`), `diff` (for diff generation)
+
+### SOLID / DRY Compliance
+| Principle | Implementation |
+|-----------|---------------|
+| **S** (SRP) | Each hashline module does ONE thing: hashing, normalization, editing, diffing, or streaming |
+| **O** (OCP) | New edit operations via `HashlineEdit` union type — no core switch changes |
+| **L** (LSP) | `HashlineMismatchError` extends `Error` — all existing handlers work unchanged |
+| **I** (ISP) | Streaming is a separate module, not mixed into core logic |
+| **D** (DIP) | Core depends on pure `line-hash.ts` functions, not on file I/O |
+| **DRY** | All normalization/hashing/diff logic lives once. No duplication with other edit tools |
+
 ## [0.2.0] - 2026-05-04
 
 ### Added

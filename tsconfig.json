@@ -12,6 +12,6 @@
     "allowImportingTsExtensions": true,
     "emitDeclarationOnly": true
   },
-  "include": ["*.ts", "shared/**/*", "config/**/*", "core/**/*", "detect/**/*", "indexer/**/*", "injectors/**/*", "metrics/**/*", "parsers/**/*", "persistence/**/*", "plugins/**/*", "automation/**/*", "ui/**/*"],
+  "include": ["*.ts", "shared/**/*", "config/**/*", "core/**/*", "detect/**/*", "indexer/**/*", "injectors/**/*", "metrics/**/*", "parsers/**/*", "persistence/**/*", "plugins/**/*", "automation/**/*", "ui/**/*", "hashline/**/*", "tools/**/*", "lsp/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }
