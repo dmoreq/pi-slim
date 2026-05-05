@@ -1,8 +1,8 @@
 /**
  * Centralized telemetry helper functions — DRY principle.
  *
- * Consolidates all pi-telemetry interaction patterns used throughout
- * pi-scope, replacing ~40 lines of inline telemetry boilerplate.
+ * All functions delegate to `pi-telemetry/src/helpers.ts` for first-class
+ * event and metric support. Falls back to `getTelemetry()` for compatibility.
  *
  * Usage:
  * ```typescript
@@ -12,76 +12,74 @@
  * ```
  */
 
+import { recordEvent, recordMetric, recordError, telemetryHeartbeat } from 'pi-telemetry/helpers';
 import { getTelemetry } from 'pi-telemetry';
 
 // ── Helper Functions ───────────────────────────────────────────────────────
 
 /**
- * Record a context injection for telemetry.
- * Combines tool invocation, tool result, and metric recording into one call.
+ * Record a context injection as both a domain event and a metric.
+ *
+ * Replaces the old pattern of fake tool invocations.
+ * Events appear in /telemetry events timeline.
+ * Metrics appear in /telemetry metrics dashboard.
  *
  * @param source - Injection source name (e.g. 'repo-map', 'dep-context')
  * @param tokens  - Number of tokens injected
  * @param files   - Optional file paths that were injected
  */
 export function recordInjection(source: string, tokens: number, files?: string[]): void {
+  recordEvent('pi-scope', 'injection', `${source} ${tokens}t`, {
+    source,
+    tokens,
+    files,
+  });
+
+  recordMetric(`${source}-tokens`, tokens, { cumulative: true, tags: { source } });
+  if (files && files.length > 0) {
+    recordMetric(`${source}-files`, files.length, { cumulative: true, tags: { source } });
+  }
+
+  // Also record as tool usage for backward compatibility in the dashboard tool listing
   try {
     const t = getTelemetry();
     t?.recordToolInvocation('pi-scope', source);
     t?.recordToolResult('pi-scope', source, 0, false);
     t?.recordTokens('pi-scope', { input: tokens, output: 0 });
-
-    if (files && files.length > 0) {
-      // Track file counts via heartbeat metadata
-      t?.heartbeat('pi-scope', { status: 'healthy', error: undefined });
-    }
-  } catch {
-    // Telemetry is best-effort
-  }
+  } catch { /* best-effort */ }
 }
 
 /**
- * Record a pruning operation for telemetry.
+ * Record a pruning operation as a domain event.
  *
- * @param rulesApplied - Names of pruning rules that were applied
+ * @param _rulesApplied - Names of pruning rules that were applied (kept for API compat)
  * @param removed      - Number of messages removed
  * @param total        - Total messages before pruning
  */
-export function recordPruning(rulesApplied: string[], removed: number, total: number): void {
-  try {
-    const t = getTelemetry();
-    t?.recordToolInvocation('pi-scope', 'pruning');
-    t?.recordToolResult('pi-scope', 'pruning', 0, false);
-    // Record ratio as a metric via heartbeat
-    t?.heartbeat('pi-scope', { status: 'healthy', error: undefined });
-  } catch {
-    // Telemetry is best-effort
-  }
+export function recordPruning(_rulesApplied: string[], removed: number, total: number): void {
+  const pct = total > 0 ? Math.round((removed / total) * 100) : 0;
+
+  recordEvent('pi-scope', 'pruning', `Pruned ${removed}/${total} messages (${pct}%)`, {
+    removed,
+    total,
+    percent: pct,
+  });
+
+  recordMetric('pruned-messages', removed, { cumulative: true, tags: { type: 'pruning' } });
 }
 
 /**
- * Record context usage statistics.
+ * Record context usage statistics as metrics.
  *
  * @param messageCount - Number of messages in context
  * @param toolCalls    - Number of tool calls in session
  * @param filesTouched - Number of unique files modified
  */
 export function recordContextUsage(messageCount: number, toolCalls: number, filesTouched: number): void {
-  try {
-    const t = getTelemetry();
-    t?.recordToolInvocation('pi-scope', 'context-monitor');
-    t?.recordToolResult('pi-scope', 'context-monitor', 0, false);
-  } catch {
-    // Telemetry is best-effort
-  }
+  recordMetric('context-messages', messageCount, { cumulative: false, tags: { type: 'context' } });
+  recordMetric('context-tool-calls', toolCalls, { cumulative: true, tags: { type: 'context' } });
+  recordMetric('context-files-touched', filesTouched, { cumulative: true, tags: { type: 'context' } });
 }
-
-/**
- * Record an automation event.
- *
- * @param triggerId - The triggered automation name
- * @param suggestion - Human-readable suggestion text
- */
 
 /**
  * Record a session error.
@@ -90,11 +88,7 @@ export function recordContextUsage(messageCount: number, toolCalls: number, file
  * @param message - Human-readable error message
  */
 export function recordSessionError(type: string, message: string): void {
-  try {
-    getTelemetry()?.recordError('pi-scope', type, message);
-  } catch {
-    // Telemetry is best-effort
-  }
+  recordError('pi-scope', type, message);
 }
 
 /**
@@ -104,9 +98,5 @@ export function recordSessionError(type: string, message: string): void {
  * @param error  - Optional error message if status is 'error'
  */
 export function recordHeartbeat(status: 'healthy' | 'degraded' | 'error' | 'stale', error?: string): void {
-  try {
-    getTelemetry()?.heartbeat('pi-scope', { status, error });
-  } catch {
-    // Telemetry is best-effort
-  }
+  telemetryHeartbeat('pi-scope', { status, error });
 }

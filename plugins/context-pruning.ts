@@ -57,9 +57,13 @@ export class ContextPruningPlugin implements Plugin {
       // Report pruning activity via telemetry
       try {
         const t = getTelemetry();
-        t?.recordToolInvocation('pi-scope', 'pruning');
-        t?.recordToolResult('pi-scope', 'pruning', 0, false);
         const pct = Math.round((removed / (removed + messages.length)) * 100)
+        t?.recordEvent('pi-scope', 'pruning', `Pruned ${removed}/${removed + messages.length} messages (${pct}%)`, {
+          removed,
+          total: removed + messages.length,
+          percent: pct,
+        });
+        t?.recordMetric('pruned-messages', removed, { cumulative: true });
         t?.notify(`\u2702\ufe0f Pruned ${removed}/${removed + messages.length} messages (${pct}%)`, {
           severity: 'info',
           badge: { text: 'pruning', variant: 'info' },
