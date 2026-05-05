@@ -9,6 +9,7 @@ import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { slimDir } from '../shared/paths.js'
 import { writeState } from '../shared/runtime-state.js'
+import { recordMetric } from 'pi-telemetry/helpers'
 
 // ── Stored record ────────────────────────────────────────────────────────
 
@@ -56,7 +57,10 @@ export class SessionStats {
 
   constructor(sessionId: string) { this.sessionId = sessionId }
 
-  recordRepoMapInjection(tokens: number): void { this.repoMapTokens = tokens }
+  recordRepoMapInjection(tokens: number): void {
+    this.repoMapTokens = tokens;
+    recordMetric('repo-map-tokens', tokens, { cumulative: false });
+  }
 
   recordDepContextInjection(paths: string[], tokens: number, fullFileTokens?: number): void {
     this.depContextTriggers++
@@ -76,11 +80,15 @@ export class SessionStats {
   }
 
   recordContextFilesInjection(tokens: number, count: number): void {
-    this.contextFilesTokens = tokens; this.contextFilesCount = count
+    this.contextFilesTokens = tokens; this.contextFilesCount = count;
+    recordMetric('context-files-tokens', tokens, { cumulative: false });
+    recordMetric('context-files-count', count, { cumulative: false });
   }
 
   recordProviderGuidanceInjection(tokens: number, count: number): void {
-    this.providerGuidanceTokens = tokens; this.providerGuidanceCount = count
+    this.providerGuidanceTokens = tokens; this.providerGuidanceCount = count;
+    recordMetric('provider-guidance-tokens', tokens, { cumulative: false });
+    recordMetric('provider-guidance-count', count, { cumulative: false });
   }
 
   summary(): string {
