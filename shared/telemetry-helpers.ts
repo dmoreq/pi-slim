@@ -13,7 +13,6 @@
  */
 
 import { recordEvent, recordMetric, recordError, telemetryHeartbeat } from 'pi-telemetry/helpers';
-import { getTelemetry } from 'pi-telemetry';
 
 // ── Helper Functions ───────────────────────────────────────────────────────
 
@@ -39,14 +38,6 @@ export function recordInjection(source: string, tokens: number, files?: string[]
   if (files && files.length > 0) {
     recordMetric(`${source}-files`, files.length, { cumulative: true, tags: { source } });
   }
-
-  // Also record as tool usage for backward compatibility in the dashboard tool listing
-  try {
-    const t = getTelemetry();
-    t?.recordToolInvocation('pi-scope', source);
-    t?.recordToolResult('pi-scope', source, 0, false);
-    t?.recordTokens('pi-scope', { input: tokens, output: 0 });
-  } catch { /* best-effort */ }
 }
 
 /**
