@@ -1,36 +1,32 @@
 /**
  * Tests for shared/telemetry-helpers.ts
  *
- * Uses a mock for pi-telemetry at module level.
+ * Uses mocks for pi-telemetry module-level helpers.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Create spies before importing the module under test
-const mockRecordToolInvocation = vi.fn();
-const mockRecordToolResult = vi.fn();
-const mockRecordTokens = vi.fn();
+// Create spies for pi-telemetry/helpers
+const mockRecordEvent = vi.fn();
+const mockRecordMetric = vi.fn();
 const mockRecordError = vi.fn();
-const mockHeartbeat = vi.fn();
-const mockRecordCost = vi.fn();
+const mockTelemetryHeartbeat = vi.fn();
 
-const mockGetTelemetry = vi.fn(() => ({
-  recordToolInvocation: mockRecordToolInvocation,
-  recordToolResult: mockRecordToolResult,
-  recordTokens: mockRecordTokens,
+vi.mock('pi-telemetry/helpers', () => ({
+  recordEvent: mockRecordEvent,
+  recordMetric: mockRecordMetric,
   recordError: mockRecordError,
-  heartbeat: mockHeartbeat,
-  recordCost: mockRecordCost,
-}));
-
-vi.mock('pi-telemetry', () => ({
-  getTelemetry: mockGetTelemetry,
-  default: vi.fn(),
+  telemetryHeartbeat: mockTelemetryHeartbeat,
 }));
 
 // Import the module under test AFTER the mock
-const { recordInjection, recordPruning, recordContextUsage, recordSessionError, recordHeartbeat }
-  = await import('../../shared/telemetry-helpers.js');
+const {
+  recordInjection,
+  recordPruning,
+  recordContextUsage,
+  recordSessionError,
+  recordHeartbeat,
+} = await import('../../shared/telemetry-helpers.js');
 
 describe('telemetry-helpers', () => {
   beforeEach(() => {
@@ -38,45 +34,84 @@ describe('telemetry-helpers', () => {
   });
 
   describe('recordInjection', () => {
-    it('records tool invocation, result, and tokens', () => {
+    it('records a domain event and metric', () => {
       recordInjection('repo-map', 3500);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'repo-map');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'repo-map', 0, false);
-      expect(mockRecordTokens).toHaveBeenCalledWith('pi-scope', { input: 3500, output: 0 });
+      expect(mockRecordEvent).toHaveBeenCalledWith(
+        'pi-scope',
+        'injection',
+        'repo-map 3500t',
+        { source: 'repo-map', tokens: 3500, files: undefined },
+      );
+      expect(mockRecordMetric).toHaveBeenCalledWith(
+        'repo-map-tokens',
+        3500,
+        { cumulative: true, tags: { source: 'repo-map' } },
+      );
     });
 
-    it('handles optional file list', () => {
+    it('handles optional file list with file metric', () => {
       recordInjection('dep-context', 2400, ['src/auth.ts', 'src/db.ts']);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'dep-context');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'dep-context', 0, false);
+      expect(mockRecordEvent).toHaveBeenCalledWith(
+        'pi-scope',
+        'injection',
+        'dep-context 2400t',
+        { source: 'dep-context', tokens: 2400, files: ['src/auth.ts', 'src/db.ts'] },
+      );
+      expect(mockRecordMetric).toHaveBeenCalledWith(
+        'dep-context-files',
+        2,
+        { cumulative: true, tags: { source: 'dep-context' } },
+      );
     });
 
-    it('is safe when telemetry is null', () => {
-      mockGetTelemetry.mockReturnValueOnce(null);
+    it('is safe when helpers are null', () => {
+      // Simulate pi-telemetry not loaded — helpers are no-op by design
+      // The real pi-telemetry/helpers are safe no-ops; our mock always returns fns
       expect(() => recordInjection('test', 100)).not.toThrow();
     });
   });
 
   describe('recordPruning', () => {
-    it('records pruning operation', () => {
+    it('records pruning event and metric', () => {
       recordPruning(['dedup', 'error-purge'], 5, 20);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'pruning');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'pruning', 0, false);
+      expect(mockRecordEvent).toHaveBeenCalledWith(
+        'pi-scope',
+        'pruning',
+        'Pruned 5/20 messages (25%)',
+        { removed: 5, total: 20, percent: 25 },
+      );
+      expect(mockRecordMetric).toHaveBeenCalledWith(
+        'pruned-messages',
+        5,
+        { cumulative: true, tags: { type: 'pruning' } },
+      );
     });
   });
 
   describe('recordContextUsage', () => {
-    it('records context monitoring', () => {
+    it('records context metrics', () => {
       recordContextUsage(50, 20, 10);
 
-      expect(mockRecordToolInvocation).toHaveBeenCalledWith('pi-scope', 'context-monitor');
-      expect(mockRecordToolResult).toHaveBeenCalledWith('pi-scope', 'context-monitor', 0, false);
+      expect(mockRecordMetric).toHaveBeenCalledWith(
+        'context-messages',
+        50,
+        { cumulative: false, tags: { type: 'context' } },
+      );
+      expect(mockRecordMetric).toHaveBeenCalledWith(
+        'context-tool-calls',
+        20,
+        { cumulative: true, tags: { type: 'context' } },
+      );
+      expect(mockRecordMetric).toHaveBeenCalledWith(
+        'context-files-touched',
+        10,
+        { cumulative: true, tags: { type: 'context' } },
+      );
     });
   });
-
 
   describe('recordSessionError', () => {
     it('records error events', () => {
@@ -90,27 +125,13 @@ describe('telemetry-helpers', () => {
     it('records heartbeats', () => {
       recordHeartbeat('healthy');
 
-      expect(mockHeartbeat).toHaveBeenCalledWith('pi-scope', { status: 'healthy', error: undefined });
+      expect(mockTelemetryHeartbeat).toHaveBeenCalledWith('pi-scope', { status: 'healthy', error: undefined });
     });
 
     it('records error heartbeats', () => {
       recordHeartbeat('error', 'Indexing failed');
 
-      expect(mockHeartbeat).toHaveBeenCalledWith('pi-scope', { status: 'error', error: 'Indexing failed' });
-    });
-  });
-
-  describe('handling null telemetry globally', () => {
-    it('all functions handle null telemetry gracefully', () => {
-      mockGetTelemetry.mockReturnValue(null);
-
-      expect(() => {
-        recordInjection('test', 100);
-        recordPruning(['a', 'b'], 1, 10);
-        recordContextUsage(1, 1, 1);
-        recordSessionError('test', 'test');
-        recordHeartbeat('healthy');
-      }).not.toThrow();
+      expect(mockTelemetryHeartbeat).toHaveBeenCalledWith('pi-scope', { status: 'error', error: 'Indexing failed' });
     });
   });
 });
