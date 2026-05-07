@@ -22,32 +22,84 @@ export class RetrievalEngine {
   constructor(private index: RepoIndex) {}
 
   /**
-   * Score a single file against a query and active dependency set.
+   * Extract potential symbol names from query text.
+   * Looks for camelCase, snake_case, and kebab-case identifiers.
    */
-  private scoreFile(query: string, file: string, activeDeps: Set<string>): ScoredFile {
+  private extractQueryTokens(query: string): Set<string> {
+    const tokens = new Set<string>()
+    // Split on whitespace and common delimiters, then extract identifiers
+    const words = query.split(/[\s.,;:(){}[\]"'`/\\<>|+=*&^%$#@!?~-]+/)
+    
+    for (const word of words) {
+      if (word.length > 1) {
+        tokens.add(word.toLowerCase())
+        
+        // Extract camelCase components (e.g., "getUserData" → ["get", "user", "data"])
+        // Look for capital letters to split on
+        const camelParts = word.split(/(?=[A-Z])/).filter(s => s.length > 1)
+        camelParts.forEach(part => tokens.add(part.toLowerCase()))
+        
+        // Also try to split on common word boundaries
+        const underscoreParts = word.split('_').filter(s => s.length > 1)
+        underscoreParts.forEach(part => tokens.add(part.toLowerCase()))
+      }
+    }
+    
+    return tokens
+  }
+
+  /**
+   * Score a single file against query tokens and active dependency set.
+   * Optimized version that doesn't iterate over all symbols.
+   */
+  private scoreFile(query: string, file: string, activeDeps: Set<string>, queryTokens?: Set<string>): ScoredFile {
     const signals: string[] = []
     let score = 0
+    
+    const tokens = queryTokens || this.extractQueryTokens(query)
 
-    // Symbol match: check if any exported symbol matches query tokens
-    const symbols = this.index.symbolIndex
-    if (symbols.size > 0) {
-      const queryLower = query.toLowerCase()
-      // Check symbol index for matches
-      for (const [sym, files] of symbols) {
+    // Symbol match: find symbols this file exports that match query tokens
+    const matchedSymbols = new Set<string>()
+    
+    for (const token of tokens) {
+      // Exact symbol matches
+      const exportingFiles = this.index.symbolIndex.get(token)
+      if (exportingFiles?.includes(file) && !matchedSymbols.has(token)) {
+        score += 3
+        signals.push(`symbol:${token}`)
+        matchedSymbols.add(token)
+      }
+    }
+    
+    // Partial symbol matches (more expensive, so only if we haven't found exact matches)
+    if (matchedSymbols.size === 0) {
+      for (const [symbol, files] of this.index.symbolIndex) {
         if (!files.includes(file)) continue
-        if (queryLower.includes(sym.toLowerCase())) {
-          score += 3
-          signals.push(`symbol:${sym}`)
+        const symbolLower = symbol.toLowerCase()
+        
+        for (const token of tokens) {
+          if (symbolLower.includes(token) && token.length > 2) { // Avoid short token noise
+            score += 2  // Lower score for partial matches
+            signals.push(`partial-symbol:${symbol}`)
+            matchedSymbols.add(symbol)
+            break
+          }
         }
+        
+        if (matchedSymbols.size > 0) break // Only need one partial match per file
       }
     }
 
     // Filename match
     const name = file.split('/').pop()?.replace(/\.[^.]+$/, '') ?? ''
-    const queryLower = query.toLowerCase()
-    if (queryLower.includes(name.toLowerCase()) && name.length > 1) {
-      score += 2
-      signals.push(`filename:${name}`)
+    if (name.length > 1) {
+      for (const token of tokens) {
+        if (name.toLowerCase().includes(token)) {
+          score += 2
+          signals.push(`filename:${name}`)
+          break // Only count filename match once
+        }
+      }
     }
 
     // Dependency proximity (this file is a transitive dep of an active file)
@@ -61,6 +113,7 @@ export class RetrievalEngine {
 
   /**
    * Retrieve top-K files by relevance score.
+   * Optimized to avoid O(files × symbols) complexity.
    *
    * @param query - User message or combined context text
    * @param k - Maximum files to return
@@ -68,16 +121,35 @@ export class RetrievalEngine {
    * @returns Ranked file paths, highest score first
    */
   retrieveTopK(query: string, k: number = 20, activeDeps: Set<string> = new Set()): ScoredFile[] {
-    const candidates: ScoredFile[] = []
+    const candidates = new Map<string, ScoredFile>()
+    const queryTokens = this.extractQueryTokens(query)
 
-    for (const file of this.index.skeletons.keys()) {
-      const scored = this.scoreFile(query, file, activeDeps)
-      if (scored.score > 0) {
-        candidates.push(scored)
+    // Phase 1: Symbol-based retrieval (most important signal)
+    for (const token of queryTokens) {
+      const files = this.index.symbolIndex.get(token)
+      if (files) {
+        for (const file of files) {
+          if (!candidates.has(file)) {
+            const scored = this.scoreFile(query, file, activeDeps, queryTokens)
+            if (scored.score > 0) {
+              candidates.set(file, scored)
+            }
+          }
+        }
       }
     }
 
-    return candidates
+    // Phase 2: Filename-based retrieval and dependency proximity for remaining files
+    for (const file of this.index.skeletons.keys()) {
+      if (!candidates.has(file)) {
+        const scored = this.scoreFile(query, file, activeDeps, queryTokens)
+        if (scored.score > 0) {
+          candidates.set(file, scored)
+        }
+      }
+    }
+
+    return Array.from(candidates.values())
       .sort((a, b) => b.score - a.score)
       .slice(0, k)
   }
