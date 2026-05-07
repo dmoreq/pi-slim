@@ -18,7 +18,7 @@ import type { RepoIndex } from '../shared/types.js'
 const gzipAsync = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
 
-const STORE_VERSION = 2
+const STORE_VERSION = 3
 
 interface StoredIndex {
   version: number
@@ -27,6 +27,8 @@ interface StoredIndex {
   fileCount: number
   skeletons: Record<string, string>
   deps: Record<string, string[]>
+  reverseDeps: Record<string, string[]>
+  symbolIndex: Record<string, string[]>
 }
 
 function storeDir(projectRoot: string): string {
@@ -66,6 +68,12 @@ export async function saveStore(
   const deps: Record<string, string[]> = {}
   for (const [k, v] of index.deps) deps[k] = [...v]
 
+  const reverseDeps: Record<string, string[]> = {}
+  for (const [k, v] of index.reverseDeps) reverseDeps[k] = [...v]
+
+  const symbolIndex: Record<string, string[]> = {}
+  for (const [k, v] of index.symbolIndex) symbolIndex[k] = [...v]
+
   const stored: StoredIndex = {
     version: STORE_VERSION,
     builtAt: new Date().toISOString(),
@@ -73,6 +81,8 @@ export async function saveStore(
     fileCount: index.skeletons.size,
     skeletons,
     deps,
+    reverseDeps,
+    symbolIndex,
   }
 
   const json = JSON.stringify(stored)
@@ -107,11 +117,15 @@ export async function loadStore(
   const deps = new Map<string, Set<string>>(
     Object.entries(stored.deps).map(([k, v]) => [k, new Set(v)]),
   )
+  const reverseDeps = new Map<string, Set<string>>(
+    Object.entries(stored.reverseDeps).map(([k, v]) => [k, new Set(v)]),
+  )
+  const symbolIndex = new Map<string, string[]>(Object.entries(stored.symbolIndex))
 
-  console.log(`[slim/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes`)
+  console.log(`[slim/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes, ${reverseDeps.size} reverse deps, ${symbolIndex.size} symbols`)
 
   return {
-    index: { skeletons, deps, reverseDeps: new Map(), symbolIndex: new Map() },
+    index: { skeletons, deps, reverseDeps, symbolIndex },
     repoMap,
     builtAt: stored.builtAt,
     fileCount: stored.fileCount,
