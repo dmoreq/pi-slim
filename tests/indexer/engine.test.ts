@@ -3,6 +3,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { IndexEngine } from '../../indexer/engine.js'
+import { saveStore, loadStore } from '../../indexer/index-store.js'
 import { produceDefaults } from '../../context/schema.js'
 
 const DEFAULT_CONFIG = produceDefaults()
@@ -77,5 +78,57 @@ export function add(a: number, b: number): number {
 
     const fooPath = join(tmpDir, 'src/foo.ts')
     expect(engine2.getRepoIndex().skeletons.has(fooPath)).toBe(true)
+  })
+
+  it('persists and restores symbolIndex and reverseDeps in store', async () => {
+    // Create files with exports and dependencies
+    await writeFixture('src/auth.ts', `
+export function authenticate(token: string) {
+  return { valid: true }
+}
+export class User {
+  constructor(public name: string) {}
+}
+`)
+    
+    await writeFixture('src/server.ts', `
+import { authenticate, User } from './auth'
+
+export function startServer() {
+  console.log('server started')
+}
+`)
+
+    const engine = new IndexEngine(tmpDir, DEFAULT_CONFIG)
+    await engine.build()
+    const originalIndex = engine.getRepoIndex()
+    
+    // Verify original index has symbol data
+    expect(originalIndex.symbolIndex.size).toBeGreaterThan(0)
+    expect(originalIndex.reverseDeps.size).toBeGreaterThan(0)
+    expect(originalIndex.symbolIndex.get('authenticate')).toEqual([expect.stringContaining('auth.ts')])
+    expect(originalIndex.symbolIndex.get('User')).toEqual([expect.stringContaining('auth.ts')])
+    
+    // Save to store
+    await saveStore(tmpDir, originalIndex, 'test-repo-map')
+    
+    // Load from store
+    const { index: restoredIndex } = await loadStore(tmpDir)
+    
+    // Verify symbolIndex is preserved
+    expect(restoredIndex.symbolIndex.size).toBe(originalIndex.symbolIndex.size)
+    expect(restoredIndex.symbolIndex.get('authenticate')).toEqual(originalIndex.symbolIndex.get('authenticate'))
+    expect(restoredIndex.symbolIndex.get('User')).toEqual(originalIndex.symbolIndex.get('User'))
+    expect(restoredIndex.symbolIndex.get('startServer')).toEqual(originalIndex.symbolIndex.get('startServer'))
+    
+    // Verify reverseDeps is preserved  
+    expect(restoredIndex.reverseDeps.size).toBe(originalIndex.reverseDeps.size)
+    const authPath = Array.from(originalIndex.reverseDeps.keys()).find(k => k.includes('auth.ts'))
+    const serverPath = Array.from(originalIndex.skeletons.keys()).find(k => k.includes('server.ts'))
+    expect(authPath).toBeDefined()
+    expect(serverPath).toBeDefined()
+    const authDeps = restoredIndex.reverseDeps.get(authPath!)
+    expect(authDeps).toBeDefined()
+    expect(authDeps?.has(serverPath!)).toBe(true)
   })
 })
