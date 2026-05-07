@@ -88,7 +88,7 @@ function _ensureTelemetry(): void {
   try {
     getTelemetry()?.register({
       name: "pi-scope",
-      version: "0.3.0",
+      version: "0.7.0",
       description: "AST-powered context + pruning + LSP navigation for pi",
       tools: ["repo-map", "dep-context", "context-files", "provider-guidance", "pruning"],
       events: ["session_start", "before_agent_start", "context", "session_shutdown"],
@@ -98,7 +98,7 @@ function _ensureTelemetry(): void {
 
 export class SessionManager {
   readonly name = 'pi-scope'
-  readonly version = '0.2.0'
+  readonly version = '0.7.0'
   protected readonly description = 'AST-powered context + pruning + LSP navigation for pi'
   protected readonly tools = ['repo-map', 'dep-context', 'context-files', 'provider-guidance', 'pruning']
   protected readonly events = ['session_start', 'before_agent_start', 'context', 'session_shutdown']
@@ -285,14 +285,24 @@ export class SessionManager {
     return { systemPrompt: event.systemPrompt + '\n\n' + result.content + hashlineGuidance }
   }
 
+  // ── Tool Call (per-tool) ─────────────────────────────────────────────
+
+  handleToolCall(event: { toolName: string; input: Record<string, unknown> | undefined }, ctx: ExtensionContext): { block?: boolean; reason?: string } | undefined {
+    const result = this.pluginManager.runToolCall(event, ctx)
+    if (result && !result.allowed) {
+      return { block: true, reason: result.reason }
+    }
+    return undefined
+  }
+
   // ── Context (per-turn) ───────────────────────────────────────────────
 
-  handleContext(event: ContextEvent, ctx: ExtensionContext): { messages: AgentMessage[] } | undefined {
+  async handleContext(event: ContextEvent, ctx: ExtensionContext): Promise<{ messages: AgentMessage[] } | undefined> {
     const s = this.state
     if (!s) return undefined
 
     // Run context plugins (pruning, etc.) BEFORE building dep-context
-    void this.pluginManager.runHook('onContext', event.messages)
+    await this.pluginManager.runHook('onContext', event.messages)
 
     // Early-exit: skip scanning if no file-like patterns in recent messages
     const recentMessages = event.messages.slice(-s.config.scanLastNMessages)
