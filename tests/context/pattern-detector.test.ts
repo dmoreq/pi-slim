@@ -92,7 +92,7 @@ describe('AgentPatternDetector', () => {
       const messages: AgentMessage[] = [
         {
           role: 'assistant',
-          content: 'Can you tell me where the Client class is located?'
+          content: 'Where is the Client class located?'
         }
       ]
       const issues = detector.detectSuboptimalToolUsage(messages)
@@ -110,5 +110,62 @@ describe('AgentPatternDetector', () => {
       expect(issues).toHaveLength(1)
       expect(issues[0].pattern).toBe('missing_impact_analysis')
     })
+  })
+
+  describe('edge cases and negative tests', () => {
+    it('should return false for non-editing content', () => {
+      const messages: AgentMessage[] = [
+        { role: 'user', content: 'what is the weather today?' }
+      ]
+      const context = detector.detectEditingIntent(messages)
+      expect(context.detected).toBe(false)
+    })
+
+    it('should handle empty messages gracefully', () => {
+      const messages: AgentMessage[] = []
+      const context = detector.detectEditingIntent(messages)
+      expect(context.detected).toBe(false)
+      expect(context.targetSymbols).toEqual([])
+    })
+
+    it('should detect multiple optimization suggestions', () => {
+      const messages: AgentMessage[] = [
+        { role: 'assistant', content: 'I will use StrReplace to edit' },
+        { role: 'assistant', content: 'Where is the config file located?' }
+      ]
+      const issues = detector.detectSuboptimalToolUsage(messages)
+      expect(issues.length).toBeGreaterThan(1)
+    })
+
+    it('should handle navigation ambiguity correctly', () => {
+      const messages: AgentMessage[] = [
+        {
+          role: 'user',
+          content: 'find where User is defined and show references'
+        }
+      ]
+      const context = detector.detectNavigationRequests(messages)
+      expect(context.requestType).toBe('definition')
+    })
+
+    it('should not treat vague tell-me phrasing as manual file lookup', () => {
+      const messages: AgentMessage[] = [
+        { role: 'assistant', content: 'Can you tell me a story about the repo?' }
+      ]
+      const issues = detector.detectSuboptimalToolUsage(messages)
+      expect(issues).toHaveLength(0)
+    })
+
+    it.each(['critical symbol', 'high-impact symbol'])(
+      'should flag `%s` without impact analysis',
+      (phrase) => {
+        const messages: AgentMessage[] = [
+          { role: 'assistant', content: `Refactoring this ${phrase} next` }
+        ]
+        const issues = detector.detectSuboptimalToolUsage(messages)
+        expect(issues).toHaveLength(1)
+        expect(issues[0].pattern).toBe('missing_impact_analysis')
+      }
+    )
   })
 })
