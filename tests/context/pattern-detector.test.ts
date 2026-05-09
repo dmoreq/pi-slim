@@ -28,13 +28,17 @@ describe('AgentPatternDetector', () => {
       expect(context.hasHashAnnotations).toBe(true)
     })
 
-    it('should detect snake_case and PascalCase symbols', () => {
+    it('should detect snake_case, PascalCase, and camelCase symbols', () => {
       const messages: AgentMessage[] = [
-        { role: 'user', content: 'modify user_settings and ClientHandler' }
+        {
+          role: 'user',
+          content: 'modify user_settings, ClientHandler, and getUserProfile'
+        }
       ]
       const context = detector.detectEditingIntent(messages)
       expect(context.targetSymbols).toContain('user_settings')
       expect(context.targetSymbols).toContain('ClientHandler')
+      expect(context.targetSymbols).toContain('getUserProfile')
     })
   })
 
