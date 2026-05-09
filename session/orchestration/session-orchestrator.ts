@@ -1,6 +1,6 @@
 import type { StateManager } from '../state/state-manager.js'
 import type { ConfigManager } from '../interfaces/config-manager.interface.js'
-import type { NotificationService } from '../notifications/notification-service.js'
+import type { NotificationService } from '../interfaces/notification-service.interface.js'
 import type { SessionOrchestrator as ISessionOrchestrator, SessionStats } from '../interfaces/orchestrator.interface.js'
 
 export class SessionOrchestrator implements ISessionOrchestrator {
