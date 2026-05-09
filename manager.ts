@@ -42,6 +42,7 @@ import { ContextIntelligenceEngine } from './context/intelligence-engine.js'
 import { SmartDependencyContextGenerator } from './context/smart-dep-context.js'
 import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import { produceDefaults } from './context/schema.js'
+import type { SessionOrchestrator } from './session/orchestration/session-orchestrator.js'
 import type { GraphifyAnalysis } from './context/graph-types.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
 import type { AgentMessage } from './shared/agent-message.js'
@@ -120,6 +121,12 @@ export class SessionManager {
   readonly graphService = new GraphService()
   readonly pluginManager = new PluginManager()
 
+  /**
+   * Optional session lifecycle orchestrator (SRP extraction).
+   * Wired via dependency injection when the session stack is composed.
+   */
+  readonly sessionOrchestrator?: SessionOrchestrator
+
   /** Graph analysis result (cached for telemetry) */
   private _graphNodeCount = 0
   private _graphEdgeCount = 0
@@ -134,7 +141,11 @@ export class SessionManager {
    */
   private conversationMessages: AgentMessage[] = []
 
-  constructor(_projectRoot?: string) {
+  constructor(
+    _projectRoot?: string,
+    deps?: { sessionOrchestrator?: SessionOrchestrator },
+  ) {
+    this.sessionOrchestrator = deps?.sessionOrchestrator
     this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
     this.pluginManager.register(new ReadAwarenessPlugin())
