@@ -6,7 +6,7 @@
  */
 
 import type { GraphifyAnalysis, GodNode, CommunityAnalysis } from './graph-types.js'
-import type { ContextInsights } from '../shared/intelligence-types.js'
+import type { ContextInsights, NavigationContext } from '../shared/intelligence-types.js'
 
 type CommunitySizing = CommunityAnalysis & { size?: number; cohesion?: number }
 
@@ -31,9 +31,7 @@ export class ActionableInsightsGenerator {
       sections.push(this.generateArchitecturalGuidance(graphAnalysis.communities))
     }
 
-    if (insights.editingIntent.detected || insights.navigationRequests.detected) {
-      sections.push(this.generateContextualSuggestions(insights, graphAnalysis))
-    }
+    sections.push(this.generateContextualSuggestions(insights, graphAnalysis))
 
     return `<actionable-insights>\n${sections.filter(Boolean).join('\n\n')}\n</actionable-insights>`
   }
@@ -56,6 +54,10 @@ export class ActionableInsightsGenerator {
    * Risk callouts for high-centrality (“god”) symbols.
    */
   generateRiskWarnings(godNodes: GodNode[]): string {
+    if (godNodes.length === 0) {
+      return ''
+    }
+
     const sortedGodNodes = [...godNodes].sort(this.compareGodNodesRisk).slice(0, 5)
 
     const warnings = sortedGodNodes.map((godNode) => this.formatGodNodeWarning(godNode))
@@ -67,6 +69,10 @@ export class ActionableInsightsGenerator {
    * Summarize cohesion and refactoring safety across top communities by impact.
    */
   generateArchitecturalGuidance(communities: CommunityAnalysis[]): string {
+    if (communities.length === 0) {
+      return ''
+    }
+
     const sortedCommunities = [...communities]
       .sort((a, b) => this.communityImpactScore(b) - this.communityImpactScore(a))
       .slice(0, 6)
@@ -117,8 +123,7 @@ export class ActionableInsightsGenerator {
 
     if (insights.navigationRequests.detected) {
       const symbols = insights.navigationRequests.requestedSymbols.slice(0, 2).join(', ')
-      const tool =
-        insights.navigationRequests.requestType === 'references' ? 'lsp_find_references' : 'lsp_go_to_definition'
+      const tool = this.getNavigationToolSuggestion(insights.navigationRequests.requestType)
 
       suggestions.push(`For "${symbols}" navigation:`)
       suggestions.push(`- Use \`${tool}\` instead of manual file browsing`)
@@ -130,6 +135,12 @@ export class ActionableInsightsGenerator {
       suggestions.push(`Working across communities (${communitiesLabel}):`)
       suggestions.push('- Respect community boundaries when adding features')
       suggestions.push('- Consider interface changes rather than cross-community dependencies')
+    }
+
+    const patternLines = this.formatSuboptimalPatternSuggestions(insights.suboptimalPatterns)
+    if (patternLines.length > 0) {
+      suggestions.push('Pattern detector recommendations:')
+      suggestions.push(...patternLines)
     }
 
     return suggestions.length > 0 ? `💡 CURRENT CONTEXT SUGGESTIONS:\n${suggestions.join('\n')}` : ''
@@ -157,30 +168,79 @@ export class ActionableInsightsGenerator {
         ].join('\n'))
     }
 
-    return `<actionable-insights>\n${sections.join('\n\n')}\n</actionable-insights>`
+    const basicPatterns = this.formatSuboptimalPatternSuggestions(insights.suboptimalPatterns)
+    if (basicPatterns.length > 0) {
+      sections.push(['💡 DETECTED WORKFLOW OPPORTUNITIES:', ...basicPatterns].join('\n'))
+    }
+
+    return `<actionable-insights>\n${sections.filter(Boolean).join('\n\n')}\n</actionable-insights>`
   }
 
-  /** Match edit targets against high-impact symbols. */
+  /**
+   * Prefer exact symbol ↔ god-node identity matches; otherwise allow longer-query substring
+   * matches only against node id/label (not the reverse), and never for ultra-short queries.
+   */
   private findAffectedGodNodes(targetSymbols: string[], godNodes: GodNode[]): GodNode[] {
-    const affected: GodNode[] = []
+    const byId = new Map<string, GodNode>()
 
     for (const symbol of targetSymbols) {
-      for (const godNode of godNodes) {
-        const symbolLower = symbol.toLowerCase()
-        const labelLower = godNode.label.toLowerCase()
-        const nodeIdLower = godNode.nodeId.toLowerCase()
+      if (symbol.length < 3) {
+        continue
+      }
 
-        if (
-          labelLower.includes(symbolLower) ||
-          nodeIdLower.includes(symbolLower) ||
-          symbolLower.includes(labelLower)
+      const symbolLower = symbol.toLowerCase()
+      const exact: GodNode[] = []
+      const partial: GodNode[] = []
+
+      for (const godNode of godNodes) {
+        const nodeIdLower = godNode.nodeId.toLowerCase()
+        const labelLower = godNode.label.toLowerCase()
+
+        if (symbolLower === nodeIdLower || symbolLower === labelLower) {
+          exact.push(godNode)
+        } else if (
+          symbol.length >= 4 &&
+          (nodeIdLower.includes(symbolLower) || labelLower.includes(symbolLower))
         ) {
-          affected.push(godNode)
+          partial.push(godNode)
         }
+      }
+
+      const picks = exact.length > 0 ? exact : partial
+      for (const gn of picks) {
+        byId.set(gn.nodeId, gn)
       }
     }
 
-    return [...new Map(affected.map((gn) => [gn.nodeId, gn])).values()]
+    return [...byId.values()]
+  }
+
+  /**
+   * Map navigation intent to the most appropriate LSP tool.
+   *
+   * `file_location` uses `lsp_go_to_definition` because resolving “where is this defined?”
+   * is usually the fastest path to the owning file; follow with references if needed.
+   */
+  private getNavigationToolSuggestion(requestType: NavigationContext['requestType']): string {
+    switch (requestType) {
+      case 'references':
+        return 'lsp_find_references'
+      case 'definition':
+      case 'file_location':
+        return 'lsp_go_to_definition'
+      default:
+        return 'lsp_go_to_definition'
+    }
+  }
+
+  private formatSuboptimalPatternSuggestions(
+    patterns: ContextInsights['suboptimalPatterns']
+  ): string[] {
+    return patterns.map(
+      (p) =>
+        `- (${p.pattern}, confidence ${p.confidence.toFixed(1)}): ${p.recommendation}` +
+        (p.toolSuggestion ? ` — tool: \`${p.toolSuggestion}\`` : '')
+    )
   }
 
   private compareGodNodesRisk(a: GodNode, b: GodNode): number {

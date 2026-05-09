@@ -137,4 +137,156 @@ describe('ActionableInsightsGenerator', () => {
       expect(result).toContain('dry_run: true')
     })
   })
+
+  describe('ActionableInsightsGenerator coverage gaps', () => {
+    it('should handle generation without graph analysis', () => {
+      const insights: ContextInsights = {
+        editingIntent: { detected: true, targetSymbols: ['authenticate'], targetFiles: [],
+          hasHashAnnotations: false, affectedGodNodes: [] },
+        navigationRequests: { detected: true, requestedSymbols: ['User'], requestType: 'references' },
+        suboptimalPatterns: [{
+          type: 'tool_usage', pattern: 'basic_edit', recommendation: 'Use hashline_edit',
+          confidence: 0.8, context: 'available'
+        }],
+        conversationContext: { recentMessages: 3, codebaseRelevant: true,
+          mentionedCommunities: [], mentionedFiles: [] }
+      }
+
+      const result = generator.generate(insights, null)
+
+      expect(result).toContain('<actionable-insights>')
+      expect(result).toContain('🎯 WORKFLOW OPTIMIZATION')
+      expect(result).toContain('Use hashline_edit')
+      expect(result).toContain('</actionable-insights>')
+    })
+
+    it('should map navigation tools for definition vs references vs file_location', () => {
+      const baseInsights = (nav: ContextInsights['navigationRequests']): ContextInsights => ({
+        editingIntent: { detected: false, targetSymbols: [], targetFiles: [],
+          hasHashAnnotations: false, affectedGodNodes: [] },
+        navigationRequests: nav,
+        suboptimalPatterns: [],
+        conversationContext: { recentMessages: 1, codebaseRelevant: true,
+          mentionedCommunities: [], mentionedFiles: [] }
+      })
+
+      const refs = generator.generateContextualSuggestions(
+        baseInsights({ detected: true, requestedSymbols: ['User'], requestType: 'references' }),
+        mockGraphAnalysis
+      )
+      expect(refs).toContain('lsp_find_references')
+
+      const def = generator.generateContextualSuggestions(
+        baseInsights({ detected: true, requestedSymbols: ['User'], requestType: 'definition' }),
+        mockGraphAnalysis
+      )
+      expect(def).toContain('lsp_go_to_definition')
+
+      const fileLoc = generator.generateContextualSuggestions(
+        baseInsights({ detected: true, requestedSymbols: ['helpers.ts'], requestType: 'file_location' }),
+        mockGraphAnalysis
+      )
+      expect(fileLoc).toContain('lsp_go_to_definition')
+    })
+
+    it('should emit editing branch without hashes and navigation-only contexts', () => {
+      const noHash: ContextInsights = {
+        editingIntent: { detected: true, targetSymbols: ['authenticate'], targetFiles: [],
+          hasHashAnnotations: false, affectedGodNodes: [] },
+        navigationRequests: { detected: false, requestedSymbols: [], requestType: 'none' },
+        suboptimalPatterns: [],
+        conversationContext: { recentMessages: 2, codebaseRelevant: true,
+          mentionedCommunities: [], mentionedFiles: [] }
+      }
+      const noHashSuggestions = generator.generateContextualSuggestions(noHash, mockGraphAnalysis)
+      expect(noHashSuggestions).toContain('lsp_go_to_definition')
+      expect(noHashSuggestions).not.toContain('dry_run: true')
+
+      const navigationOnly: ContextInsights = {
+        editingIntent: { detected: false, targetSymbols: [], targetFiles: [],
+          hasHashAnnotations: false, affectedGodNodes: [] },
+        navigationRequests: { detected: true, requestedSymbols: ['authenticate'], requestType: 'references' },
+        suboptimalPatterns: [],
+        conversationContext: { recentMessages: 1, codebaseRelevant: true,
+          mentionedCommunities: [], mentionedFiles: [] }
+      }
+      const navSuggestions = generator.generateContextualSuggestions(navigationOnly, mockGraphAnalysis)
+      expect(navSuggestions).toContain('lsp_find_references')
+      expect(navSuggestions).not.toContain('Based on editing intent')
+    })
+
+    it('should surface pattern detector hints in-context when graph exists', () => {
+      const insights: ContextInsights = {
+        editingIntent: { detected: false, targetSymbols: [], targetFiles: [],
+          hasHashAnnotations: false, affectedGodNodes: [] },
+        navigationRequests: { detected: false, requestedSymbols: [], requestType: 'none' },
+        suboptimalPatterns: [{
+          type: 'workflow_optimization',
+          pattern: 'parallel_edits',
+          recommendation: 'Batch reads before writes',
+          confidence: 0.7,
+          context: 'test',
+          toolSuggestion: 'lsp_hover'
+        }],
+        conversationContext: { recentMessages: 1, codebaseRelevant: true,
+          mentionedCommunities: [], mentionedFiles: [] }
+      }
+
+      const suggestions = generator.generateContextualSuggestions(insights, mockGraphAnalysis)
+      expect(suggestions).toContain('Pattern detector recommendations')
+      expect(suggestions).toContain('parallel_edits')
+      expect(suggestions).toContain('lsp_hover')
+    })
+
+    it('should skip imprecise ultra-short god node matches', () => {
+      const shortSym: ContextInsights = {
+        editingIntent: { detected: true, targetSymbols: ['Cl'], targetFiles: [],
+          hasHashAnnotations: false, affectedGodNodes: [] },
+        navigationRequests: { detected: false, requestedSymbols: [], requestType: 'none' },
+        suboptimalPatterns: [],
+        conversationContext: { recentMessages: 1, codebaseRelevant: true,
+          mentionedCommunities: [], mentionedFiles: [] }
+      }
+
+      expect(generator.generateContextualSuggestions(shortSym, mockGraphAnalysis))
+        .not.toContain('God nodes detected')
+
+      const precise: ContextInsights = {
+        ...shortSym,
+        editingIntent: { detected: true, targetSymbols: ['Client'], targetFiles: [],
+          hasHashAnnotations: false, affectedGodNodes: [] }
+      }
+      expect(generator.generateContextualSuggestions(precise, mockGraphAnalysis))
+        .toContain('God nodes detected')
+    })
+
+    it('should handle empty god nodes and communities gracefully', () => {
+      const emptyGraph = {
+        ...mockGraphAnalysis,
+        godNodes: [],
+        communities: []
+      } as GraphifyAnalysis
+
+      const insights: ContextInsights = {
+        editingIntent: { detected: true, targetSymbols: ['X'], targetFiles: [],
+          hasHashAnnotations: true, affectedGodNodes: [] },
+        navigationRequests: { detected: false, requestedSymbols: [], requestType: 'none' },
+        suboptimalPatterns: [],
+        conversationContext: { recentMessages: 1, codebaseRelevant: true,
+          mentionedCommunities: [], mentionedFiles: [] }
+      }
+
+      const result = generator.generate(insights, emptyGraph)
+      expect(result).toContain('<actionable-insights>')
+      expect(result).toContain('🎯 WORKFLOW OPTIMIZATION')
+      expect(result).not.toContain('⚠️ HIGH-IMPACT SYMBOLS')
+      expect(result).not.toContain('🏗️ ARCHITECTURAL GUIDANCE')
+      expect(result).toContain('💡 CURRENT CONTEXT SUGGESTIONS')
+    })
+
+    it('should return empty structured guidance for empty primitive inputs', () => {
+      expect(generator.generateRiskWarnings([])).toBe('')
+      expect(generator.generateArchitecturalGuidance([])).toBe('')
+    })
+  })
 })
