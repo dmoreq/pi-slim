@@ -5,7 +5,7 @@
  * Ensures the graph data is well-formed before processing.
  */
 
-import type { GraphifyGraph, ValidationResult } from './graphify-types'
+import type { GraphifyGraph, ValidationResult } from './graphify-types.js'
 
 /**
  * JSON Schema for GraphifyGraph

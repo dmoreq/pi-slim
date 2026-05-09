@@ -14,7 +14,7 @@ import type {
   GraphifyAnalysis,
   GodNode,
   SurprisingConnection
-} from './graphify-types'
+} from './graphify-types.js'
 
 /**
  * Enhanced hover information with graph metrics.
@@ -250,17 +250,20 @@ function computeGraphMetrics(nodeId: string, analysis: GraphifyAnalysis): GraphM
   }
 
   // Try to find in graph nodes
-  const graphNode = analysis.graph.nodes.find((n) => normalizeNodeId(n.id) === nodeId)
-  if (graphNode) {
-    const inDegree = analysis.graph.edges.filter((e) => e.target === graphNode.id).length
-    const outDegree = analysis.graph.edges.filter((e) => e.source === graphNode.id).length
+  const g = (analysis as any).graph as GraphifyGraph | undefined
+  if (g) {
+    const graphNode = g.nodes.find((n: any) => normalizeNodeId(n.id) === nodeId)
+    if (graphNode) {
+      const inDegree = g.edges.filter((e: any) => e.target === graphNode.id).length
+      const outDegree = g.edges.filter((e: any) => e.source === graphNode.id).length
 
-    return {
-      inDegree,
-      outDegree,
-      betweenness: 0,
-      pageRank: 0,
-      centrality: outDegree > 5 ? 'high' : outDegree > 2 ? 'medium' : 'low'
+      return {
+        inDegree,
+        outDegree,
+        betweenness: 0,
+        pageRank: 0,
+        centrality: outDegree > 5 ? 'high' : outDegree > 2 ? 'medium' : 'low'
+      }
     }
   }
 
@@ -298,7 +301,7 @@ function findSurprises(nodeId: string, analysis: GraphifyAnalysis): SurprisingCo
   }
 
   return analysis.surprises.filter(
-    (s) =>
+    (s: any) =>
       normalizeNodeId(s.source) === nodeId ||
       normalizeNodeId(s.target) === nodeId
   )
@@ -321,7 +324,7 @@ function createGodNodeInfo(godNode: GodNode): GodNodeInfo {
 
   return {
     isGodNode: true,
-    criticality: godNode.criticality,
+    criticality: godNode.criticality as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW',
     label: godNode.label,
     inDegree: godNode.inDegree,
     outDegree: godNode.outDegree,
@@ -338,7 +341,7 @@ function createGodNodeInfo(godNode: GodNode): GodNodeInfo {
  * @returns Surprise info
  */
 function createSurpriseInfo(surprises: SurprisingConnection[]): SurpriseInfo {
-  const types = Array.from(new Set(surprises.map((s) => s.type)))
+  const types = Array.from(new Set(surprises.map((s: any) => s.reason || s.type)))
 
   return {
     hasUnexpectedConnections: true,
@@ -392,8 +395,10 @@ function createCommunityInfo(
  * @returns Impact analysis
  */
 function analyzeImpact(nodeId: string, analysis: GraphifyAnalysis): ImpactAnalysis {
+  const g = (analysis as any).graph as GraphifyGraph | undefined
+  const edges = g?.edges ?? []
   // Find all dependents (nodes that depend on this one)
-  const dependents = analysis.graph.edges.filter(
+  const dependents = edges.filter(
     (e) => normalizeNodeId(e.source) === nodeId
   )
   const dependentCount = new Set(dependents.map((e) => e.target)).size
@@ -423,7 +428,7 @@ function analyzeImpact(nodeId: string, analysis: GraphifyAnalysis): ImpactAnalys
   return {
     dependentCount,
     affectedCommunities: affectedCommunities.size,
-    criticalityLevel: criticality,
+    criticalityLevel: criticality as 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW',
     recommendation: recommendations[criticality],
     example: dependentCount > 0 ? `e.g., ${dependents[0]?.target}` : undefined
   }

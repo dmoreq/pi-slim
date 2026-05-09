@@ -7,12 +7,12 @@
 
 import fs from 'fs'
 import path from 'path'
-import type { GraphifyGraph, ValidationResult } from './graphify-types'
+import type { GraphifyGraph, ValidationResult } from './graphify-types.js'
 import {
   validateGraphSchema,
   isValidGraphifyGraph,
   formatValidationErrors
-} from './graphify-schema'
+} from './graphify-schema.js'
 
 /**
  * Result of attempting to load a graph file.

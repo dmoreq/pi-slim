@@ -1,7 +1,7 @@
 {
   "name": "pi-scope",
   "version": "0.7.0",
-  "description": "AST-powered context, retrieval, and code intelligence for pi",
+  "description": "AST-powered context, retrieval, and code intelligence for pi — fully independent, no external Python dependencies",
   "type": "module",
   "main": "./dist/extension.js",
   "types": "./dist/extension.d.ts",
@@ -14,15 +14,18 @@
     "skeleton",
     "hashline",
     "lsp",
-    "code-intelligence"
+    "code-intelligence",
+    "graph-analysis",
+    "god-nodes",
+    "community-detection",
+    "cycle-detection"
   ],
   "license": "MIT",
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "debug": "tsx bin/debug.ts"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "diff": "^9.0.0",
@@ -51,23 +54,41 @@
   },
   "files": [
     "dist/",
-    "shared/",
-    "config/",
-    "detect/",
+    "algorithms/",
+    "context/",
     "hashline/",
     "indexer/",
-    "injectors/",
     "lsp/",
     "metrics/",
     "parsers/",
     "persistence/",
     "plugins/",
+    "services/",
+    "shared/",
+    "skills/",
     "tools/",
     "ui/",
+    "visualization/",
     "extension.ts",
     "manager.ts",
-    "skills/",
     "README.md",
-    "LICENSE"
-  ]
+    "LICENSE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./dist/extension.js"
+    ],
+    "skills": {
+      "pi-scope": "./skills/pi-scope/SKILL.md",
+      "pi-scope-config": "./skills/pi-scope-config/SKILL.md",
+      "pi-scope-hashline": "./skills/pi-scope-hashline/SKILL.md",
+      "pi-scope-lsp": "./skills/pi-scope-lsp/SKILL.md",
+      "pi-scope-parsers": "./skills/pi-scope-parsers/SKILL.md",
+      "pi-scope-plugins": "./skills/pi-scope-plugins/SKILL.md",
+      "pi-scope-retrieval": "./skills/pi-scope-retrieval/SKILL.md",
+      "pi-scope-telemetry": "./skills/pi-scope-telemetry/SKILL.md"
+    }
+  }
 }

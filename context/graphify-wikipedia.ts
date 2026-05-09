@@ -14,7 +14,7 @@ import type {
   GraphifyAnalysis,
   GodNode,
   CommunityAnalysis
-} from './graphify-types'
+} from './graphify-types.js'
 
 // GraphifyAnalysis doesn't carry .graph — provide it separately
 interface AnalysisWithGraph extends Omit<GraphifyAnalysis, 'graph'> {

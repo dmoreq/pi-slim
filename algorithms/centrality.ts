@@ -5,7 +5,7 @@
  * These metrics identify important nodes in the dependency graph.
  */
 
-import type { GraphifyGraph } from '../context/graphify-types'
+import type { GraphifyGraph } from '../context/graphify-types.js'
 
 /**
  * Degree centrality score for a single node.

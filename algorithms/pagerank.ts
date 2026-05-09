@@ -5,7 +5,7 @@
  * based on Google's PageRank. Important nodes depend on other important nodes.
  */
 
-import type { GraphifyGraph } from '../context/graphify-types'
+import type { GraphifyGraph } from '../context/graphify-types.js'
 
 /**
  * PageRank score for a single node.

@@ -10,20 +10,24 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "emitDeclarationOnly": true
+    "noEmit": true
   },
   "include": [
     "*.ts",
-    "shared/**/*",
+    "algorithms/**/*",
     "context/**/*",
     "hashline/**/*",
     "indexer/**/*",
     "lsp/**/*",
     "metrics/**/*",
     "parsers/**/*",
+    "persistence/**/*",
     "plugins/**/*",
+    "services/**/*",
+    "shared/**/*",
     "tools/**/*",
-    "ui/**/*"
+    "ui/**/*",
+    "visualization/**/*"
   ],
   "exclude": ["node_modules", "dist", "tests"]
 }
