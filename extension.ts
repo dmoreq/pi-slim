@@ -107,7 +107,10 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     )
   }) as AnyFn)
 
-  pi.on('before_agent_start', ((event: BeforeAgentStartEvent, ctx: PiExtensionContext) => {
+  pi.on('before_agent_start', (async (
+    event: BeforeAgentStartEvent,
+    ctx: PiExtensionContext,
+  ) => {
     if (!isCodebaseRelevant(event.prompt)) return undefined
     return manager.handleBeforeAgentStart(
       event as Parameters<SessionManager['handleBeforeAgentStart']>[0],

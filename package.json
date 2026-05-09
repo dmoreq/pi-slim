@@ -26,7 +26,10 @@
     "postinstall": "node scripts/build.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:intelligence": "vitest run tests/context/ tests/integration/enhanced-context.test.ts",
+    "test:intelligence:watch": "vitest watch tests/context/ tests/integration/enhanced-context.test.ts",
+    "build:intelligence": "npm run build && npm run test:intelligence"
   },
   "dependencies": {
     "diff": "^9.0.0",

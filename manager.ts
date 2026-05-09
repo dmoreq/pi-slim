@@ -39,10 +39,17 @@ import { IndexService } from './services/index-service.js'
 import { GraphService } from './services/graph-service.js'
 import { TelemetryService } from './services/telemetry-service.js'
 import { ContextIntelligenceEngine } from './context/intelligence-engine.js'
+import { SmartDependencyContextGenerator } from './context/smart-dep-context.js'
+import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
+import { produceDefaults } from './context/schema.js'
 import type { GraphifyAnalysis } from './context/graph-types.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
+import type { AgentMessage } from './shared/agent-message.js'
+import type { OptionalGraphAnalysisLoader } from './shared/optional-graph-analysis-loader.js'
 
 // ── Types ──────────────────────────────────────────────────────────────
+
+export type { AgentMessage } from './shared/agent-message.js'
 
 export interface ExtensionContext {
   cwd: string
@@ -59,15 +66,12 @@ export interface BeforeAgentStartEvent {
   prompt: string
 }
 
-export interface AgentMessage {
-  role?: string
-  content?: unknown
-  [key: string]: unknown
-}
-
 export interface ContextEvent {
-  type: 'context'
+  type?: 'context'
   messages: AgentMessage[]
+  /** Optional host metadata — ignored today; tolerated for forwards compatibility. */
+  files?: string[]
+  symbols?: string[]
 }
 
 // ── Session state ──────────────────────────────────────────────────────
@@ -90,6 +94,22 @@ export interface SessionState {
 // ── Manager ────────────────────────────────────────────────────────────
 
 export class SessionManager {
+  /** Default host context when the runtime omits an `ExtensionContext` (tests). */
+  private static readonly DEFAULT_EXTENSION_CONTEXT: ExtensionContext = {
+    cwd: typeof process !== 'undefined' && typeof process.cwd === 'function' ? process.cwd() : '.',
+    ui: { notify: () => {}, setStatus: () => {} },
+    hasUI: false,
+    getSystemPrompt: () => '',
+    sessionManager: { getSessionId: () => 'pi-scope-default' },
+  }
+
+  /**
+   * Max messages retained for pattern detection / guidance.
+   * `handleContext` replaces the buffer from the host (authoritative transcript);
+   * `addMessages` appends (tests / tooling) — both paths enforce this cap.
+   */
+  private static readonly MAX_CONVERSATION_MESSAGES = 100
+
   readonly name = 'pi-scope'
   readonly version = '0.7.0'
   state: SessionState | null = null
@@ -105,7 +125,13 @@ export class SessionManager {
   private _graphEdgeCount = 0
 
   private intelligenceEngine: ContextIntelligenceEngine
-  /** Transcript slice retained for pattern detection / guidance (also synced from {@link handleContext}). */
+  /**
+   * Conversation buffer for intelligence analysis.
+   *
+   * **`handleContext`** — replaces with `event.messages` (host owns the canonical transcript).
+   * **`addMessages`** — appends (programmatic ingest). Both paths truncate to {@link SessionManager.MAX_CONVERSATION_MESSAGES}
+   * (oldest removed first).
+   */
   private conversationMessages: AgentMessage[] = []
 
   constructor(_projectRoot?: string) {
@@ -115,7 +141,8 @@ export class SessionManager {
   }
 
   /**
-   * Append messages to the conversation buffer used by the intelligence engine.
+   * Append messages to the intelligence transcript buffer (does not replace the host copy).
+   * Oldest rows are dropped when length exceeds {@link SessionManager.MAX_CONVERSATION_MESSAGES}.
    */
   addMessages(messages: AgentMessage[]): void {
     for (const m of messages) {
@@ -124,33 +151,18 @@ export class SessionManager {
         content: extractText(m.content),
       })
     }
+    this.trimConversationMessagesToCapacity()
   }
 
   /** Run pattern + graph-aware analysis over the current conversation buffer. */
   async analyzeCurrentContext(): Promise<ContextInsights> {
-    const graph = await this.resolveGraphAnalysisForIntelligence()
-    return this.intelligenceEngine.analyzeConversationContext(
-      this.conversationMessages,
-      graph,
-    )
+    return (await this.buildIntelligenceSnapshot()).insights
   }
 
   /** Natural-language steering block for agents (graph when available, otherwise basic tips). */
   async generateIntelligentGuidance(): Promise<string> {
-    try {
-      const graph = await this.resolveGraphAnalysisForIntelligence()
-      const insights = this.intelligenceEngine.analyzeConversationContext(
-        this.conversationMessages,
-        graph,
-      )
-      return this.intelligenceEngine.generateActionableGuidance(insights, graph)
-    } catch {
-      const insights = this.intelligenceEngine.analyzeConversationContext(
-        this.conversationMessages,
-        null,
-      )
-      return this.intelligenceEngine.generateActionableGuidance(insights, null)
-    }
+    const { insights, graph } = await this.buildIntelligenceSnapshot()
+    return this.intelligenceEngine.generateActionableGuidance(insights, graph)
   }
 
   /** Same guidance string suitable for injecting alongside dep-context or tool hints. */
@@ -159,27 +171,124 @@ export class SessionManager {
   }
 
   /**
-   * Prefer optional `loadGraphifyAnalysis()` on {@link GraphService} when tests or hosts
-   * inject it; otherwise use analysis loaded during session start.
+   * Computes insights and the graph correlation used together in {@link generateActionableGuidance}.
+   * On resolver or analyzer failure, repeats analysis **without** graph so callers always get usable output.
+   */
+  private async buildIntelligenceSnapshot(): Promise<{
+    insights: ContextInsights
+    graph: GraphifyAnalysis | null
+  }> {
+    try {
+      const graph = await this.resolveGraphAnalysisForIntelligence()
+      const insights = this.intelligenceEngine.analyzeConversationContext(
+        this.conversationMessages,
+        graph,
+      )
+      return { insights, graph }
+    } catch {
+      const graph = null
+      const insights = this.intelligenceEngine.analyzeConversationContext(
+        this.conversationMessages,
+        null,
+      )
+      return { insights, graph }
+    }
+  }
+
+  /**
+   * Replace buffer with the host's current transcript slice (typically full conversation).
+   * Always trim after replace — pi may send arbitrarily long payloads.
+   */
+  private syncConversationMessages(messages: AgentMessage[]): void {
+    this.conversationMessages = messages.map((m) => ({
+      ...m,
+      content: extractText(m.content),
+    }))
+    this.trimConversationMessagesToCapacity()
+  }
+
+  private trimConversationMessagesToCapacity(): void {
+    const max = SessionManager.MAX_CONVERSATION_MESSAGES
+    if (this.conversationMessages.length <= max) return
+    const excess = this.conversationMessages.length - max
+    this.conversationMessages.splice(0, excess)
+  }
+
+  /**
+   * Prefer {@link OptionalGraphAnalysisLoader.loadGraphifyAnalysis} when present;
+   * otherwise use cached analysis from session graph load.
    */
   private async resolveGraphAnalysisForIntelligence(): Promise<GraphifyAnalysis | null> {
     try {
-      const gs = this.graphService as GraphService & {
-        loadGraphifyAnalysis?: () => Promise<GraphifyAnalysis | null>
-      }
-      if (typeof gs.loadGraphifyAnalysis === 'function') {
-        const loaded = await gs.loadGraphifyAnalysis()
+      const svc = this.graphService as GraphService & OptionalGraphAnalysisLoader
+      if ('loadGraphifyAnalysis' in svc && typeof svc.loadGraphifyAnalysis === 'function') {
+        const loaded = await svc.loadGraphifyAnalysis()
         if (loaded != null) return loaded
       }
     } catch {
-      /* use graphService.analysis */
+      /* fall through — use cached analysis */
     }
     return this.graphService.analysis
   }
 
+  /**
+   * Compose actionable guidance plus smart dependency/tool recommendations.
+   */
+  private async buildEnhancedGuidanceLayers(): Promise<string> {
+    const { insights, graph } = await this.buildIntelligenceSnapshot()
+    const actionable = this.intelligenceEngine.generateActionableGuidance(insights, graph)
+    const smart = new SmartDependencyContextGenerator()
+    const depBlock = smart.generateEnhancedDependencyContext(insights, graph)
+    return [actionable, depBlock].filter((s) => s.trim().length > 0).join('\n\n')
+  }
+
   // ── Session start ──────────────────────────────────────────────────
 
-  async start(projectRoot: string, getFlag: (name: string) => unknown, ctx: ExtensionContext): Promise<void> {
+  /**
+   * Minimal session bootstrap for integration tests / graph-mocked intelligence.
+   * Enables `handleContext` with an empty index and default slim config.
+   */
+  private async bootstrapMinimalIntelligenceSession(): Promise<void> {
+    this.telemetry.register()
+    this.telemetry.onSessionStart()
+    const projectRoot = typeof process !== 'undefined' && typeof process.cwd === 'function' ? process.cwd() : '.'
+    const config = produceDefaults()
+    if (!config.enabled) return
+    const stats = new SessionStats(SessionManager.DEFAULT_EXTENSION_CONTEXT.sessionManager.getSessionId())
+    const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
+    const emptyIndex: RepoIndex = {
+      skeletons: new Map(),
+      deps: new Map(),
+      reverseDeps: new Map(),
+      symbolIndex: new Map(),
+    }
+    await this.pluginManager.runHook('onSessionStart', SessionManager.DEFAULT_EXTENSION_CONTEXT)
+    this.state = this.initState({
+      index: emptyIndex,
+      repoMap: '',
+      injector,
+      config,
+      stats,
+      projectRoot,
+      contextFiles: [],
+    })
+  }
+
+  /** Start indexer + graph orchestration (`pi` hosts), or bootstrap a minimal enabled session (`start()` with no args — tests). */
+  async start(): Promise<void>
+  async start(projectRoot: string, getFlag: (name: string) => unknown, ctx: ExtensionContext): Promise<void>
+  async start(projectRoot?: string, getFlag?: (name: string) => unknown, ctx?: ExtensionContext): Promise<void> {
+    if (arguments.length === 0) {
+      await this.bootstrapMinimalIntelligenceSession()
+      return
+    }
+    if (
+      typeof projectRoot !== 'string'
+      || typeof getFlag !== 'function'
+      || ctx === undefined
+    ) {
+      throw new Error('session start requires (projectRoot, getFlag, ctx) when bootstrap mode is disabled')
+    }
     this.telemetry.register()
     this.telemetry.onSessionStart()
 
@@ -351,7 +460,10 @@ export class SessionManager {
 
   // ── Before agent start ────────────────────────────────────────────
 
-  handleBeforeAgentStart(event: BeforeAgentStartEvent, ctx: ExtensionContext): { systemPrompt: string } | undefined {
+  async handleBeforeAgentStart(
+    event: BeforeAgentStartEvent,
+    ctx: ExtensionContext,
+  ): Promise<{ systemPrompt: string } | undefined> {
     const s = this.state
     if (!s) return undefined
     if (s.repoMapInjected && s.contextFilesInjected && s.providerGuidanceInjected) return undefined
@@ -360,7 +472,20 @@ export class SessionManager {
     const combinedBudget = s.config.maxRepoMapTokens + s.config.maxInjectionTokens
 
     if (!s.repoMapInjected && s.repoMap) {
-      pipeline.register({ name: 'repo-map', priority: 1, produce: () => s.repoMap! })
+      const insights = this.intelligenceEngine.analyzeConversationContext(
+        this.conversationMessages,
+        this.graphService.analysis ?? null,
+      )
+      const graph = this.graphService.analysis ?? null
+      const baseMap = s.repoMap
+      const produceRepoMap = () => {
+        if (graph && baseMap) {
+          const gen = new SmartRepositoryMapGenerator()
+          return gen.generatePrioritizedRepoMap(baseMap, insights, graph)
+        }
+        return baseMap!
+      }
+      pipeline.register({ name: 'repo-map', priority: 1, produce: produceRepoMap })
     }
 
     if (!s.providerGuidanceInjected && s.config.providerGuidance.enabled) {
@@ -417,6 +542,15 @@ export class SessionManager {
       ].filter(Boolean).join('\n')
     }
 
+    let intelligenceSection = ''
+    try {
+      const guidance = await this.generateIntelligentGuidance()
+      if (guidance.trim())
+        intelligenceSection = `\n\n## Context intelligence\n\n${guidance}`
+    } catch {
+      /* best-effort */
+    }
+
     // Dispatch injection telemetry
     for (const entry of result.sources) {
       const tokens = entry.tokens
@@ -440,6 +574,7 @@ export class SessionManager {
       systemPrompt: event.systemPrompt
         + '\n\n' + result.content
         + graphSection
+        + intelligenceSection
         + '\n\n## pi-scope Tools\n'
         + '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n'
         + '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n'
@@ -459,25 +594,34 @@ export class SessionManager {
 
   // ── Context (per-turn) ────────────────────────────────────────────
 
-  async handleContext(event: ContextEvent, ctx: ExtensionContext): Promise<{ messages: AgentMessage[] } | undefined> {
+  async handleContext(
+    event: ContextEvent,
+    ctx: ExtensionContext = SessionManager.DEFAULT_EXTENSION_CONTEXT,
+  ): Promise<{ messages: AgentMessage[]; content: string } | undefined> {
+    try {
+      this.syncConversationMessages(event.messages ?? [])
+    } catch {
+      /* preserve prior buffer when mapping fails */
+    }
+
     const s = this.state
     if (!s) return undefined
 
-    try {
-      this.conversationMessages = event.messages.map((m) => ({
-        ...m,
-        content: extractText(m.content),
-      }))
-    } catch {
-      /* keep previous buffer */
+    if ((event.messages?.length ?? 0) === 0) {
+      return { messages: [], content: '' }
     }
 
-    // Run context plugins (pruning, community filter)
-    await this.pluginManager.runHook('onContext', event.messages)
+    await this.pluginManager.runHook('onContext', event.messages ?? [])
 
-    // Early-exit: skip if no reason to inject dep-context
-    // Checks: file paths in user text, tool calls, tool results with paths, or symbol matches
-    const recentMessages = event.messages.slice(-s.config.scanLastNMessages)
+    let enhancedBlock = ''
+    try {
+      enhancedBlock = await this.buildEnhancedGuidanceLayers()
+    } catch {
+      /* steer best-effort */
+    }
+
+    // Dep-context gates (unchanged)
+    const recentMessages = (event.messages ?? []).slice(-s.config.scanLastNMessages)
     const hasFilePattern = recentMessages.some(m => {
       const text = extractText(m.content)
       return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) ||
@@ -491,7 +635,6 @@ export class SessionManager {
         /```\w*\n/.test(text)
     })
 
-    // Also check if query text matches any symbol in the index (retrieval-based trigger)
     const hasSymbolMatch = !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && s.retrieval
       ? (() => {
           const lastText = extractText(recentMessages[recentMessages.length - 1]?.content ?? '')
@@ -500,62 +643,82 @@ export class SessionManager {
         })()
       : false
 
-    // Broad codebase-introspection query (no specific paths/symbols, but clearly codebase-related)
     const hasCodebaseQuery = !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch
       ? isBroadCodebaseQuery(extractText(recentMessages[recentMessages.length - 1]?.content ?? ''))
       : false
 
-    if (!hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch && !hasCodebaseQuery) {
+    const triggersDepContext =
+      hasFilePattern || hasToolCall || hasToolResultWithFiles || hasSymbolMatch || hasCodebaseQuery
+
+    let depContext: string | null = null
+    const messagesPlain = (event.messages ?? []).map(m => ({
+      role: m.role ?? 'user',
+      content: extractText(m.content),
+    }))
+
+    if (triggersDepContext) {
+      const extraPaths = new Set<string>()
+      for (const msg of event.messages ?? []) {
+        const tn = (msg as Record<string, unknown>).toolName as string | undefined
+        if (tn) {
+          const input = (msg as Record<string, unknown>).input as Record<string, unknown> | undefined
+          for (const r of detectPathsInToolCall(tn, input, { projectRoot: s.projectRoot, validateExistence: true })) {
+            extraPaths.add(r.path)
+          }
+        }
+        if ((msg as Record<string, unknown>).role === 'toolResult') {
+          for (const r of detectPathsInOutput(
+            tn ?? '',
+            (msg as Record<string, unknown>).content,
+            { projectRoot: s.projectRoot },
+          )) {
+            extraPaths.add(r.path)
+          }
+        }
+      }
+
+      depContext = s.injector.buildInjection(
+        s.index, messagesPlain,
+        extraPaths.size > 0 ? extraPaths : undefined,
+        s.retrieval,
+        s.config.dependencyDepth ?? 1,
+      )
+    }
+
+    const trimmedGuidance = enhancedBlock.trim()
+
+    let finalBody: string
+    if (depContext != null && depContext.trim() !== '' && trimmedGuidance !== '') {
+      finalBody = `${trimmedGuidance}\n\n---\n\n${depContext}`
+    }
+    else if (depContext != null && depContext.trim() !== '') {
+      finalBody = depContext
+    }
+    else if (trimmedGuidance !== '') {
+      finalBody = trimmedGuidance
+    }
+    else {
       return undefined
     }
 
-    const messages = event.messages.map(m => ({ role: m.role ?? 'user', content: extractText(m.content) }))
-
-    // Scan tool calls + output for extra file paths
-    const extraPaths = new Set<string>()
-    for (const msg of event.messages) {
-      const toolName = (msg as Record<string, unknown>).toolName as string | undefined
-      if (toolName) {
-        const input = (msg as Record<string, unknown>).input as Record<string, unknown> | undefined
-        for (const r of detectPathsInToolCall(toolName, input, { projectRoot: s.projectRoot, validateExistence: true })) {
-          extraPaths.add(r.path)
+    if (depContext != null && depContext.trim() !== '') {
+      const tokens = estimateTokens(depContext)
+      const files = extractInjectedFilePaths(depContext)
+      let fullTokens = 0
+      for (const f of files) {
+        const skel = s.index.skeletons.get(f)
+        if (skel) {
+          const est = estimateFileSavings(f, skel)
+          fullTokens += est.fullTokens
         }
       }
-      if ((msg as Record<string, unknown>).role === 'toolResult') {
-        for (const r of detectPathsInOutput(toolName ?? '', (msg as Record<string, unknown>).content, { projectRoot: s.projectRoot })) {
-          extraPaths.add(r.path)
-        }
-      }
+      s.stats.recordDepContextInjection(files, tokens, fullTokens)
     }
-
-    const depContext = s.injector.buildInjection(
-      s.index, messages,
-      extraPaths.size > 0 ? extraPaths : undefined,
-      s.retrieval,
-      s.config.dependencyDepth ?? 1,
-    )
-    if (!depContext) return undefined
-
-    const tokens = estimateTokens(depContext)
-    const files = extractInjectedFilePaths(depContext)
-
-    // Estimate savings
-    let fullTokens = 0
-    for (const f of files) {
-      const skel = s.index.skeletons.get(f)
-      if (skel) {
-        const est = estimateFileSavings(f, skel)
-        fullTokens += est.fullTokens
-      }
-    }
-    s.stats.recordDepContextInjection(files, tokens, fullTokens)
-
-    // Telemetry for dep-context handled by pi-telemetry auto-tracking
 
     this.updateStatusBar(ctx)
 
-    const contextMsg: AgentMessage = { role: 'developer', content: depContext }
-    return { messages: [contextMsg, ...event.messages] }
+    const contextMsg: AgentMessage = { role: 'developer', content: finalBody }
+    return { messages: [contextMsg, ...(event.messages ?? [])], content: finalBody }
   }
 
   // ── Session shutdown ──────────────────────────────────────────────
@@ -587,8 +750,4 @@ export class SessionManager {
     if (!this.state || !ctx.hasUI) return
     updateStatusBar(ctx.ui.setStatus, this.statusBarState())
   }
-}
-
-function join(...parts: string[]): string {
-  return parts.join('/').replace(/\/+/g, '/')
 }
