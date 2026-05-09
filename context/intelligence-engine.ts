@@ -6,7 +6,7 @@
  */
 
 import { AgentPatternDetector } from './pattern-detector.js'
-import type { AgentMessage } from '../manager.js'
+import type { AgentMessage } from '../shared/agent-message.js'
 import type { GodNode, GraphifyAnalysis } from './graph-types.js'
 import type {
   ContextInsights,

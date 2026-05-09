@@ -1,7 +1,7 @@
 // tests/context/pattern-detector.test.ts
 import { describe, it, expect } from 'vitest'
 import { AgentPatternDetector } from '../../context/pattern-detector.js'
-import type { AgentMessage } from '../../manager.js'
+import type { AgentMessage } from '../../shared/agent-message.js'
 
 describe('AgentPatternDetector', () => {
   const detector = new AgentPatternDetector()

@@ -1,7 +1,7 @@
 // tests/context/intelligence-engine.test.ts
 import { describe, it, expect } from 'vitest'
 import { ContextIntelligenceEngine } from '../../context/intelligence-engine.js'
-import type { AgentMessage } from '../../manager.js'
+import type { AgentMessage } from '../../shared/agent-message.js'
 import type {
   GraphifyAnalysis,
   CommunityAnalysis,

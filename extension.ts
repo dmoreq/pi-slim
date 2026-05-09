@@ -135,7 +135,15 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   }) as AnyFn)
 
   pi.on('session_shutdown', (async (_event: unknown, ctx: PiExtensionContext) => {
-    await shutdownLsp()
-    void manager.shutdown(ctx as unknown as ExtensionContext)
+    try {
+      await shutdownLsp()
+    } catch (error) {
+      console.error('pi-scope: LSP shutdown failed:', error)
+    }
+    try {
+      await manager.shutdown(ctx as unknown as ExtensionContext)
+    } catch (error) {
+      console.error('pi-scope: SessionManager shutdown failed:', error)
+    }
   }) as AnyFn)
 }

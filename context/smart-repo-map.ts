@@ -5,6 +5,7 @@
 
 import type { ContextInsights } from '../shared/intelligence-types.js'
 import type { GraphifyAnalysis, GodNode } from './graph-types.js'
+import { godNodeMatchesSymbol } from './god-node-match.js'
 
 export class SmartRepositoryMapGenerator {
   /**
@@ -44,17 +45,20 @@ export class SmartRepositoryMapGenerator {
   }
 
   private pickCommunities(insights: ContextInsights, graph: GraphifyAnalysis) {
-    const mentioned = new Set(insights.conversationContext.mentionedCommunities)
-    const symbols = new Set([
-      ...insights.editingIntent.targetSymbols,
-      ...insights.navigationRequests.requestedSymbols,
-    ])
+    const mentionedLower = new Set(
+      insights.conversationContext.mentionedCommunities.map((m) => m.toLowerCase()),
+    )
+    const symbolsLower = new Set(
+      [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(
+        (s) => s.toLowerCase(),
+      ),
+    )
 
     const scored = graph.communities
       .map((c) => {
         let score = 0
-        if (mentioned.has(c.id)) score += 3
-        if (c.nodes.some((n) => symbols.has(n))) score += 2
+        if (mentionedLower.has(c.id.toLowerCase())) score += 3
+        if (c.nodes.some((n) => symbolsLower.has(n.toLowerCase()))) score += 2
         score += c.internalDensity
         return { c, score }
       })
@@ -66,20 +70,18 @@ export class SmartRepositoryMapGenerator {
   }
 
   private pickGodNodes(insights: ContextInsights, godNodes: GodNode[]): GodNode[] {
-    const affected = new Set(insights.editingIntent.affectedGodNodes.map((s) => s.toLowerCase()))
-    const symbols = new Set(
-      [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(
-        (s) => s.toLowerCase(),
-      ),
-    )
+    const symbols = [
+      ...insights.editingIntent.affectedGodNodes,
+      ...insights.editingIntent.targetSymbols,
+      ...insights.navigationRequests.requestedSymbols,
+    ]
+
+    if (symbols.length === 0) {
+      return []
+    }
 
     return godNodes
-      .filter((g) => {
-        const id = g.nodeId.toLowerCase()
-        const label = g.label.toLowerCase()
-        if (affected.has(id) || affected.has(label)) return true
-        return symbols.has(id) || symbols.has(label)
-      })
+      .filter((g) => symbols.some((sym) => godNodeMatchesSymbol(g, sym)))
       .sort((a, b) => {
         const rank: Record<GodNode['criticality'], number> = {
           CRITICAL: 0,

@@ -5,10 +5,16 @@
 
 import type { ContextInsights } from '../shared/intelligence-types.js'
 import type { GodNode, GraphifyAnalysis } from './graph-types.js'
+import { godNodeMatchesSymbol } from './god-node-match.js'
 
 export class SmartDependencyContextGenerator {
   /**
    * Build an intelligence-enhanced dependency context block from insights + graph.
+   *
+   * **God nodes:** Matched against edit targets, affected god nodes, and navigation
+   * symbols. When nothing in the conversation points at specific symbols, the top
+   * few god nodes (by criticality, then inbound degree) are still surfaced so the
+   * graph stays actionable in read-only turns.
    */
   generateEnhancedDependencyContext(
     insights: ContextInsights,
@@ -17,9 +23,9 @@ export class SmartDependencyContextGenerator {
     const sections: string[] = []
 
     const highPri = graphAnalysis
-      ? this.collectHighPrioritySymbols(insights, graphAnalysis.godNodes)
+      ? this.collectHighPrioritySymbols(insights, graphAnalysis)
       : []
-    if (highPri.length > 0 && insights.editingIntent.detected) {
+    if (highPri.length > 0) {
       const lines = highPri.map((g) => `- ${g.label} (${g.criticality})`)
       sections.push(`🎯 HIGH-PRIORITY SYMBOLS\n${lines.join('\n')}`)
     }
@@ -47,36 +53,67 @@ export class SmartDependencyContextGenerator {
     return sections.join('\n\n')
   }
 
-  private collectHighPrioritySymbols(
-    insights: ContextInsights,
-    godNodes: GodNode[],
-  ): GodNode[] {
-    const affected = new Set(
-      insights.editingIntent.affectedGodNodes.map((s) => s.toLowerCase()),
-    )
-    const targets = insights.editingIntent.targetSymbols.map((s) => s.toLowerCase())
-
-    const matches = godNodes.filter((gn) => {
-      const id = gn.nodeId.toLowerCase()
-      const label = gn.label.toLowerCase()
-      if (affected.has(id) || affected.has(label)) return true
-      return targets.some(
-        (t) => t === id || t === label || label.includes(t) || id.includes(t),
-      )
-    })
-
+  private sortGodNodesByPriority(nodes: GodNode[]): GodNode[] {
     const order: Record<GodNode['criticality'], number> = {
       CRITICAL: 0,
       IMPORTANT: 1,
       NORMAL: 2,
     }
-    return [...matches].sort(
+    return [...nodes].sort(
       (a, b) => order[a.criticality] - order[b.criticality] || b.inDegree - a.inDegree,
     )
   }
 
+  /**
+   * Resolve high-priority god nodes: conversation-relevant matches first; otherwise
+   * the top three by graph impact so navigation/read turns still get prioritization.
+   */
+  private collectHighPrioritySymbols(
+    insights: ContextInsights,
+    graphAnalysis: GraphifyAnalysis,
+  ): GodNode[] {
+    const relevantSymbols = [
+      ...insights.editingIntent.targetSymbols,
+      ...insights.navigationRequests.requestedSymbols,
+      ...insights.editingIntent.affectedGodNodes,
+    ]
+
+    if (relevantSymbols.length > 0) {
+      const matches = graphAnalysis.godNodes.filter((gn) =>
+        relevantSymbols.some((sym) => godNodeMatchesSymbol(gn, sym)),
+      )
+      return this.sortGodNodesByPriority(matches)
+    }
+
+    if (graphAnalysis.godNodes.length > 0) {
+      return this.sortGodNodesByPriority(graphAnalysis.godNodes).slice(0, 3)
+    }
+
+    return []
+  }
+
+  /** Lowercase symbols from edit/nav intent for community linkage. */
+  private buildRelevantSymbolsLower(insights: ContextInsights): Set<string> {
+    return new Set(
+      [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(
+        (s) => s.toLowerCase(),
+      ),
+    )
+  }
+
+  private buildMentionedCommunitiesLower(insights: ContextInsights): Set<string> {
+    return new Set(insights.conversationContext.mentionedCommunities.map((m) => m.toLowerCase()))
+  }
+
   private buildToolRecommendations(insights: ContextInsights): string | null {
     const lines: string[] = []
+
+    if (
+      insights.editingIntent.detected &&
+      insights.editingIntent.hasHashAnnotations
+    ) {
+      lines.push('- Use `hashline_edit` for hash-verified edits on annotated regions')
+    }
 
     if (insights.navigationRequests.detected) {
       const { requestType } = insights.navigationRequests
@@ -106,14 +143,14 @@ export class SmartDependencyContextGenerator {
     insights: ContextInsights,
     graph: GraphifyAnalysis,
   ): string | null {
-    const mentioned = new Set(insights.conversationContext.mentionedCommunities)
-    const targets = new Set(insights.editingIntent.targetSymbols)
+    const mentionedLower = this.buildMentionedCommunitiesLower(insights)
+    const symbolsLower = this.buildRelevantSymbolsLower(insights)
 
     const relevant = graph.communities.filter(
       (c) =>
-        mentioned.has(c.id) ||
-        c.nodes.some((n) => targets.has(n)) ||
-        [...mentioned].some((m) => c.label.toLowerCase().includes(m.toLowerCase())),
+        mentionedLower.has(c.id.toLowerCase()) ||
+        c.nodes.some((n) => symbolsLower.has(n.toLowerCase())) ||
+        [...mentionedLower].some((m) => c.label.toLowerCase().includes(m)),
     )
 
     if (relevant.length === 0) return null

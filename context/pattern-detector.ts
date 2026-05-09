@@ -7,7 +7,7 @@
  * sites—when calibration changes.
  */
 
-import type { AgentMessage } from '../manager.js'
+import type { AgentMessage } from '../shared/agent-message.js'
 import type {
   EditingContext,
   NavigationContext,

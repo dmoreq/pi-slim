@@ -150,4 +150,113 @@ describe('SmartRepositoryMapGenerator', () => {
 
     expect(gen.generatePrioritizedRepoMap(baseMap, insights, null)).toBe(baseMap)
   })
+
+  it('should prioritize communities for references, definition, and file_location navigation', () => {
+    const navigationTypes = ['references', 'definition', 'file_location'] as const
+
+    for (const requestType of navigationTypes) {
+      const insights: ContextInsights = {
+        editingIntent: {
+          detected: false,
+          targetSymbols: [],
+          targetFiles: [],
+          hasHashAnnotations: false,
+          affectedGodNodes: [],
+        },
+        navigationRequests: {
+          detected: true,
+          requestedSymbols: ['User'],
+          requestType,
+        },
+        suboptimalPatterns: [],
+        conversationContext: {
+          recentMessages: 1,
+          codebaseRelevant: true,
+          mentionedCommunities: [],
+          mentionedFiles: [],
+        },
+      }
+
+      const out = gen.generatePrioritizedRepoMap(baseMap, insights, mockAnalysis)
+
+      expect(out, `requestType=${requestType}`).toContain('📍 GRAPH-PRIORITIZED NAVIGATION')
+      expect(out, `requestType=${requestType}`).toContain('Authentication')
+      expect(out, `requestType=${requestType}`).toContain(baseMap)
+    }
+  })
+
+  it('should match mentioned community ids case-insensitively', () => {
+    const insights: ContextInsights = {
+      editingIntent: {
+        detected: false,
+        targetSymbols: [],
+        targetFiles: [],
+        hasHashAnnotations: false,
+        affectedGodNodes: [],
+      },
+      navigationRequests: {
+        detected: false,
+        requestedSymbols: [],
+        requestType: 'none',
+      },
+      suboptimalPatterns: [],
+      conversationContext: {
+        recentMessages: 1,
+        codebaseRelevant: true,
+        mentionedCommunities: ['AUTH'],
+        mentionedFiles: [],
+      },
+    }
+
+    const out = gen.generatePrioritizedRepoMap(baseMap, insights, mockAnalysis)
+
+    expect(out).toContain('📍 GRAPH-PRIORITIZED NAVIGATION')
+    expect(out).toContain('Authentication')
+  })
+
+  it('should align god matching with dependency context (substring when symbol length ≥ 4)', () => {
+    const analysis: GraphifyAnalysis = {
+      ...mockAnalysis,
+      godNodes: [
+        ...mockAnalysis.godNodes,
+        {
+          nodeId: 'net:HttpClient',
+          label: 'HttpClient',
+          inDegree: 12,
+          outDegree: 2,
+          betweenness: 0.1,
+          pageRank: 0.05,
+          community: 'core',
+          criticality: 'IMPORTANT',
+        },
+      ],
+    }
+
+    const insights: ContextInsights = {
+      editingIntent: {
+        detected: true,
+        targetSymbols: ['Client'],
+        targetFiles: [],
+        hasHashAnnotations: false,
+        affectedGodNodes: [],
+      },
+      navigationRequests: {
+        detected: false,
+        requestedSymbols: [],
+        requestType: 'none',
+      },
+      suboptimalPatterns: [],
+      conversationContext: {
+        recentMessages: 1,
+        codebaseRelevant: true,
+        mentionedCommunities: [],
+        mentionedFiles: [],
+      },
+    }
+
+    const out = gen.generatePrioritizedRepoMap(baseMap, insights, analysis)
+
+    expect(out).toContain('HttpClient')
+    expect(out).toContain('Client')
+  })
 })
