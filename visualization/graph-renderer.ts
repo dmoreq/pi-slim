@@ -12,7 +12,7 @@
  * Uses D3.js (via CDN) for rendering and force simulation.
  */
 
-import type { GraphifyAnalysis, GraphifyGraph, GodNode, CommunityAnalysis } from '../context/graphify-types'
+import type { GraphifyAnalysis, GraphifyGraph, GodNode, CommunityAnalysis } from '../context/graph-types'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

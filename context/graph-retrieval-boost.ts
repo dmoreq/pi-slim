@@ -6,7 +6,7 @@
  */
 
 import type { RepoIndex } from '../shared/types'
-import type { GraphifyAnalysis, GodNode, SurprisingConnection } from './graphify-types.js'
+import type { GraphifyAnalysis, GodNode, SurprisingConnection } from './graph-types.js'
 
 export interface ScoredFile {
   file: string

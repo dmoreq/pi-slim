@@ -12,7 +12,7 @@ import {
   computeSurpriseStats,
   getSurpriseRecommendation
 } from '../../algorithms/surprising-connections'
-import type { GraphifyGraph, SurprisingConnection } from '../../context/graphify-types'
+import type { GraphifyGraph, SurprisingConnection } from '../../context/graph-types'
 
 describe('SurprisingConnections', () => {
   // ── Cross-Community Detection ──────────────────────────────────────

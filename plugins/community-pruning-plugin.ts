@@ -13,7 +13,7 @@
 
 import type { Plugin } from './plugin.js'
 import type { ExtensionContext } from '../extension.js'
-import type { GraphifyAnalysis, CommunityAnalysis } from '../context/graphify-types.js'
+import type { GraphifyAnalysis, CommunityAnalysis } from '../context/graph-types.js'
 
 // ── Options ────────────────────────────────────────────────────────────────
 

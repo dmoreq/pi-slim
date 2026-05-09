@@ -9,8 +9,8 @@ import {
   validateGraphSchema,
   isValidGraphifyGraph,
   formatValidationErrors
-} from '../../context/graphify-schema'
-import type { GraphifyGraph } from '../../context/graphify-types'
+} from '../../context/graph-schema'
+import type { GraphifyGraph } from '../../context/graph-types'
 
 describe('GraphifySchema', () => {
   // ── Validity Tests ─────────────────────────────────────────────────────

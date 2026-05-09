@@ -8,7 +8,7 @@
  * - Anomaly detection for problematic patterns
  */
 
-import type { GraphifyGraph } from '../context/graphify-types.js'
+import type { GraphifyGraph } from '../context/graph-types.js'
 
 /**
  * Represents a cycle in the graph.

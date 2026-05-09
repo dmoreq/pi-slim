@@ -6,7 +6,7 @@
  * are standalone modules imported here.
  *
  * Algorithm pipeline (runs at startup when graph data is available):
- *   1. Load graph.json via graphify-loader
+ *   1. Load graph.json via graph-loader
  *   2. Degree Centrality + PageRank → god nodes
  *   3. Louvain → communities
  *   4. DFS + Tarjan SCC → cycles
@@ -15,26 +15,44 @@
  */
 
 import type { RepoIndex } from '../shared/types.js'
-import type { GraphifyGraph, GraphifyAnalysis, GodNode } from '../context/graphify-types.js'
-import { loadGraphifyJson, type LoadResult } from '../context/graphify-loader.js'
+import type { GraphifyGraph, GraphifyAnalysis, GodNode } from '../context/graph-types.js'
+import { loadGraphifyJson, type LoadResult } from '../context/graph-loader.js'
 import { computeDegreeCentrality, identifyGodNodesByDegree } from '../algorithms/centrality.js'
 import { computePageRank, identifyGodNodesByPageRank } from '../algorithms/pagerank.js'
 import { detectCommunitiesLouvain } from '../algorithms/community-detection.js'
 import { detectAllCycles } from '../algorithms/cycle-detection.js'
 import { detectSurprisingConnections } from '../algorithms/surprising-connections.js'
 import { saveGraphCache, loadGraphCache } from '../persistence/graph-cache.js'
+import { repoIndexToGraphifyGraph } from '../graph/bridge.js'
 
 export interface GraphResult {
   graph: GraphifyGraph
   analysis: GraphifyAnalysis
 }
 
+/**
+ * Compute a fingerprint of the RepoIndex to use as cache key.
+ * Changes when files/symbols/deps change, so cached analysis invalidates properly.
+ */
+function indexFingerprint(index: RepoIndex): string {
+  const parts: string[] = []
+  parts.push(`files:${index.skeletons.size}`)
+  parts.push(`symbols:${index.symbolIndex.size}`)
+  // Sum of dep edges as a quick checksum
+  let depSum = 0
+  for (const deps of index.deps.values()) depSum += deps.size
+  parts.push(`deps:${depSum}`)
+  return parts.join('|')
+}
+
 export class GraphService {
   private _analysis: GraphifyAnalysis | null = null
   private _graph: GraphifyGraph | null = null
+  private _source: 'external' | 'native' | null = null
 
   get analysis(): GraphifyAnalysis | null { return this._analysis }
   get graph(): GraphifyGraph | null { return this._graph }
+  get source(): 'external' | 'native' | null { return this._source }
 
   /**
    * Try loading from cache first, then fall back to full analysis.
@@ -56,7 +74,7 @@ export class GraphService {
   }
 
   /**
-   * Run full graph analysis from graph.json.
+   * Run full graph analysis from graph.json (external graphify tool).
    */
   async analyze(projectRoot: string, cacheDir: string): Promise<GraphResult | null> {
     const graph = await this.loadGraphJson(projectRoot)
@@ -65,6 +83,7 @@ export class GraphService {
     const result = await this.runAlgorithms(graph)
     this._graph = graph
     this._analysis = result.analysis
+    this._source = 'external'
 
     // Cache for next session
     await saveGraphCache(cacheDir, result.analysis, graph).catch(() => {})
@@ -73,13 +92,52 @@ export class GraphService {
   }
 
   /**
-   * Load graph from multiple possible locations.
+   * Run graph analysis natively from a RepoIndex (no external graphify needed).
+   * Converts the index into a GraphifyGraph on the fly, runs all 5 algorithms,
+   * and caches the result.
+   */
+  async analyzeFromIndex(
+    index: RepoIndex,
+    projectRoot: string,
+    cacheDir: string,
+  ): Promise<GraphResult> {
+    const fp = indexFingerprint(index)
+
+    // Try cache with index-fingerprinted key
+    const cached = await loadGraphCache(cacheDir, undefined, fp)
+    if (cached) {
+      const cachedWithGraph = cached as GraphifyAnalysis & { _restoredGraph?: GraphifyGraph }
+      this._graph = cachedWithGraph._restoredGraph ?? null
+      this._analysis = cached
+      this._source = 'native'
+      return { graph: this._graph!, analysis: cached }
+    }
+
+    // Build GraphifyGraph from RepoIndex
+    const graph = repoIndexToGraphifyGraph(index, projectRoot)
+    this._graph = graph
+
+    const result = await this.runAlgorithms(graph)
+    this._analysis = result.analysis
+    this._source = 'native'
+
+    // Cache with fingerprint so it invalidates when index changes
+    await saveGraphCache(cacheDir, result.analysis, graph, fp).catch(() => {})
+
+    return result
+  }
+
+  /**
+   * Load graph from multiple possible locations (external graphify tool output).
    */
   private async loadGraphJson(projectRoot: string): Promise<GraphifyGraph | null> {
     const paths = [
-      join(projectRoot, 'graphify-out/graph.json'),
+      join(projectRoot, 'graph-out/graph.json'),     // Prefer new naming
+      join(projectRoot, 'graphify-out/graph.json'),  // Backward compatibility
       join(projectRoot, 'graph.json'),
+      'graph-out/graph.json',
       'graphify-out/graph.json',
+      './graph-out/graph.json',
       './graphify-out/graph.json',
     ]
 

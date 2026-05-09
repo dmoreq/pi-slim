@@ -8,8 +8,8 @@ import {
   traceImpactPaths,
   getImpactSummary,
   computeImpactStats
-} from '../../context/graphify-impact-analysis'
-import type { GraphifyAnalysis } from '../../context/graphify-types'
+} from '../../context/graph-impact-analysis'
+import type { GraphifyAnalysis } from '../../context/graph-types'
 
 const createMockAnalysis = (godNodes: any[] = []): GraphifyAnalysis => {
   return {

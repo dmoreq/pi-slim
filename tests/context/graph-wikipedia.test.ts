@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { generateWikiPage, wikiPageToMarkdown } from '../../context/graphify-wikipedia'
-import type { GraphifyAnalysis } from '../../context/graphify-types'
+import { generateWikiPage, wikiPageToMarkdown } from '../../context/graph-wikipedia'
+import type { GraphifyAnalysis } from '../../context/graph-types'
 
 const createMockAnalysis = (): GraphifyAnalysis => {
   return {

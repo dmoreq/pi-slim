@@ -5,7 +5,7 @@
  * Iteratively optimizes modularity to find natural groupings in the graph.
  */
 
-import type { GraphifyGraph, CommunityAnalysis } from '../context/graphify-types.js'
+import type { GraphifyGraph, CommunityAnalysis } from '../context/graph-types.js'
 
 /**
  * Modularity statistics for a community.

@@ -25,7 +25,7 @@ import type {
   WikipediaEntry,
   WikipediaIndex,
   WikipediaQueryParams
-} from '../context/graphify-types'
+} from '../context/graph-types'
 
 // ── Cache Schema ───────────────────────────────────────────────────────────
 
@@ -182,7 +182,7 @@ export function serializeAnalysis(analysis: GraphifyAnalysis, graph: GraphifyGra
  */
 export function deserializeAnalysis(
   cached: CachedGraphData,
-  graph: GraphifyGraph
+  graph?: GraphifyGraph
 ): GraphifyAnalysis {
   // Reconstruct GraphifyGraph from the cached data merged with the original graph
   const reconstructedGraph: GraphifyGraph = graph || {
@@ -199,7 +199,7 @@ export function deserializeAnalysis(
     })),
   }
 
-  return {
+  const base: Omit<GraphifyAnalysis, '_restoredGraph'> = {
     graph: reconstructedGraph,
     godNodes: cached.godNodes.map(g => ({
       nodeId: g.nodeId,
@@ -251,6 +251,11 @@ export function deserializeAnalysis(
     computedAt: cached.computedAt,
     version: `${GRAPH_CACHE_VERSION}.0`,
   }
+
+  return {
+    ...base,
+    _restoredGraph: reconstructedGraph,
+  } as GraphifyAnalysis & { _restoredGraph: GraphifyGraph }
 }
 
 // ── File I/O ───────────────────────────────────────────────────────────────
@@ -261,11 +266,13 @@ export function deserializeAnalysis(
  * @param cacheDir Directory to store cache file (e.g., .pi/scope/)
  * @param analysis Graph analysis to cache
  * @param graph The original GraphifyGraph (nodes/edges not in analysis)
+ * @param indexFingerprint Optional fingerprint for native index builds (invalidation key)
  */
 export async function saveGraphCache(
   cacheDir: string,
   analysis: GraphifyAnalysis,
-  graph: GraphifyGraph
+  graph: GraphifyGraph,
+  indexFingerprint?: string,
 ): Promise<boolean> {
   try {
     const dir = dirname(join(cacheDir, 'graph-cache.json'))
@@ -273,7 +280,7 @@ export async function saveGraphCache(
       await mkdir(dir, { recursive: true })
     }
 
-    const cached = serializeAnalysis(analysis, graph)
+    const cached = serializeAnalysis(analysis, graph, indexFingerprint)
     const filePath = join(cacheDir, 'graph-cache.json')
     await writeFile(filePath, JSON.stringify(cached, null, 2), 'utf-8')
     return true
@@ -281,18 +288,20 @@ export async function saveGraphCache(
     console.error('[graph-cache] Failed to save:', err)
     return false
   }
-}
+}  
 
 /**
  * Load graph analysis from cache file.
  *
  * @param cacheDir Directory to look for cache file
- * @param graph The original GraphifyGraph (edges/nodes not cached in full detail)
- * @returns Deserialized analysis or null if cache doesn't exist or version mismatch
+ * @param graph Optional GraphifyGraph (for external graphs where nodes/edges exist on disk)
+ * @param expectedFingerprint Optional fingerprint to validate against (native builds)
+ * @returns Deserialized analysis or null if cache miss/version mismatch/fingerprint mismatch
  */
 export async function loadGraphCache(
   cacheDir: string,
-  graph: GraphifyGraph
+  graph?: GraphifyGraph,
+  expectedFingerprint?: string,
 ): Promise<GraphifyAnalysis | null> {
   try {
     const filePath = join(cacheDir, 'graph-cache.json')
@@ -307,6 +316,12 @@ export async function loadGraphCache(
     // Version check
     if (cached.version !== GRAPH_CACHE_VERSION) {
       console.warn('[graph-cache] Version mismatch, ignoring cache')
+      return null
+    }
+
+    // Fingerprint check for native builds — invalidate if index changed
+    if (expectedFingerprint !== undefined && cached.indexFingerprint !== expectedFingerprint) {
+      console.warn('[graph-cache] Fingerprint mismatch (index changed), ignoring cache')
       return null
     }
 

@@ -14,7 +14,7 @@ import type {
   GraphifyGraph,
   GodNode,
   CommunityAnalysis
-} from '../context/graphify-types.js'
+} from '../context/graph-types.js'
 import type { ScoredFile } from '../context/retrieval.js'
 
 // ── Types ──────────────────────────────────────────────────────────────────

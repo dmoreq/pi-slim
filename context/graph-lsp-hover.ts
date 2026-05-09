@@ -14,7 +14,7 @@ import type {
   GraphifyAnalysis,
   GodNode,
   SurprisingConnection
-} from './graphify-types.js'
+} from './graph-types.js'
 
 /**
  * Enhanced hover information with graph metrics.

@@ -21,19 +21,19 @@ import type {
   GraphifyAnalysis,
   GodNode,
   CommunityAnalysis
-} from '../../context/graphify-types'
+} from '../../context/graph-types'
 
-import { loadGraphifyJson, saveGraphifyJson } from '../../context/graphify-loader'
-import { validateGraphSchema } from '../../context/graphify-schema'
+import { loadGraphifyJson, saveGraphifyJson } from '../../context/graph-loader'
+import { validateGraphSchema } from '../../context/graph-schema'
 import { computeDegreeCentrality, identifyGodNodesByDegree } from '../../algorithms/centrality'
 import { computePageRank, identifyGodNodesByPageRank } from '../../algorithms/pagerank'
 import { detectCommunitiesLouvain, computeGlobalModularity } from '../../algorithms/community-detection'
 import { detectSurprisingConnections, filterHighImpactSurprises } from '../../algorithms/surprising-connections'
 import { detectAllCycles } from '../../algorithms/cycle-detection'
-import { boostWithGraphMetrics, generateContextBreadcrumbs, filterByCommunity } from '../../context/graphify-retrieval-boost'
-import { generateWikiPage, wikiPageToMarkdown } from '../../context/graphify-wikipedia'
-import { analyzeSymbolImpact, getImpactSummary } from '../../context/graphify-impact-analysis'
-import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graphify-lsp-hover'
+import { boostWithGraphMetrics, generateContextBreadcrumbs, filterByCommunity } from '../../context/graph-retrieval-boost'
+import { generateWikiPage, wikiPageToMarkdown } from '../../context/graph-wikipedia'
+import { analyzeSymbolImpact, getImpactSummary } from '../../context/graph-impact-analysis'
+import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graph-lsp-hover'
 import { serializeAnalysis, deserializeAnalysis, saveGraphCache, loadGraphCache } from '../../persistence/graph-cache'
 import { computeGraphTokenSavings, computeGraphHealthScore, generateGraphSummary } from '../../metrics/graph-metrics'
 import { CommunityPruningPlugin } from '../../plugins/community-pruning-plugin'

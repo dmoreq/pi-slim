@@ -8,7 +8,7 @@ import {
   detectStronglyConnectedComponents,
   getCycleDetectionSummary
 } from '../../algorithms/cycle-detection'
-import type { GraphifyGraph } from '../../context/graphify-types'
+import type { GraphifyGraph } from '../../context/graph-types'
 
 describe('CycleDetection', () => {
   // ── Basic Cycle Detection ──────────────────────────────────────────

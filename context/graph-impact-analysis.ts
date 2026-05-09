@@ -8,7 +8,7 @@
  * - Breaking change risk
  */
 
-import type { GraphifyGraph, GraphifyAnalysis, CommunityAnalysis } from './graphify-types.js'
+import type { GraphifyGraph, GraphifyAnalysis, CommunityAnalysis } from './graph-types.js'
 
 /**
  * Impact of a code change.

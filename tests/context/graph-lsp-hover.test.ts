@@ -7,8 +7,8 @@ import {
   enhanceHoverWithGraphMetrics,
   formatHoverAsMarkdown,
   getNodeRoleSummary
-} from '../../context/graphify-lsp-hover'
-import type { GraphifyAnalysis } from '../../context/graphify-types'
+} from '../../context/graph-lsp-hover'
+import type { GraphifyAnalysis } from '../../context/graph-types'
 
 const createMockAnalysis = (
   godNodes: any[] = [],

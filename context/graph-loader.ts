@@ -7,12 +7,12 @@
 
 import fs from 'fs'
 import path from 'path'
-import type { GraphifyGraph, ValidationResult } from './graphify-types.js'
+import type { GraphifyGraph, ValidationResult } from './graph-types.js'
 import {
   validateGraphSchema,
   isValidGraphifyGraph,
   formatValidationErrors
-} from './graphify-schema.js'
+} from './graph-schema.js'
 
 /**
  * Result of attempting to load a graph file.
@@ -112,8 +112,11 @@ export async function loadGraphifyJson(filePath: string): Promise<LoadResult> {
  */
 export async function loadGraphifyJsonFromDefaults(): Promise<LoadResult> {
   const defaultPaths = [
-    'graphify-out/graph.json',
+    'graph-out/graph.json',
+    'graphify-out/graph.json',     // Backward compatibility
+    './graph-out/graph.json',
     './graphify-out/graph.json',
+    '../graph-out/graph.json', 
     '../graphify-out/graph.json',
     'graph.json',
     './graph.json'

@@ -193,11 +193,12 @@ export class SessionManager {
 
   /**
    * Load graph analysis from cache or compute fresh.
+   * Tries external graphify output first, falls back to native index-based graph.
    */
   private async loadGraph(projectRoot: string, stats: SessionStats): Promise<void> {
     const cacheDir = scopeDir(projectRoot)
 
-    // Try cache first
+    // Try external graphify cache first
     if (await this.graphService.load(projectRoot, cacheDir)) {
       const a = this.graphService.analysis!
       this._graphNodeCount = a.metrics.totalNodes
@@ -206,25 +207,38 @@ export class SessionManager {
       stats.communityCount = a.communities.length
       stats.circularDependencies = a.metrics.cycleCount
       this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
-
-      // Register community pruning plugin if multiple communities
       this.registerCommunityPruning(a)
       return
     }
 
-    // Fresh analysis
-    const result = await this.graphService.analyze(projectRoot, cacheDir)
-    if (result) {
-      this._graphNodeCount = result.graph.nodes.length
-      this._graphEdgeCount = result.graph.edges.length
-      stats.godNodesCount = result.analysis.godNodes.length
-      stats.communityCount = result.analysis.communities.length
-      stats.circularDependencies = result.analysis.metrics.cycleCount
+    // Try external fresh analysis
+    const extResult = await this.graphService.analyze(projectRoot, cacheDir)
+    if (extResult) {
+      this._graphNodeCount = extResult.graph.nodes.length
+      this._graphEdgeCount = extResult.graph.edges.length
+      stats.godNodesCount = extResult.analysis.godNodes.length
+      stats.communityCount = extResult.analysis.communities.length
+      stats.circularDependencies = extResult.analysis.metrics.cycleCount
       this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
-      this.registerCommunityPruning(result.analysis)
-    } else {
-      this.telemetry.onGraphNoData()
+      this.registerCommunityPruning(extResult.analysis)
+      return
     }
+
+    // Fall back to native index-based graph analysis
+    const index = this.indexService.index
+    if (!index || index.skeletons.size === 0) {
+      this.telemetry.onGraphNoData()
+      return
+    }
+
+    const nativeResult = await this.graphService.analyzeFromIndex(index, projectRoot, cacheDir)
+    this._graphNodeCount = nativeResult.graph.nodes.length
+    this._graphEdgeCount = nativeResult.graph.edges.length
+    stats.godNodesCount = nativeResult.analysis.godNodes.length
+    stats.communityCount = nativeResult.analysis.communities.length
+    stats.circularDependencies = nativeResult.analysis.metrics.cycleCount
+    this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
+    this.registerCommunityPruning(nativeResult.analysis)
   }
 
   /**

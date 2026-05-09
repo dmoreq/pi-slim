@@ -8,7 +8,7 @@ import {
   computeGlobalModularity,
   getCommunityStats
 } from '../../algorithms/community-detection'
-import type { GraphifyGraph } from '../../context/graphify-types'
+import type { GraphifyGraph } from '../../context/graph-types'
 
 describe('CommunityDetection', () => {
   // ── Basic Functionality ────────────────────────────────────────────

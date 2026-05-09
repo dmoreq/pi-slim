@@ -58,6 +58,7 @@
     "dist/",
     "algorithms/",
     "context/",
+    "graph/",
     "hashline/",
     "indexer/",
     "lsp/",

@@ -12,8 +12,8 @@ import {
   loadGraphifyJsonSync,
   getGraphStats,
   saveGraphifyJson
-} from '../../context/graphify-loader'
-import type { GraphifyGraph } from '../../context/graphify-types'
+} from '../../context/graph-loader'
+import type { GraphifyGraph } from '../../context/graph-types'
 
 const testDir = path.join(__dirname, '.graphify-test')
 

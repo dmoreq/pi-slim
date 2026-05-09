@@ -11,7 +11,7 @@ import {
   combineImportanceScores
 } from '../../algorithms/pagerank'
 import { computeDegreeCentrality } from '../../algorithms/centrality'
-import type { GraphifyGraph } from '../../context/graphify-types'
+import type { GraphifyGraph } from '../../context/graph-types'
 
 describe('PageRank', () => {
   // ── Basic Functionality ────────────────────────────────────────────────

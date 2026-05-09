@@ -8,7 +8,7 @@
 import type {
   GraphifyGraph,
   SurprisingConnection
-} from '../context/graphify-types.js'
+} from '../context/graph-types.js'
 
 /**
  * Reasons why a connection might be surprising.

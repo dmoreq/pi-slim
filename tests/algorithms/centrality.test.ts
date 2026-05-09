@@ -10,7 +10,7 @@ import {
   rankByInDegree,
   getDegreeCentralityStats
 } from '../../algorithms/centrality'
-import type { GraphifyGraph } from '../../context/graphify-types'
+import type { GraphifyGraph } from '../../context/graph-types'
 
 describe('DegreeCentrality', () => {
   // ── Basic Functionality ────────────────────────────────────────────────

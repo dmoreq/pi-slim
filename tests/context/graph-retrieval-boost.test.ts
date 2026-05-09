@@ -9,12 +9,12 @@ import {
   filterByCommunity,
   computeBoostStats,
   measureRetrievalImprovement
-} from '../../context/graphify-retrieval-boost'
+} from '../../context/graph-retrieval-boost'
 import type {
   GraphifyAnalysis,
   GodNode,
   SurprisingConnection
-} from '../../context/graphify-types'
+} from '../../context/graph-types'
 
 const createMockAnalysis = (
   godNodes: GodNode[] = [],
