@@ -80,15 +80,15 @@
     "extensions": [
       "./dist/extension.js"
     ],
-    "skills": {
-      "pi-scope": "./skills/pi-scope/SKILL.md",
-      "pi-scope-config": "./skills/pi-scope-config/SKILL.md",
-      "pi-scope-hashline": "./skills/pi-scope-hashline/SKILL.md",
-      "pi-scope-lsp": "./skills/pi-scope-lsp/SKILL.md",
-      "pi-scope-parsers": "./skills/pi-scope-parsers/SKILL.md",
-      "pi-scope-plugins": "./skills/pi-scope-plugins/SKILL.md",
-      "pi-scope-retrieval": "./skills/pi-scope-retrieval/SKILL.md",
-      "pi-scope-telemetry": "./skills/pi-scope-telemetry/SKILL.md"
-    }
+    "skills": [
+      "./skills/pi-scope",
+      "./skills/pi-scope-config",
+      "./skills/pi-scope-hashline",
+      "./skills/pi-scope-lsp",
+      "./skills/pi-scope-parsers",
+      "./skills/pi-scope-plugins",
+      "./skills/pi-scope-retrieval",
+      "./skills/pi-scope-telemetry"
+    ]
   }
 }

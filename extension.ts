@@ -42,7 +42,6 @@ const FLAGS: Array<{ name: string; description: string }> = [
 
 function registerFlags(pi: ExtensionAPI): void {
   const defs: Record<string, unknown> = produceDefaults() as Record<string, unknown>
-  pi.setLabel('slim', 'Slim')
   for (const { name, description } of FLAGS) {
     const parts = name.split('.')
     const val = parts.reduce((o: unknown, k) => (o as Record<string, unknown> | undefined)?.[k], defs)
@@ -88,7 +87,11 @@ type AnyFn = (...args: any[]) => any
 
 export default function smartContextExtension(pi: ExtensionAPI): void {
   registerFlags(pi)
-  telemetry(pi)
+  try {
+    telemetry(pi)
+  } catch {
+    // pi-telemetry may not be available at extension load time
+  }
 
   // Register LLM tools only (no user commands)
   registerHashlineTool(pi)
