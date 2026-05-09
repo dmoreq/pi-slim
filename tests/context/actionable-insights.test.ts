@@ -76,6 +76,7 @@ describe('ActionableInsightsGenerator', () => {
     expect(result).toContain('🎯 WORKFLOW OPTIMIZATION')
     expect(result).toContain('⚠️ HIGH-IMPACT SYMBOLS')
     expect(result).toContain('🏗️ ARCHITECTURAL GUIDANCE')
+    expect(result).toContain('💡 CURRENT CONTEXT SUGGESTIONS')
   })
 
   describe('ActionableInsightsGenerator additional coverage', () => {
@@ -97,11 +98,18 @@ describe('ActionableInsightsGenerator', () => {
     })
 
     it('should prioritize god nodes by criticality then inDegree', () => {
-      const warnings = generator.generateRiskWarnings(mockGraphAnalysis.godNodes)
+      const mixedGodNodes = [
+        { nodeId: 'LowImportance', label: 'LowImportance', inDegree: 30, outDegree: 5,
+          betweenness: 0, pageRank: 0.1, community: 'utils', criticality: 'NORMAL' as const },
+        { nodeId: 'HighImportance', label: 'HighImportance', inDegree: 15, outDegree: 3,
+          betweenness: 0, pageRank: 0.2, community: 'core', criticality: 'CRITICAL' as const }
+      ]
+
+      const warnings = generator.generateRiskWarnings(mixedGodNodes)
 
       const lines = warnings.split('\n').filter((line) => line.includes('dependencies'))
-      expect(lines[0]).toContain('Client')
-      expect(lines[1]).toContain('AsyncClient')
+      expect(lines[0]).toContain('HighImportance')
+      expect(lines[1]).toContain('LowImportance')
     })
 
     it('should sort communities by size and cohesion', () => {
