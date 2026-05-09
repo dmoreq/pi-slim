@@ -63,13 +63,22 @@ go install golang.org/x/tools/gopls@latest
 rustup component add rust-analyzer
 ```
 
-### Optional: Install Graphify (for graph analysis)
+### Graph Analysis (built-in, no install needed)
 
-Without graphify, pi-scope runs normally with all core features. Graph analysis is purely additive.
+pi-scope has its **own native TypeScript graph engine** — 5 algorithms that run automatically:
 
+| Algorithm | Detects | Needs install? |
+|-----------|---------|----------------|
+| Degree Centrality + PageRank | God nodes (most depended-on symbols) | Built-in |
+| Louvain Clustering | Communities (related module groups) | Built-in |
+| Tarjan SCC | Circular dependencies | Built-in |
+| Surprise Detection | Cross-community edges | Built-in |
+
+This works on TS/Py/Rust projects out of the box. No install, no config.
+
+For 15+ language support and LLM-assisted extraction, point pi-scope at graphifyy output:
 ```bash
-pip install graphifyy
-cd your-project && graphify .
+pip install graphifyy && cd your-project && graphify .
 # pi-scope auto-detects graphify-out/graph.json on next restart
 ```
 

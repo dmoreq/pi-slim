@@ -87,10 +87,17 @@ When graph data is available, the system prompt automatically includes:
 
 ## Prerequisites
 
-**No install needed** for basic retrieval (works with npm deps installed by pi). For graph boost, install graphify:
+**No install needed.** pi-scope has its own native TypeScript graph engine:
+- Degree centrality + PageRank for god node detection
+- Louvain clustering for community detection
+- Tarjan SCC for cycle detection
+- Surprise detection for cross-community edges
+
+All work on TS/Py/Rust projects with no external dependencies.
+
+For 15+ language support, point pi-scope at graphifyy output:
 ```bash
-pip install graphifyy
-cd your-project && graphify .
+pip install graphifyy && cd your-project && graphify .
 # Restart pi session — graph data loads automatically
 ```
 

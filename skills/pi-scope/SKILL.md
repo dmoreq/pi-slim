@@ -41,15 +41,25 @@ rustup component add rust-analyzer
 # Just open the generated .html file in a browser
 ```
 
-### Graphify (optional — for richer graph extraction with 15+ language support)
+### Graph Data (built-in, no install needed)
+
+pi-scope has its **own native TypeScript graph engine** that runs automatically on every startup:
+| Algorithm | What it detects | Type |
+|-----------|-----------------|------|
+| Degree Centrality + PageRank | God nodes — most depended-on symbols | Built-in |
+| Louvain Clustering | Communities — related module groups | Built-in |
+| Tarjan SCC | Circular dependencies | Built-in |
+| Surprise Detection | Cross-community edges | Built-in |
+
+This works on the 3 languages pi-scope parses (TypeScript, Python, Rust). No install needed.
+
+For richer graphs (15+ languages, LLM-assisted extraction), you can point pi-scope at graphifyy output:
 ```bash
-pip install graphifyy
-# Then in your project root:
-graphify .
-# pi-scope auto-detects graphify-out/graph.json on next session start
+pip install graphifyy && cd your-project && graphify .
+# pi-scope auto-detects graphify-out/graph.json on next start
 ```
 
-**Without graphify:** pi-scope runs normally. Graph analysis is purely additive.
+**Without graphifyy:** pi-scope runs its own graph engine. You lose nothing for TS/Py/Rust projects.
 
 ### Auto-install Command
 
@@ -132,4 +142,4 @@ You do NOT need to run any commands. Here's what the agent sees in its system pr
 - **Large projects (>10K files):** Set `exclude` patterns in `.pi/slim.jsonc`
 - **First-degree imports only** in dep graph (transitive configurable via `dependencyDepth`)
 - **Graph data not used everywhere** — graph analysis only runs at startup; incremental code changes don't trigger re-analysis (future feature)
-- **Graphify for richer graphs:** `pip install graphifyy && graphify .` for 15+ language support and LLM-assisted extraction
+- **Richer graphs via graphifyy:** `pip install graphifyy && graphify .` extends graph coverage to 15+ languages and adds LLM-assisted extraction. pi-scope's native graph engine (TS/Py/Rust) works without it.

@@ -9,11 +9,13 @@ description: Use when extending pi-scope with custom behavior via plugins, regis
 
 No special install needed — the plugin system is built into pi-scope and works with the same npm deps.
 
-For the **CommunityPruningPlugin** to activate, install graphify for graph generation:
+The **CommunityPruningPlugin** activates automatically when pi-scope's native graph analysis
+detects more than 1 community (works on TS/Py/Rust projects with no extra install).
+
+For richer graphs with 15+ language support, point pi-scope at graphifyy output:
 ```bash
-pip install graphifyy
-cd your-project && graphify .
-# Restart pi session — plugin auto-registers when communities > 1
+pip install graphifyy && cd your-project && graphify .
+# Plugin auto-registers when communities > 1
 ```
 
 ## Plugin Interface

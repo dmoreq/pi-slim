@@ -32,11 +32,15 @@ rustup component add rust-analyzer
 
 If a server is missing, the corresponding `lsp_*` tool logs a warning and skips that language — no crash.
 
-### Graphify (optional — for richer graph extraction with 15+ languages)
+### Graph Data (built-in, no install needed)
+
+pi-scope has its own native TypeScript graph engine (degree centrality, PageRank,
+Louvain clustering, cycle detection, surprise detection) for TS/Py/Rust projects.
+No install needed.
+
+For richer graphs with 15+ language support, point pi-scope at graphifyy output:
 ```bash
-pip install graphifyy
-# Then in your project root:
-graphify .
+pip install graphifyy && cd your-project && graphify .
 # pi-scope auto-detects graphify-out/graph.json on next session start
 ```
 
