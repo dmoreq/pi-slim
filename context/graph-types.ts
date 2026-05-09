@@ -402,7 +402,18 @@ export interface ValidationResult {
   warnings: string[]
 }
 
-/** Graph analysis extended for the Enhanced Context Intelligence pipeline. */
+/**
+ * Graph analysis tagged for the Enhanced Context Intelligence pipeline.
+ *
+ * This is intentionally an **empty interface extension** of {@link GraphifyAnalysis}:
+ * at runtime the object is still a `GraphifyAnalysis`, but TypeScript keeps a
+ * separate nominal type so intelligence producers/consumers do not pollute every
+ * generic graph call site. When the pipeline adds fields (e.g. cached guidance
+ * blobs), extend them here rather than on `GraphifyAnalysis` itself.
+ *
+ * @remarks Structural typing means any `GraphifyAnalysis` is assignable here today;
+ * use this type only where the extra semantic (“intelligence-ready analysis”) matters.
+ */
 export interface EnhancedGraphInsights extends GraphifyAnalysis {}
 
 /**
