@@ -38,6 +38,9 @@ import { info as nInfo, success as nSuccess, updateStatusBar, clearStatusBar, ty
 import { IndexService } from './services/index-service.js'
 import { GraphService } from './services/graph-service.js'
 import { TelemetryService } from './services/telemetry-service.js'
+import { ContextIntelligenceEngine } from './context/intelligence-engine.js'
+import type { GraphifyAnalysis } from './context/graph-types.js'
+import type { ContextInsights } from './shared/intelligence-types.js'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -101,9 +104,77 @@ export class SessionManager {
   private _graphNodeCount = 0
   private _graphEdgeCount = 0
 
-  constructor() {
+  private intelligenceEngine: ContextIntelligenceEngine
+  /** Transcript slice retained for pattern detection / guidance (also synced from {@link handleContext}). */
+  private conversationMessages: AgentMessage[] = []
+
+  constructor(_projectRoot?: string) {
+    this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
     this.pluginManager.register(new ReadAwarenessPlugin())
+  }
+
+  /**
+   * Append messages to the conversation buffer used by the intelligence engine.
+   */
+  addMessages(messages: AgentMessage[]): void {
+    for (const m of messages) {
+      this.conversationMessages.push({
+        ...m,
+        content: extractText(m.content),
+      })
+    }
+  }
+
+  /** Run pattern + graph-aware analysis over the current conversation buffer. */
+  async analyzeCurrentContext(): Promise<ContextInsights> {
+    const graph = await this.resolveGraphAnalysisForIntelligence()
+    return this.intelligenceEngine.analyzeConversationContext(
+      this.conversationMessages,
+      graph,
+    )
+  }
+
+  /** Natural-language steering block for agents (graph when available, otherwise basic tips). */
+  async generateIntelligentGuidance(): Promise<string> {
+    try {
+      const graph = await this.resolveGraphAnalysisForIntelligence()
+      const insights = this.intelligenceEngine.analyzeConversationContext(
+        this.conversationMessages,
+        graph,
+      )
+      return this.intelligenceEngine.generateActionableGuidance(insights, graph)
+    } catch {
+      const insights = this.intelligenceEngine.analyzeConversationContext(
+        this.conversationMessages,
+        null,
+      )
+      return this.intelligenceEngine.generateActionableGuidance(insights, null)
+    }
+  }
+
+  /** Same guidance string suitable for injecting alongside dep-context or tool hints. */
+  async getEnhancedContextResponse(): Promise<string> {
+    return this.generateIntelligentGuidance()
+  }
+
+  /**
+   * Prefer optional `loadGraphifyAnalysis()` on {@link GraphService} when tests or hosts
+   * inject it; otherwise use analysis loaded during session start.
+   */
+  private async resolveGraphAnalysisForIntelligence(): Promise<GraphifyAnalysis | null> {
+    try {
+      const gs = this.graphService as GraphService & {
+        loadGraphifyAnalysis?: () => Promise<GraphifyAnalysis | null>
+      }
+      if (typeof gs.loadGraphifyAnalysis === 'function') {
+        const loaded = await gs.loadGraphifyAnalysis()
+        if (loaded != null) return loaded
+      }
+    } catch {
+      /* use graphService.analysis */
+    }
+    return this.graphService.analysis
   }
 
   // ── Session start ──────────────────────────────────────────────────
@@ -391,6 +462,15 @@ export class SessionManager {
   async handleContext(event: ContextEvent, ctx: ExtensionContext): Promise<{ messages: AgentMessage[] } | undefined> {
     const s = this.state
     if (!s) return undefined
+
+    try {
+      this.conversationMessages = event.messages.map((m) => ({
+        ...m,
+        content: extractText(m.content),
+      }))
+    } catch {
+      /* keep previous buffer */
+    }
 
     // Run context plugins (pruning, community filter)
     await this.pluginManager.runHook('onContext', event.messages)
