@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SessionOrchestrator } from '../../../session/orchestration/session-orchestrator.js'
 import type { StateManager } from '../../../session/state/state-manager.js'
-import type { ConfigManager } from '../../../session/configuration/config-manager.js'
+import type { ConfigManager } from '../../../session/interfaces/config-manager.interface.js'
 import type { NotificationService } from '../../../session/notifications/notification-service.js'
 
 describe('SessionOrchestrator', () => {

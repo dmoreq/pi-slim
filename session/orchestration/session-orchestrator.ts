@@ -1,5 +1,5 @@
 import type { StateManager } from '../state/state-manager.js'
-import type { ConfigManager } from '../configuration/config-manager.js'
+import type { ConfigManager } from '../interfaces/config-manager.interface.js'
 import type { NotificationService } from '../notifications/notification-service.js'
 import type { SessionOrchestrator as ISessionOrchestrator, SessionStats } from '../interfaces/orchestrator.interface.js'
 
