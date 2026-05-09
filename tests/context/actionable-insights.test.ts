@@ -77,4 +77,56 @@ describe('ActionableInsightsGenerator', () => {
     expect(result).toContain('⚠️ HIGH-IMPACT SYMBOLS')
     expect(result).toContain('🏗️ ARCHITECTURAL GUIDANCE')
   })
+
+  describe('ActionableInsightsGenerator additional coverage', () => {
+    it('should test generateContextualSuggestions directly', () => {
+      const insights: ContextInsights = {
+        editingIntent: { detected: true, targetSymbols: ['Client'], targetFiles: [],
+          hasHashAnnotations: true, affectedGodNodes: ['Client'] },
+        navigationRequests: { detected: true, requestedSymbols: ['User'], requestType: 'references' },
+        suboptimalPatterns: [],
+        conversationContext: { recentMessages: 5, codebaseRelevant: true,
+          mentionedCommunities: ['auth', 'transport'], mentionedFiles: [] }
+      }
+
+      const suggestions = generator.generateContextualSuggestions(insights, mockGraphAnalysis)
+
+      expect(suggestions).toContain('💡 CURRENT CONTEXT SUGGESTIONS')
+      expect(suggestions).toContain('hashline_edit')
+      expect(suggestions).toContain('lsp_find_references')
+    })
+
+    it('should prioritize god nodes by criticality then inDegree', () => {
+      const warnings = generator.generateRiskWarnings(mockGraphAnalysis.godNodes)
+
+      const lines = warnings.split('\n').filter((line) => line.includes('dependencies'))
+      expect(lines[0]).toContain('Client')
+      expect(lines[1]).toContain('AsyncClient')
+    })
+
+    it('should sort communities by size and cohesion', () => {
+      const guidance = generator.generateArchitecturalGuidance(mockGraphAnalysis.communities)
+
+      const lines = guidance.split('\n').filter((line) => line.includes('files'))
+      expect(lines[0]).toContain('Auth & Security')
+      expect(lines[1]).toContain('Transport Layer')
+    })
+
+    it('should include contextual suggestions in complete generation', () => {
+      const insights: ContextInsights = {
+        editingIntent: { detected: true, targetSymbols: ['Client'], targetFiles: [],
+          hasHashAnnotations: true, affectedGodNodes: ['Client'] },
+        navigationRequests: { detected: false, requestedSymbols: [], requestType: 'none' },
+        suboptimalPatterns: [],
+        conversationContext: { recentMessages: 5, codebaseRelevant: true,
+          mentionedCommunities: ['auth'], mentionedFiles: [] }
+      }
+
+      const result = generator.generate(insights, mockGraphAnalysis)
+
+      expect(result).toContain('💡 CURRENT CONTEXT SUGGESTIONS')
+      expect(result).toContain('hashline_edit')
+      expect(result).toContain('dry_run: true')
+    })
+  })
 })

@@ -23,8 +23,8 @@ export class ActionableInsightsGenerator {
 
     sections.push(this.generateWorkflowGuidance())
 
-    if (insights.editingIntent.detected && graphAnalysis.godNodes.length > 0) {
-      sections.push(this.generateRiskWarnings(graphAnalysis.godNodes, graphAnalysis.communities))
+    if (graphAnalysis.godNodes.length > 0) {
+      sections.push(this.generateRiskWarnings(graphAnalysis.godNodes))
     }
 
     if (graphAnalysis.communities.length > 0) {
@@ -54,14 +54,11 @@ export class ActionableInsightsGenerator {
 
   /**
    * Risk callouts for high-centrality (“god”) symbols.
-   *
-   * When `communities` is omitted, downstream impact across communities falls back to
-   * distinct `GodNode.community` labels present in the analyzed set (best-effort).
    */
-  generateRiskWarnings(godNodes: GodNode[], communities?: CommunityAnalysis[]): string {
+  generateRiskWarnings(godNodes: GodNode[]): string {
     const sortedGodNodes = [...godNodes].sort(this.compareGodNodesRisk).slice(0, 5)
 
-    const warnings = sortedGodNodes.map((godNode) => this.formatGodNodeWarning(godNode, communities))
+    const warnings = sortedGodNodes.map((godNode) => this.formatGodNodeWarning(godNode))
 
     return `⚠️ HIGH-IMPACT SYMBOLS (edit carefully):\n${warnings.join('\n')}`
   }
@@ -198,7 +195,7 @@ export class ActionableInsightsGenerator {
     return b.inDegree - a.inDegree
   }
 
-  private formatGodNodeWarning(godNode: GodNode, communities?: CommunityAnalysis[]): string {
+  private formatGodNodeWarning(godNode: GodNode): string {
     const criticalityIcon =
       godNode.criticality === 'CRITICAL' ? '🔥' : godNode.criticality === 'IMPORTANT' ? '⚠️' : '🔍'
 
@@ -210,27 +207,7 @@ export class ActionableInsightsGenerator {
           ? `affects ${Math.floor(dependencies / 5)} subsystems`
           : `affects ${dependencies} components`
 
-    const spans = communities
-      ? this.countCommunitiesForGodNode(godNode, communities)
-      : new Set(godNodesToCommunityLabels(godNode)).size
-
-    const communityClause = spans > 0 ? ` - Changes affect ${spans} communit${spans === 1 ? 'y' : 'ies'}` : ''
-
-    return `- ${criticalityIcon} \`${godNode.label}\` (${dependencies} dependencies, ${godNode.criticality}) — ${impactLevel}${communityClause}`
-  }
-
-  private countCommunitiesForGodNode(godNode: GodNode, communities: CommunityAnalysis[]): number {
-    let count = 0
-    for (const community of communities) {
-      const members = community.nodes
-      const hit =
-        members.includes(godNode.nodeId) ||
-        members.includes(godNode.label)
-      if (hit) count += 1
-    }
-    if (count > 0) return count
-
-    return new Set(godNodesToCommunityLabels(godNode)).size || 1
+    return `- ${criticalityIcon} \`${godNode.label}\` (${dependencies} dependencies, ${godNode.criticality}) — ${impactLevel}`
   }
 
   private communitySize(community: CommunityAnalysis): number {
@@ -247,8 +224,4 @@ export class ActionableInsightsGenerator {
   private communityImpactScore(community: CommunityAnalysis): number {
     return this.communitySize(community) * this.communityCohesion(community)
   }
-}
-
-function godNodesToCommunityLabels(node: GodNode): string[] {
-  return node.community ? [node.community] : []
 }
