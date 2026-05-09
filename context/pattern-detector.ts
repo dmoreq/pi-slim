@@ -148,11 +148,11 @@ export class AgentPatternDetector {
     const recentMessages = messages.slice(-15)
     const suggestions: OptimizationSuggestion[] = []
 
-    const assistantMessages = recentMessages
-      .filter((m) => m.role === 'assistant')
-      .map((m) => String(m.content || '').toLowerCase())
+    const allMessages = recentMessages.map((m) =>
+      String(m.content || '').toLowerCase(),
+    )
 
-    const usesStrReplace = assistantMessages.some(
+    const usesStrReplace = allMessages.some(
       (c) =>
         c.includes('strreplace') ||
         /\b(str\s+replace|string\s+replace)\b/.test(c) ||
@@ -160,7 +160,7 @@ export class AgentPatternDetector {
     )
 
     if (usesStrReplace) {
-      const hasHashContent = assistantMessages.some(
+      const hasHashContent = allMessages.some(
         (c) => c.includes('hashline') || /\b\d+[a-z]{2}\b/.test(c),
       )
       suggestions.push({
@@ -177,7 +177,7 @@ export class AgentPatternDetector {
       })
     }
 
-    const asksForLocations = assistantMessages.some(
+    const asksForLocations = allMessages.some(
       (c) =>
         c.includes('which file') ||
         c.includes('where is') ||
@@ -196,10 +196,10 @@ export class AgentPatternDetector {
       })
     }
 
-    const mentionsGodNodes = assistantMessages.some(
+    const mentionsGodNodes = allMessages.some(
       (c) => c.includes('god node') || c.includes('critical') || c.includes('important'),
     )
-    const lacksImpactAnalysis = !assistantMessages.some(
+    const lacksImpactAnalysis = !allMessages.some(
       (c) =>
         c.includes('impact') || c.includes('affects') || c.includes('dependencies'),
     )
