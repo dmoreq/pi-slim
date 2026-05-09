@@ -99,4 +99,4 @@ constructor(projectRoot, config) {
 - **SHA-256 content hash** — unchanged files are not re-parsed
 - **DiskCache** at `.pi-cache/slim.json` — persists between sessions
 - **Cache version** (`CACHE_VERSION = 1`) — stale caches are invalidated automatically
-- **IndexStore** at `.pi/slim/index.json.gz` — gzip-compressed for fast load
+- **IndexStore** at `.pi/scope/index.json.gz` — gzip-compressed for fast load

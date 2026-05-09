@@ -10,7 +10,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
-import { slimDir } from '../shared/paths.js'
+import { scopeDir } from '../shared/paths.js'
 import { createHash } from 'node:crypto'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
 

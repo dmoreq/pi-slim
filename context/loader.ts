@@ -3,8 +3,8 @@
  *
  * Loads from 4 layers (highest priority wins):
  *   1. CLI flag overrides
- *   2. Project-local .pi/slim.jsonc
- *   3. Global ~/.pi/agent/slim.jsonc
+ *   2. Project-local .pi/scope.jsonc
+ *   3. Global ~/.pi/agent/scope.jsonc
  *   4. Hardcoded defaults (from schema defaults)
  */
 
@@ -75,15 +75,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 // ── Config loading ────────────────────────────────────────────────────────
 
 const GLOBAL_CONFIG_PATH = join(homedir(), '.pi', 'agent', 'slim.jsonc')
-const PROJECT_CONFIG_REL = '.pi/slim.jsonc'
+const PROJECT_CONFIG_REL = '.pi/scope.jsonc'
 
 /**
  * Load the slim configuration from all layers.
  *
  * Priority (highest wins):
  *   1. CLI flag overrides (passed as `flags`)
- *   2. Project-local .pi/slim.jsonc
- *   3. Global ~/.pi/agent/slim.jsonc
+ *   2. Project-local .pi/scope.jsonc
+ *   3. Global ~/.pi/agent/scope.jsonc
  *   4. Hardcoded defaults from schema
  */
 export function loadConfig(

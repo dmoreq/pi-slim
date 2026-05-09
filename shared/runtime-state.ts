@@ -4,7 +4,7 @@
  * Ported from pi-me shared/ext-state.ts
  * ─────────────────────────────────────
  * Persists lightweight runtime state (e.g., last session stats, build
- * metadata) to <project>/.pi/slim/state.json so it survives
+ * metadata) to <project>/.pi/scope/state.json so it survives
  * across session restarts.
  *
  * For the heavy data (index, repo map), use store.ts which has atomic
@@ -19,13 +19,13 @@
 import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { slimDir } from '../shared/paths.js'
+import { scopeDir } from '../shared/paths.js'
 
 export type StateValue = string | number | boolean | null | StateValue[] | { [key: string]: StateValue }
 
 /** Base directory for slim state. */
 function stateDir(projectRoot: string): string {
-  return slimDir(projectRoot)
+  return scopeDir(projectRoot)
 }
 
 function statePath(projectRoot: string): string {

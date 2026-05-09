@@ -32,9 +32,9 @@ describe('loadConfig', () => {
     expect(config.providerGuidance.enabled).toBe(true)
   })
 
-  it('reads project-local .pi/slim.jsonc', async () => {
+  it('reads project-local .pi/scope.jsonc', async () => {
     await writeProjectConfig(
-      '.pi/slim.jsonc',
+      '.pi/scope.jsonc',
       JSON.stringify({ maxRepoMapTokens: 6000, contextFiles: { enabled: false } }),
     )
     const config = loadConfig(tmpDir)
@@ -47,7 +47,7 @@ describe('loadConfig', () => {
 
   it('handles JSONC with comments and trailing commas', async () => {
     await writeProjectConfig(
-      '.pi/slim.jsonc',
+      '.pi/scope.jsonc',
       '{\n  // My config\n  "maxRepoMapTokens": 3000,\n  "exclude": ["**/vendor/**",],\n}',
     )
     const config = loadConfig(tmpDir)
@@ -57,7 +57,7 @@ describe('loadConfig', () => {
 
   it('applies CLI flag overrides on top of project config', async () => {
     await writeProjectConfig(
-      '.pi/slim.jsonc',
+      '.pi/scope.jsonc',
       JSON.stringify({ maxRepoMapTokens: 5000, contextFiles: { enabled: false } }),
     )
     const config = loadConfig(tmpDir, {
@@ -73,7 +73,7 @@ describe('loadConfig', () => {
 
   it('validates config and throws on invalid values', async () => {
     await writeProjectConfig(
-      '.pi/slim.jsonc',
+      '.pi/scope.jsonc',
       JSON.stringify({ maxRepoMapTokens: -1 }),
     )
     expect(() => loadConfig(tmpDir)).toThrow()

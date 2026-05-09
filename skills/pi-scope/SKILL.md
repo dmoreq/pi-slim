@@ -139,7 +139,7 @@ You do NOT need to run any commands. Here's what the agent sees in its system pr
 ## Common Pitfalls
 
 - **LSP servers not on $PATH:** Run the install commands above. pi-scope logs which are found and which are missing.
-- **Large projects (>10K files):** Set `exclude` patterns in `.pi/slim.jsonc`
+- **Large projects (>10K files):** Set `exclude` patterns in `.pi/scope.jsonc`
 - **First-degree imports only** in dep graph (transitive configurable via `dependencyDepth`)
 - **Graph data not used everywhere** — graph analysis only runs at startup; incremental code changes don't trigger re-analysis (future feature)
 - **Richer graphs via graphifyy:** `pip install graphifyy && graphify .` extends graph coverage to 15+ languages and adds LLM-assisted extraction. pi-scope's native graph engine (TS/Py/Rust) works without it.

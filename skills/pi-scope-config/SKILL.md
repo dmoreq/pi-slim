@@ -49,8 +49,8 @@ pip install graphifyy && cd your-project && graphify .
 | Priority | Layer | Location |
 |----------|-------|----------|
 | 1 | CLI flags | `--slim.enabled=false` etc. |
-| 2 | Project config | `<project>/.pi/slim.jsonc` |
-| 3 | Global config | `~/.pi/agent/slim.jsonc` |
+| 2 | Project config | `<project>/.pi/scope.jsonc` |
+| 3 | Global config | `~/.pi/agent/scope.jsonc` |
 | 4 | Hardcoded defaults | `context/schema.ts` |
 
 ## All Config Options
@@ -85,7 +85,7 @@ pip install graphifyy && cd your-project && graphify .
 |------|------|---------|-------------|
 | `slim.config` | string | — | Custom path to JSONC config file |
 
-## Example `.pi/slim.jsonc`
+## Example `.pi/scope.jsonc`
 
 ```jsonc
 {
@@ -143,7 +143,7 @@ Customize which files are loaded per provider/model:
 | Symptom | Check |
 |---------|-------|
 | "No such file" for LSP | Required binary not on `$PATH`. Install: `typescript-language-server`, `pyright-langserver`, `gopls`, `rust-analyzer` |
-| Index builds every session | Cache corrupt. Delete `.pi-cache/slim.json` and `.pi/slim/index.json.gz` |
+| Index builds every session | Cache corrupt. Delete `.pi-cache/slim.json` and `.pi/scope/index.json.gz` |
 | Config changes not applied | Check layer priority. CLI flags > project config > global config |
 | "store corrupted, rebuilding" | Index version mismatch — auto-recovers |
 | Context file not found | File must exist in project root or ancestor directory; filenames must match exactly |

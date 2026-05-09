@@ -7,7 +7,7 @@
 
 import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { slimDir } from '../shared/paths.js'
+import { scopeDir } from '../shared/paths.js'
 import { writeState } from '../shared/runtime-state.js'
 // ── Stored record ────────────────────────────────────────────────────────
 
@@ -204,7 +204,7 @@ export class SessionStats {
   }
 
   async persist(projectRoot: string): Promise<void> {
-    const dir = slimDir(projectRoot)
+    const dir = scopeDir(projectRoot)
     await mkdir(dir, { recursive: true })
     const line = JSON.stringify(this.toRecord()) + '\n'
     await appendFile(join(dir, 'stats.jsonl'), line, 'utf-8')

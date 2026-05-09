@@ -97,7 +97,7 @@ pip install graphifyy && cd your-project && graphify .
    - **Louvain Community Detection** → groups related modules
    - **Cycle Detection** (Tarjan's SCC) → finds circular dependencies
    - **Surprising Connection Detection** → cross-community edges, legacy dependencies
-6. **Cache** — gzip-compressed index + graph cache saved to `.pi/slim/` for instant reload
+6. **Cache** — gzip-compressed index + graph cache saved to `.pi/scope/` for instant reload
 
 ### Every LLM call: Context Injection
 
@@ -253,7 +253,7 @@ The **Community Pruning Plugin** (auto-registered when communities are detected)
 | `slim.contextFiles.filenames` | string | `AGENTS.local.md,CLAUDE.local.md` | Comma-separated filenames |
 | `slim.providerGuidance.enabled` | boolean | `true` | Load CLAUDE.md/CODEX.md/GEMINI.md |
 
-### Config File (`.pi/slim.jsonc`)
+### Config File (`.pi/scope.jsonc`)
 
 ```jsonc
 {
@@ -318,7 +318,7 @@ pi-scope has **no user-visible commands.** Everything is automatic:
 
 **Performance benchmarks:**
 - First index: ~1-2s for 1,000 files, ~5-10s for 10,000 files
-- Cache load: < 50ms from `.pi/slim/index.json.gz`
+- Cache load: < 50ms from `.pi/scope/index.json.gz`
 - Pruning overhead: < 5ms per turn
 
 ---

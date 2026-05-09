@@ -2,7 +2,7 @@
  * Graph Cache — persistent caching of graph analysis results.
  *
  * Avoids recomputing graph analysis on every session startup.
- * Caches GraphifyAnalysis in the .pi/slim/ store alongside the index.
+ * Caches GraphifyAnalysis in the .pi/scope/ store alongside the index.
  * On cache hit, deserializes and reconstructs the analysis from stored data.
  *
  * Cache invalidation:
@@ -258,7 +258,7 @@ export function deserializeAnalysis(
 /**
  * Save graph analysis to cache file.
  *
- * @param cacheDir Directory to store cache file (e.g., .pi/slim/)
+ * @param cacheDir Directory to store cache file (e.g., .pi/scope/)
  * @param analysis Graph analysis to cache
  * @param graph The original GraphifyGraph (nodes/edges not in analysis)
  */

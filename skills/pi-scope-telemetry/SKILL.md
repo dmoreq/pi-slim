@@ -16,7 +16,7 @@ Everything is automatic — pi-telemetry handles all notifications:
 | Graph data loaded | `[graph] Graph: 144 nodes, 330 edges` |
 | Error occurred | `[error] indexing failed: ...` |
 
-You don't need to run `/scope` or any command. All stats are tracked silently in `.pi/slim/stats.jsonl`.
+You don't need to run `/scope` or any command. All stats are tracked silently in `.pi/scope/stats.jsonl`.
 
 ## Notification Types
 
@@ -55,7 +55,7 @@ The savings ratio shown in notifications (e.g., "88% saved") is cumulative acros
 
 ## Session Data Files
 
-All stored under `.pi/slim/`:
+All stored under `.pi/scope/`:
 
 | File | Format | Content |
 |------|--------|---------|

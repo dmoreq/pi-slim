@@ -1,9 +1,9 @@
 /**
- * Persists the generated RepoIndex and repo map to .pi/slim/ inside
+ * Persists the generated RepoIndex and repo map to .pi/scope/ inside
  * the project root so they survive across sessions.
  *
  * Layout:
- *   .pi/slim/
+ *   .pi/scope/
  *     repo-map.txt      — the <repo-map>…</repo-map> string
  *     index.json.gz     — gzip-compressed skeletons + dep graph + metadata
  *
@@ -16,7 +16,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { gzip, gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
 import { join } from 'node:path'
-import { slimDir } from '../shared/paths.js'
+import { scopeDir } from '../shared/paths.js'
 import type { RepoIndex } from '../shared/types.js'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
 import { STORE_VERSION_V2, migrateToV2 } from '../shared/schema-v2.js'
@@ -43,7 +43,7 @@ interface StoredIndexV3 {
 type StoredIndex = StoredIndexV2 | StoredIndexV3
 
 function storeDir(projectRoot: string): string {
-  return slimDir(projectRoot)
+  return scopeDir(projectRoot)
 }
 
 function indexPath(projectRoot: string): string {
@@ -66,7 +66,7 @@ export async function storeExists(projectRoot: string): Promise<boolean> {
 }
 
 /**
- * Serialize, gzip-compress, and write RepoIndex + repo map to .pi/slim/.
+ * Serialize, gzip-compress, and write RepoIndex + repo map to .pi/scope/.
  *
  * Saves as StoredIndexV2 (new format) with rich metadata.
  */
@@ -142,7 +142,7 @@ export async function saveStore(
   ])
 }
 
-/** Load, gunzip-decompress, and deserialize RepoIndex + repo map from .pi/slim/. */
+/** Load, gunzip-decompress, and deserialize RepoIndex + repo map from .pi/scope/. */
 export async function loadStore(
   projectRoot: string,
 ): Promise<{ index: RepoIndex; repoMap: string; builtAt: string; fileCount: number; metadata?: any }> {

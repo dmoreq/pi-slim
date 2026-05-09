@@ -1,16 +1,16 @@
 /**
- * Unified path constants for the slim data directory.
+ * Unified path constants for the scope data directory.
  *
- * All persistence paths derive from `SLIM_DIR` so a single
+ * All persistence paths derive from `SCOPE_DIR` so a single
  * change propagates everywhere.
  */
 
 import { join } from 'node:path'
 
-/** Relative path from project root to the slim data directory. */
-export const SLIM_DIR = join('.pi', 'slim')
+/** Relative path from project root to the scope data directory. */
+export const SCOPE_DIR = join('.pi', 'scope')
 
-/** Absolute path to the slim data directory for a project. */
-export function slimDir(projectRoot: string): string {
-  return join(projectRoot, SLIM_DIR)
+/** Absolute path to the scope data directory for a project. */
+export function scopeDir(projectRoot: string): string {
+  return join(projectRoot, SCOPE_DIR)
 }

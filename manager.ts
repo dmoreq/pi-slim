@@ -356,7 +356,10 @@ export class SessionManager {
         + '\n\n## pi-scope Tools\n'
         + '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n'
         + '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n'
-        + '- `/hashline-read <file>`: Read a file with hash anchors for editing.\n',
+        + '- `/hashline-read <file>`: Read a file with hash anchors for editing.\n'
+        + '\n**Priority model:** pi-scope handles codebase intelligence (symbols, structure, context).\n'
+        + 'Use pi-sherlock tools (`search`, `fuzzy_find`, `find_files`, etc.) for ad-hoc or external searches.\n'
+        + 'After search tools return results, pi-scope automatically injects AST skeletons for the matched files.\n',
     }
   }
 
@@ -376,14 +379,32 @@ export class SessionManager {
     // Run context plugins (pruning, community filter)
     await this.pluginManager.runHook('onContext', event.messages)
 
-    // Early-exit: skip if no file-like patterns
+    // Early-exit: skip if no reason to inject dep-context
+    // Checks: file paths in user text, tool calls, tool results with paths, or symbol matches
     const recentMessages = event.messages.slice(-s.config.scanLastNMessages)
     const hasFilePattern = recentMessages.some(m => {
       const text = extractText(m.content)
       return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) ||
         /['"`]\.\.?\/[^'"`]+/.test(text)
     })
-    if (!hasFilePattern && !recentMessages.some(m => (m as Record<string, unknown>).toolName)) {
+    const hasToolCall = recentMessages.some(m => (m as Record<string, unknown>).toolName)
+    const hasToolResultWithFiles = recentMessages.some(m => {
+      if ((m as Record<string, unknown>).role !== 'toolResult') return false
+      const text = extractText(m.content)
+      return /\.[a-zA-Z]+\/[\w./-]+\.(?:ts|tsx|py|rs|js|jsx|go|rs)/.test(text) ||
+        /```\w*\n/.test(text)
+    })
+
+    // Also check if query text matches any symbol in the index (retrieval-based trigger)
+    const hasSymbolMatch = !hasFilePattern && !hasToolCall && !hasToolResultWithFiles && s.retrieval
+      ? (() => {
+          const lastText = extractText(recentMessages[recentMessages.length - 1]?.content ?? '')
+          const scored = s.retrieval!.retrieveTopK(lastText, 3)
+          return scored.length > 0 && scored[0].score >= 2
+        })()
+      : false
+
+    if (!hasFilePattern && !hasToolCall && !hasToolResultWithFiles && !hasSymbolMatch) {
       return undefined
     }
 
