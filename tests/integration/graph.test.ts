@@ -32,7 +32,6 @@ import { detectSurprisingConnections, filterHighImpactSurprises } from '../../al
 import { detectAllCycles } from '../../algorithms/cycle-detection'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graph-lsp-hover'
 import { serializeAnalysis, deserializeAnalysis, saveGraphCache, loadGraphCache } from '../../persistence/graph-cache'
-import { computeGraphTokenSavings, computeGraphHealthScore, generateGraphSummary } from '../../metrics/graph-metrics'
 // ── Fixtures ─────────────────────────────────────────────────────────────
 
 /**
@@ -537,82 +536,7 @@ describe('Graphify Integration', () => {
     })
   })
 
-  // ── Phase 7: Graph Metrics ──────────────────────────────────────────
-
-  describe('Phase 7: Graph Metrics', () => {
-    beforeAll(() => {
-      graph = createTestGraph()
-      const degreeScores = computeDegreeCentrality(graph)
-      const prResults = computePageRank(graph)
-      const communities = detectCommunitiesLouvain(graph)
-
-      analysis = {
-        godNodes: [],
-        communities,
-        surprises: [],
-        bottlenecks: [],
-        anomalies: [],
-        wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
-        metrics: {
-          totalNodes: graph.nodes.length,
-          totalEdges: graph.edges.length,
-          godNodeCount: 2,
-          communityCount: communities.length,
-          averageDegree: (2 * graph.edges.length) / graph.nodes.length,
-          maxDegree: Math.max(...degreeScores.map(d => d.totalDegree)),
-          graphDensity: graph.edges.length / (graph.nodes.length * (graph.nodes.length - 1)),
-          avgClusteringCoeff: 0,
-          cycleCount: 0,
-          bottleneckCount: 0,
-        },
-        computedAt: Date.now(),
-        version: '1.0.0',
-      }
-    })
-
-    it('should compute token savings', () => {
-      const baseline = [
-        { file: 'auth.ts', score: 5, signals: ['symbol:auth'] },
-        { file: 'user.ts', score: 4, signals: ['symbol:user'] },
-        { file: 'db.ts', score: 3, signals: ['symbol:db'] },
-        { file: 'config.ts', score: 2, signals: ['partial-symbol:config'] },
-      ]
-      const boosted = [
-        { file: 'auth.ts', score: 10, signals: ['symbol:auth'], isGodNode: true },
-        { file: 'user.ts', score: 4, signals: ['symbol:user'] },
-        { file: 'db.ts', score: 3, signals: ['symbol:db'] },
-      ]
-
-      const savings = computeGraphTokenSavings(baseline, boosted)
-      expect(savings.totalSaved).toBeGreaterThan(0)
-      expect(savings.reductionPercent).toBeGreaterThan(0)
-    })
-
-    it('should compute health score', () => {
-      // Healthy graph: few god nodes, no cycles, communities
-      const healthyScore = computeGraphHealthScore(analysis)
-      expect(healthyScore).toBeGreaterThan(50)
-      expect(healthyScore).toBeLessThanOrEqual(100)
-
-      // Unhealthy graph: many cycles
-      const unhealthyAnalysis = {
-        ...analysis,
-        metrics: {
-          ...analysis.metrics,
-          cycleCount: 10,
-          godNodeCount: 20,
-          communityCount: 1,
-        },
-      }
-      const unhealthyScore = computeGraphHealthScore(unhealthyAnalysis)
-      expect(unhealthyScore).toBeLessThan(healthyScore)
-    })
-
-    it('should generate human-readable summary', () => {
-      const summary = generateGraphSummary(analysis)
-      expect(summary).toContain('Graph Analysis')
-      expect(summary).toContain('nodes')
-      expect(summary).toContain('edges')
-    })
-  })
+  // Phase 7 (Graph Metrics) removed — graph-metrics.ts had no production consumers.
+  // Token estimation uses shared/token.ts estimateTokens().
+  // Graph summaries use manager.ts formatGraphInsightsSection().
 })
