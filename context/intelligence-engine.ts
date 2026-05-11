@@ -7,7 +7,7 @@
 
 import { AgentPatternDetector } from './pattern-detector.js'
 import type { AgentMessage } from '../shared/agent-message.js'
-import type { GodNode, GraphifyAnalysis } from './graph-types.js'
+import type { GodNode, GraphifyAnalysis, GraphifyGraph } from './graph-types.js'
 import type {
   ContextInsights,
   ConversationContext,
@@ -71,6 +71,7 @@ export class ContextIntelligenceEngine {
   generateActionableGuidance(
     insights: ContextInsights,
     graphAnalysis: GraphifyAnalysis | null,
+    graphData?: GraphifyGraph | null,
   ): string {
     if (!graphAnalysis) {
       return this.generateBasicGuidance(insights)
@@ -91,7 +92,7 @@ export class ContextIntelligenceEngine {
         graphAnalysis,
       )
       if (affectedGodNodes.length > 0) {
-        sections.push(this.generateRiskWarnings(affectedGodNodes, graphAnalysis))
+        sections.push(this.generateRiskWarnings(affectedGodNodes, graphAnalysis, graphData ?? undefined))
       }
     }
 
@@ -204,9 +205,72 @@ export class ContextIntelligenceEngine {
   /**
    * Generate risk warnings for god nodes touched by editing intent.
    */
+  /**
+   * Compute the real dependent fan-out for a god node by BFS over graph edges.
+   * Falls back to heuristic if graph edge data is not available.
+   */
+  private computeDependencyFanout(
+    godNode: GodNode,
+    graphAnalysis: GraphifyAnalysis,
+    graphData?: GraphifyGraph,
+  ): { affected: number; communities: number } {
+    if (!graphData) {
+      // Fallback to heuristic
+      return {
+        affected: godNode.inDegree,
+        communities: this.estimateAffectedCommunities(godNode, graphAnalysis),
+      }
+    }
+
+    const nodeId = godNode.nodeId.toLowerCase()
+
+    // BFS to find all direct dependents (nodes that depend on this one)
+    const direct = new Set<string>()
+    const transitive = new Set<string>()
+    const visited = new Set<string>([nodeId])
+    const queue = [nodeId]
+
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      for (const edge of graphData.edges) {
+        const target = edge.target.toLowerCase()
+        if (target === current && !visited.has(edge.source.toLowerCase())) {
+          const src = edge.source.toLowerCase()
+          visited.add(src)
+          queue.push(src)
+          // First level: direct dependents; deeper: transitive
+          if (current === nodeId) {
+            direct.add(src)
+          } else {
+            transitive.add(src)
+          }
+        }
+      }
+    }
+
+    // Count affected communities
+    const communityIds = new Set<string>()
+    for (const dep of [...direct, ...transitive]) {
+      for (const c of graphAnalysis.communities) {
+        if (c.nodes.some(n => n.toLowerCase() === dep)) {
+          communityIds.add(c.label || c.id)
+        }
+      }
+    }
+
+    return {
+      affected: direct.size + transitive.size,
+      communities: communityIds.size || 1,
+    }
+  }
+
+  /**
+   * Generate risk warnings for god nodes touched by editing intent.
+   */
   private generateRiskWarnings(
     affectedGodNodes: string[],
     graphAnalysis: GraphifyAnalysis,
+    graphData?: GraphifyGraph,
   ): string {
     const matched = affectedGodNodes
       .map((nodeId) =>
@@ -221,13 +285,14 @@ export class ContextIntelligenceEngine {
     const warnings = this.sortGodNodesByRisk(matched)
       .slice(0, 5)
       .map((godNode) => {
+        const { affected, communities } = this.computeDependencyFanout(godNode, graphAnalysis, graphData)
         const icon =
           godNode.criticality === 'CRITICAL'
             ? '🔥'
             : godNode.criticality === 'IMPORTANT'
               ? '⚠️'
               : '🔍'
-        return `- ${icon} \`${godNode.label}\` (${godNode.inDegree} dependencies) - Changes affect ${this.estimateAffectedCommunities(godNode, graphAnalysis)} communities`
+        return `- ${icon} \`${godNode.label}\` (${affected} dependents, ${communities} communities)`
       })
 
     return `⚠️ HIGH-IMPACT SYMBOLS (edit carefully):\n${warnings.join('\n')}`

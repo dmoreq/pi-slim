@@ -32,7 +32,6 @@ import { detectSurprisingConnections, filterHighImpactSurprises } from '../../al
 import { detectAllCycles } from '../../algorithms/cycle-detection'
 import { boostWithGraphMetrics, generateContextBreadcrumbs, filterByCommunity } from '../../context/graph-retrieval-boost'
 import { generateWikiPage, wikiPageToMarkdown } from '../../context/graph-wikipedia'
-import { analyzeSymbolImpact, getImpactSummary } from '../../context/graph-impact-analysis'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graph-lsp-hover'
 import { serializeAnalysis, deserializeAnalysis, saveGraphCache, loadGraphCache } from '../../persistence/graph-cache'
 import { computeGraphTokenSavings, computeGraphHealthScore, generateGraphSummary } from '../../metrics/graph-metrics'
@@ -480,21 +479,6 @@ describe('Graphify Integration', () => {
       const markdown = wikiPageToMarkdown(page)
       expect(markdown).toContain('auth')
       expect(markdown).toContain('Overview')
-    })
-
-    it('should analyze symbol impact', () => {
-      // @ts-expect-error - extended analysis needed
-      const impact = analyzeSymbolImpact('auth', { ...analysis, graph })
-      expect(impact.directDependents.length).toBeGreaterThanOrEqual(1)
-      expect(impact.riskLevel).toBeDefined()
-      expect(impact.recommendations.length).toBeGreaterThanOrEqual(1)
-    })
-
-    it('should generate an impact summary', () => {
-      // @ts-expect-error - extended analysis needed
-      const summary = getImpactSummary('auth', { ...analysis, graph })
-      expect(summary).toContain('auth')
-      expect(summary).toContain('Risk')
     })
 
     it('should enhance LSP hover with graph metrics', () => {

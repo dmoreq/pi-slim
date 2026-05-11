@@ -230,7 +230,7 @@ export class SessionManager {
   /** Natural-language steering block for agents (graph when available, otherwise basic tips). */
   async generateIntelligentGuidance(): Promise<string> {
     const { insights, graph } = await this.buildIntelligenceSnapshot()
-    return this.intelligenceEngine.generateActionableGuidance(insights, graph)
+    return this.intelligenceEngine.generateActionableGuidance(insights, graph, this.graphService.graph)
   }
 
   /** Same guidance string suitable for injecting alongside dep-context or tool hints. */
@@ -585,6 +585,7 @@ export class SessionManager {
           const guidance = this.intelligenceEngine.generateActionableGuidance(
             snapshot.insights,
             graph,
+            this.graphService.graph,
           )
           return guidance.trim()
             ? `## Context intelligence\n\n${guidance}`
@@ -750,7 +751,7 @@ export class SessionManager {
       name: 'context-intelligence',
       priority: 4,
       produce: () => {
-        const g = this.intelligenceEngine.generateActionableGuidance(snapshot.insights, graph)
+        const g = this.intelligenceEngine.generateActionableGuidance(snapshot.insights, graph, this.graphService.graph)
         return g.trim() ? g : null
       },
     })
