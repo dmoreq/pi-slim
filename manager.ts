@@ -530,26 +530,22 @@ export class SessionManager {
   ): Promise<{ systemPrompt: string } | undefined> {
     const s = this.state
     if (!s) return undefined
-    if (s.repoMapInjected && s.contextFilesInjected && s.providerGuidanceInjected) return undefined
+    if (
+      s.repoMapInjected &&
+      s.contextFilesInjected &&
+      s.providerGuidanceInjected &&
+      s.graphInsightsInjected &&
+      s.intelligenceInjected
+    ) return undefined
 
-    // Single snapshot: shared by smart repo map + actionable guidance (one graph resolve + analyze pass).
     const snapshot = await this.buildIntelligenceSnapshot()
+    const graph = snapshot.graph ?? this.graphService.analysis ?? null
 
     const pipeline = new InjectionPipeline()
     const combinedBudget = s.config.maxRepoMapTokens + s.config.maxInjectionTokens
 
     if (!s.repoMapInjected && s.repoMap) {
-      const graphForMap = snapshot.graph ?? this.graphService.analysis ?? null
-      const insights = snapshot.insights
-      const baseMap = s.repoMap
-      const produceRepoMap = () => {
-        if (graphForMap && baseMap) {
-          const gen = new SmartRepositoryMapGenerator()
-          return gen.generatePrioritizedRepoMap(baseMap, insights, graphForMap)
-        }
-        return baseMap!
-      }
-      pipeline.register({ name: 'repo-map', priority: 1, produce: produceRepoMap })
+      pipeline.register(buildRepoMapSource(s.repoMap, snapshot.insights, graph))
     }
 
     if (!s.providerGuidanceInjected && s.config.providerGuidance.enabled) {
@@ -567,85 +563,76 @@ export class SessionManager {
       }
     }
 
+    if (!s.graphInsightsInjected && graph) {
+      pipeline.register({
+        name: 'graph-insights',
+        priority: 3,
+        produce: () => formatGraphInsightsSection(graph),
+      })
+    }
+
+    if (!s.intelligenceInjected) {
+      pipeline.register({
+        name: 'context-intelligence',
+        priority: 4,
+        produce: () => {
+          const guidance = this.intelligenceEngine.generateActionableGuidance(
+            snapshot.insights,
+            graph,
+          )
+          return guidance.trim()
+            ? `## Context intelligence\n\n${guidance}`
+            : null
+        },
+      })
+    }
+
     if (!s.contextFilesInjected && s.contextFiles.length > 0) {
       pipeline.register({
-        name: 'context-files', priority: 4,
-        produce: () => formatContextSection(s.contextFiles, { sectionTitle: s.config.contextFiles.sectionTitle }),
+        name: 'context-files', priority: 6,
+        produce: () =>
+          formatContextSection(s.contextFiles, {
+            sectionTitle: s.config.contextFiles.sectionTitle,
+          }),
       })
     }
 
     const result = pipeline.build(combinedBudget)
     if (!result.content) return undefined
 
-    // Graph analysis insights — auto-inject when available
-    let graphSection = ''
-    if (this.graphService.analysis) {
-      const a = this.graphService.analysis
-      graphSection = [
-        '\n\n## Graph Analysis Insights',
-        '',
-        `**Graph:** ${a.metrics.totalNodes} nodes, ${a.metrics.totalEdges} edges, ${a.metrics.communityCount} communities`,
-        a.metrics.cycleCount > 0 ? `**Circular Dependencies:** ${a.metrics.cycleCount}` : '',
-        '',
-        a.godNodes.length > 0 ? [
-          '**God Nodes (most depended-on symbols):**',
-          ...a.godNodes.slice(0, 5).map(g => `  - \`${g.label}\` (${g.inDegree} in, ${g.outDegree} out, ${g.criticality})`),
-          a.godNodes.length > 5 ? `  - ... and ${a.godNodes.length - 5} more` : '',
-          '',
-        ].filter(Boolean).join('\n') : '',
-        a.communities.length > 1 ? [
-          '**Communities:**',
-          ...a.communities.map(c => `  - ${c.label}: ${c.nodes.length} nodes`),
-          '',
-        ].join('\n') : '',
-        a.surprises.length > 0 ? [
-          '**Notable connections:**',
-          ...a.surprises.slice(0, 3).map(s => `  - \`${s.source}\` → \`${s.target}\` (${s.reason})`),
-          '',
-        ].join('\n') : '',
-      ].filter(Boolean).join('\n')
-    }
-
-    let intelligenceSection = ''
-    try {
-      const guidance = this.intelligenceEngine.generateActionableGuidance(snapshot.insights, snapshot.graph)
-      if (guidance.trim())
-        intelligenceSection = `\n\n## Context intelligence\n\n${guidance}`
-    } catch (error) {
-      console.warn('handleBeforeAgentStart: actionable guidance generation failed:', error)
-    }
-
-    // Dispatch injection telemetry
     for (const entry of result.sources) {
       const tokens = entry.tokens
       if (entry.name === 'repo-map' && entry.injected) {
         s.repoMapInjected = true
         s.stats.recordRepoMapInjection(tokens)
-        // Telemetry for context injections handled by pi-telemetry auto-tracking
       } else if (entry.name === 'provider-guidance' && entry.injected && s.providerGuidanceFiles.length > 0) {
         s.providerGuidanceInjected = true
         s.stats.recordProviderGuidanceInjection(tokens, s.providerGuidanceFiles.length)
-        // Telemetry for context injections handled by pi-telemetry auto-tracking
+      } else if (entry.name === 'graph-insights' && entry.injected) {
+        s.graphInsightsInjected = true
+        s.stats.recordGraphInsightsInjection(tokens)
+      } else if (entry.name === 'context-intelligence' && entry.injected) {
+        s.intelligenceInjected = true
+        s.stats.recordIntelligenceInjection(tokens)
       } else if (entry.name === 'context-files' && entry.injected) {
         s.contextFilesInjected = true
         s.stats.recordContextFilesInjection(tokens, s.contextFiles.length)
-        // Telemetry for context injections handled by pi-telemetry auto-tracking
       }
     }
 
     this.updateStatusBar(ctx)
+
+    const toolsBlock =
+      '\n\n## pi-scope Tools\n' +
+      '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n' +
+      '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n' +
+      '- `/hashline-read <file>`: Read a file with hash anchors for editing.\n' +
+      '\n**Priority model:** pi-scope handles codebase intelligence (symbols, structure, context).\n' +
+      'Use pi-sherlock tools (`search`, `fuzzy_find`, `find_files`, etc.) for ad-hoc or external searches.\n' +
+      'After search tools return results, pi-scope automatically injects AST skeletons for the matched files.\n'
+
     return {
-      systemPrompt: event.systemPrompt
-        + '\n\n' + result.content
-        + graphSection
-        + intelligenceSection
-        + '\n\n## pi-scope Tools\n'
-        + '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n'
-        + '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n'
-        + '- `/hashline-read <file>`: Read a file with hash anchors for editing.\n'
-        + '\n**Priority model:** pi-scope handles codebase intelligence (symbols, structure, context).\n'
-        + 'Use pi-sherlock tools (`search`, `fuzzy_find`, `find_files`, etc.) for ad-hoc or external searches.\n'
-        + 'After search tools return results, pi-scope automatically injects AST skeletons for the matched files.\n',
+      systemPrompt: event.systemPrompt + '\n\n' + result.content + toolsBlock,
     }
   }
 
