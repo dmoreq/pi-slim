@@ -28,6 +28,9 @@ export interface SessionRecord {
   contextFilesCount: number
   providerGuidanceTokens: number
   providerGuidanceCount: number
+  graphInsightsTokens: number
+  intelligenceTokens: number
+  smartDepContextTokens: number
   totalTokensSaved: number
   savingsRatio: number
   // ── Metadata (from StoredIndexV2) ──
@@ -58,6 +61,9 @@ export class SessionStats {
   contextFilesCount = 0
   providerGuidanceTokens = 0
   providerGuidanceCount = 0
+  graphInsightsTokens = 0
+  intelligenceTokens = 0
+  smartDepContextTokens = 0
   depContextTriggers = 0
   depContextTotalTokens = 0
   totalTokensSaved = 0
@@ -106,6 +112,18 @@ export class SessionStats {
 
   recordProviderGuidanceInjection(tokens: number, count: number): void {
     this.providerGuidanceTokens = tokens; this.providerGuidanceCount = count;
+  }
+
+  recordGraphInsightsInjection(tokens: number): void {
+    this.graphInsightsTokens += tokens
+  }
+
+  recordIntelligenceInjection(tokens: number): void {
+    this.intelligenceTokens += tokens
+  }
+
+  recordSmartDepContextInjection(tokens: number): void {
+    this.smartDepContextTokens += tokens
   }
 
   recordIndexLoaded(metadata?: any): void {
@@ -189,6 +207,9 @@ export class SessionStats {
       contextFilesCount: this.contextFilesCount,
       providerGuidanceTokens: this.providerGuidanceTokens,
       providerGuidanceCount: this.providerGuidanceCount,
+      graphInsightsTokens: this.graphInsightsTokens,
+      intelligenceTokens: this.intelligenceTokens,
+      smartDepContextTokens: this.smartDepContextTokens,
       totalTokensSaved: this.totalTokensSaved,
       savingsRatio: Math.round(this.savingsRatio * 100) / 100,
       indexBuiltAt: this.indexBuiltAt,
