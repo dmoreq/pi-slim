@@ -6,9 +6,9 @@
  *   2. Running graph analysis (god nodes, communities, surprises, cycles)
  *   3. Caching analysis results
  *   4. Loading from cache
- *   5. Boosting retrieval scores with graph data
+ *   5. Graph-cached persistence
  *   6. Community pruning plugin
- *   7. Wikipedia subsystem
+ *   7. LSP hover enhancement
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -30,7 +30,6 @@ import { computePageRank, identifyGodNodesByPageRank } from '../../algorithms/pa
 import { detectCommunitiesLouvain, computeGlobalModularity } from '../../algorithms/community-detection'
 import { detectSurprisingConnections, filterHighImpactSurprises } from '../../algorithms/surprising-connections'
 import { detectAllCycles } from '../../algorithms/cycle-detection'
-import { generateWikiPage, wikiPageToMarkdown } from '../../context/graph-wikipedia'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graph-lsp-hover'
 import { serializeAnalysis, deserializeAnalysis, saveGraphCache, loadGraphCache } from '../../persistence/graph-cache'
 import { computeGraphTokenSavings, computeGraphHealthScore, generateGraphSummary } from '../../metrics/graph-metrics'
@@ -388,9 +387,9 @@ describe('Graphify Integration', () => {
     })
   })
 
-  // ── Phase 4: Wikipedia & Impact Analysis ────────────────────────────
+  // ── Phase 4: LSP Hover & Graph Insights ────────────────────────────
 
-  describe('Phase 4: Wikipedia & Impact Analysis', () => {
+  describe('Phase 4: LSP Hover & Graph Insights', () => {
     beforeAll(() => {
       graph = createTestGraph()
       const degreeScores = computeDegreeCentrality(graph)
@@ -438,21 +437,6 @@ describe('Graphify Integration', () => {
         computedAt: Date.now(),
         version: '1.0.0',
       }
-    })
-
-    it('should generate a wiki page for a symbol', () => {
-      // We need to extend analysis with graph for wiki
-      const extendedAnalysis = { ...analysis, graph }
-
-      // @ts-expect-error - testing wiki generation
-      const page = generateWikiPage('auth', extendedAnalysis)
-      expect(page.title).toContain('auth')
-      expect(page.section.length).toBeGreaterThanOrEqual(1)
-      expect(page.metadata.type).toBe('god_node')
-
-      const markdown = wikiPageToMarkdown(page)
-      expect(markdown).toContain('auth')
-      expect(markdown).toContain('Overview')
     })
 
     it('should enhance LSP hover with graph metrics', () => {
