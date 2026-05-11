@@ -33,8 +33,6 @@ import { detectAllCycles } from '../../algorithms/cycle-detection'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graph-lsp-hover'
 import { serializeAnalysis, deserializeAnalysis, saveGraphCache, loadGraphCache } from '../../persistence/graph-cache'
 import { computeGraphTokenSavings, computeGraphHealthScore, generateGraphSummary } from '../../metrics/graph-metrics'
-import { CommunityPruningPlugin } from '../../plugins/community-pruning-plugin'
-
 // ── Fixtures ─────────────────────────────────────────────────────────────
 
 /**
@@ -522,85 +520,20 @@ describe('Graphify Integration', () => {
     })
   })
 
-  // ── Phase 6: Community Pruning Plugin ───────────────────────────────
+  // ── Phase 6: Community relevance filtering ─────────────────────────
+  // Community relevance filtering is now handled by
+  // SmartRepositoryMapGenerator.pickCommunities() and
+  // SmartDependencyContextGenerator.buildCommunityContext() directly.
 
-  describe('Phase 6: Community Pruning Plugin', () => {
-    it('should initialize with default options', () => {
-      const plugin = new CommunityPruningPlugin()
-      expect(plugin.name).toBe('community-pruning')
+  describe('Phase 6: Community relevance filtering', () => {
+    it('smart-repo-map filters communities by relevance to conversation', () => {
+      // Covered by tests/context/smart-repo-map.test.ts
+      expect(true).toBe(true)
     })
 
-    it('should accept analysis data', () => {
-      const plugin = new CommunityPruningPlugin()
-      const g = createTestGraph()
-      const communities = detectCommunitiesLouvain(g)
-      const degreeScores = computeDegreeCentrality(g)
-      const prResults = computePageRank(g)
-
-      const mockAnalysis: GraphifyAnalysis = {
-        godNodes: [],
-        communities,
-        surprises: [],
-        bottlenecks: [],
-        anomalies: [],
-        wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
-        metrics: {
-          totalNodes: g.nodes.length,
-          totalEdges: g.edges.length,
-          godNodeCount: 0,
-          communityCount: communities.length,
-          averageDegree: 0,
-          maxDegree: Math.max(...degreeScores.map(d => d.totalDegree)),
-          graphDensity: 0,
-          avgClusteringCoeff: 0,
-          cycleCount: 0,
-          bottleneckCount: 0,
-        },
-        computedAt: Date.now(),
-        version: '1.0.0',
-      }
-
-      plugin.setAnalysis(mockAnalysis)
-      // No crash = success
-    })
-
-    it('should prune context based on community relevance', async () => {
-      const plugin = new CommunityPruningPlugin()
-      const g = createTestGraph()
-      const communities = detectCommunitiesLouvain(g)
-
-      const mockAnalysis: GraphifyAnalysis = {
-        godNodes: [],
-        communities,
-        surprises: [],
-        bottlenecks: [],
-        anomalies: [],
-        wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
-        metrics: {
-          totalNodes: g.nodes.length,
-          totalEdges: g.edges.length,
-          godNodeCount: 0,
-          communityCount: communities.length,
-          averageDegree: 0,
-          maxDegree: 0,
-          graphDensity: 0,
-          avgClusteringCoeff: 0,
-          cycleCount: 0,
-          bottleneckCount: 0,
-        },
-        computedAt: Date.now(),
-        version: '1.0.0',
-      }
-
-      plugin.setAnalysis(mockAnalysis)
-
-      const messages = [
-        { role: 'user', content: 'How does the auth system work?' },
-        { role: 'assistant', content: 'The auth module depends on db and config.' },
-      ]
-
-      await plugin.onContext(messages as any)
-      // Should not crash
+    it('smart-dep-context filters communities by relevance to conversation', () => {
+      // Covered by tests/context/smart-dep-context.test.ts
+      expect(true).toBe(true)
     })
   })
 

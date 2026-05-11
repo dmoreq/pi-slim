@@ -30,7 +30,6 @@ import { loadConfig } from './context/loader.js'
 import { estimateFileSavings } from './metrics/cost-estimator.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
-import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { detectPathsInToolCall, detectPathsInOutput } from './shared/file-detector.js'
 import { scopeDir } from './shared/paths.js'
 import { info as nInfo, success as nSuccess, updateStatusBar, clearStatusBar, type StatusBarState } from './ui/notifications.js'
@@ -489,19 +488,14 @@ export class SessionManager {
   }
 
   /**
-   * Register CommunityPruningPlugin if graph has multiple communities.
+   * Community-level relevance filtering now lives in SmartRepositoryMapGenerator.pickCommunities()
+   * and SmartDependencyContextGenerator.buildCommunityContext() — not in a separate plugin.
+   * This method is intentionally left empty to avoid breaking the call chain.
    */
-  private registerCommunityPruning(analysis: any): void {
-    if (analysis.communities?.length > 1) {
-      const existing = this.pluginManager.get('community-pruning') as CommunityPruningPlugin | undefined
-      if (existing) {
-        existing.setAnalysis(analysis)
-      } else {
-        const plugin = new CommunityPruningPlugin()
-        plugin.setAnalysis(analysis)
-        this.pluginManager.register(plugin)
-      }
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private registerCommunityPruning(_analysis: any): void {
+    // Community relevance filtering is handled by smart-repo-map and smart-dep-context
+    // at the source level, not by a post-hoc plugin.
   }
 
   private initState(opts: {
