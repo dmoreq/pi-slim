@@ -89,6 +89,8 @@ export interface SessionState {
   contextFilesInjected: boolean
   providerGuidanceFiles: ProviderGuidanceFile[]
   providerGuidanceInjected: boolean
+  graphInsightsInjected: boolean
+  intelligenceInjected: boolean
   retrieval: RetrievalEngine | undefined
 }
 
@@ -514,6 +516,8 @@ export class SessionManager {
       contextFilesInjected: false,
       providerGuidanceFiles: [],
       providerGuidanceInjected: false,
+      graphInsightsInjected: false,
+      intelligenceInjected: false,
       retrieval: undefined,
     }
   }
