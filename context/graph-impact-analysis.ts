@@ -47,6 +47,7 @@ export interface ImpactPath {
  * @returns Impact analysis
  */
 export function analyzeSymbolImpact(symbol: string, analysis: GraphifyAnalysis, graphArg?: GraphifyGraph | null): ChangeImpact {
+  // Support both explicit graph param and legacy analysis.graph for backward compat
   const g = graphArg ?? (analysis as any).graph ?? null
   // Without graph data, return a basic impact with no dependents
   if (!g) {
@@ -291,6 +292,7 @@ export function traceImpactPaths(
   maxPaths: number = 10,
   graph?: GraphifyGraph | null
 ): ImpactPath[] {
+  // Support both explicit graph param and legacy analysis.graph for backward compat
   const effectiveGraph = graph ?? (analysis as any).graph ?? null
   if (!effectiveGraph) return []
   const nodeId = normalizeSymbol(symbol)

@@ -240,7 +240,7 @@ function computeGraphMetrics(nodeId: string, analysis: GraphifyAnalysis): GraphM
     }
   }
 
-  // Try to find in graph nodes
+  // Try to find in graph nodes (legacy compat via analysis.graph)
   const g = (analysis as any).graph as GraphifyGraph | undefined
   if (g) {
     const graphNode = g.nodes.find((n: any) => normalizeNodeId(n.id) === nodeId)
