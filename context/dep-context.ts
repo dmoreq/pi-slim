@@ -3,6 +3,7 @@ import { extractText } from '../shared/message.js'
 import { isBroadCodebaseQuery } from '../shared/query-intent.js'
 import { estimateTokens } from '../shared/token.js'
 import type { RepoIndex } from '../shared/types.js'
+import type { GraphifyAnalysis } from './graph-types.js'
 import { RetrievalEngine, type ScoredFile } from './retrieval.js'
 
 const FILE_PATH_RE = /(?:^|[\s'"`(])([.\/\w-]+\/[\w.\/-]+\.(?:tsx|ts|py|rs))/g
@@ -28,8 +29,8 @@ export class ContextInjector {
     this.scanLastN = scanLastN
   }
 
-  buildInjection(index: RepoIndex, messages: Message[], extraPaths?: Set<string>, retrieval?: RetrievalEngine, transitiveDepth: number = 1): string {
-    const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval)
+  buildInjection(index: RepoIndex, messages: Message[], extraPaths?: Set<string>, retrieval?: RetrievalEngine, transitiveDepth: number = 1, graphAnalysis?: GraphifyAnalysis | null): string {
+    const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval, graphAnalysis)
 
     // Broad codebase overview: inject top files by centrality when the query
     // is a high-level codebase question with no specific paths/symbols.
@@ -116,6 +117,7 @@ export class ContextInjector {
     messages: Message[],
     extraPaths?: Set<string>,
     retrieval?: RetrievalEngine,
+    graphAnalysis?: GraphifyAnalysis | null,
   ): Set<string> {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()
@@ -136,7 +138,20 @@ export class ContextInjector {
     // Scored retrieval via RetrievalEngine
     if (retrieval && index.symbolIndex?.size) {
       const query = recent.map(m => extractText(m.content)).join(' ')
-      const scored = retrieval.retrieveTopK(query, 20)
+      let scored = retrieval.retrieveTopK(query, 20)
+      
+      // Graph-aware boost: promote files that match god nodes
+      if (graphAnalysis?.godNodes?.length) {
+        const godNodeNames = new Set(graphAnalysis.godNodes.map(g => g.nodeId.toLowerCase()))
+        scored = scored.map(f => {
+          const stem = f.file.split('/').pop()?.replace(/\.[^.]+$/, '').toLowerCase() ?? ''
+          if (godNodeNames.has(stem)) {
+            return { ...f, score: f.score + Math.max(f.score, 1) }
+          }
+          return f
+        }).sort((a, b) => b.score - a.score)
+      }
+      
       this.lastExplanation = scored
 
       const inFocus = new Set<string>()

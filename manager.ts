@@ -45,7 +45,6 @@ import { setLspGraphAnalysis } from './tools/lsp-navigation.js'
 import type { GraphifyAnalysis } from './context/graph-types.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
 import type { PipelineSource } from './context/pipeline.js'
-import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import type { AgentMessage } from './shared/agent-message.js'
 import type { OptionalGraphAnalysisLoader } from './shared/optional-graph-analysis-loader.js'
 
@@ -740,6 +739,7 @@ export class SessionManager {
         extraPaths.size > 0 ? extraPaths : undefined,
         s.retrieval,
         s.config.dependencyDepth ?? 1,
+        graph,
       )
     }
 
