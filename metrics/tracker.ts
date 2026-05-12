@@ -1,5 +1,5 @@
 /**
- * Session-scoped usage statistics for the slim extension.
+ * Session-scoped usage statistics for the scope extension.
  *
  * Tracks every injection, computes token savings vs full file reads,
  * and persists a summary to stats.jsonl + state.json.

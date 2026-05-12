@@ -266,7 +266,7 @@ export class SessionManager {
 
   /**
    * Minimal session bootstrap for integration tests / graph-mocked intelligence.
-   * Enables `handleContext` with an empty index and default slim config.
+   * Enables `handleContext` with an empty index and default scope config.
    */
   private async bootstrapMinimalIntelligenceSession(): Promise<void> {
     this.telemetry.register()
@@ -309,12 +309,12 @@ export class SessionManager {
     this.telemetry.onSessionStart()
 
     const config: SlimConfig = loadConfig(projectRoot, {
-      'slim.enabled': getFlag('slim.enabled'),
-      'slim.maxRepoMapTokens': getFlag('slim.maxRepoMapTokens'),
-      'slim.maxInjectionTokens': getFlag('slim.maxInjectionTokens'),
-      'slim.scanLastNMessages': getFlag('slim.scanLastNMessages'),
-      'slim.contextFiles.enabled': getFlag('slim.contextFiles.enabled'),
-      'slim.providerGuidance.enabled': getFlag('slim.providerGuidance.enabled'),
+      'scope.enabled': getFlag('scope.enabled'),
+      'scope.maxRepoMapTokens': getFlag('scope.maxRepoMapTokens'),
+      'scope.maxInjectionTokens': getFlag('scope.maxInjectionTokens'),
+      'scope.scanLastNMessages': getFlag('scope.scanLastNMessages'),
+      'scope.contextFiles.enabled': getFlag('scope.contextFiles.enabled'),
+      'scope.providerGuidance.enabled': getFlag('scope.providerGuidance.enabled'),
     })
     if (!config.enabled) return
 
