@@ -4,7 +4,7 @@
  * Maps file extensions to LSP language identifiers.
  */
 
-import { extname, basename } from 'node:path'
+import { basename, extname } from 'node:path'
 
 export const LANGUAGE_EXTENSIONS: Record<string, string> = {
   // TypeScript/JavaScript
@@ -51,7 +51,7 @@ export const LANGUAGE_EXTENSIONS: Record<string, string> = {
   '.zsh': 'shellscript',
 
   // Docker
-  'Dockerfile': 'dockerfile',
+  Dockerfile: 'dockerfile',
   '.dockerfile': 'dockerfile',
 
   // C/C++

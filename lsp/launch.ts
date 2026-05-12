@@ -3,7 +3,7 @@
  * Simplified — spawns LSP servers with stdio pipes.
  */
 
-import { spawn, type ChildProcess } from 'node:child_process'
+import { type ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
@@ -45,15 +45,13 @@ function which(bin: string): string | undefined {
 export async function launchLSP(
   command: string,
   args: string[] = [],
-  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}
 ): Promise<LSPProcess> {
   const cwd = options.cwd ?? process.cwd()
   const mergedEnv = { ...process.env, ...options.env }
 
   // Resolve bare command to full path
-  const resolvedCommand = path.isAbsolute(command)
-    ? command
-    : which(command) ?? command
+  const resolvedCommand = path.isAbsolute(command) ? command : (which(command) ?? command)
 
   // Determine if we need shell (Windows .cmd/.bat scripts)
   const needsShell =
@@ -92,9 +90,7 @@ export async function launchLSP(
 
   // Check immediate exit
   if (proc.exitCode !== null || proc.killed) {
-    throw new Error(
-      `LSP server ${command} exited immediately (code: ${proc.exitCode})`,
-    )
+    throw new Error(`LSP server ${command} exited immediately (code: ${proc.exitCode})`)
   }
 
   return {
@@ -109,11 +105,8 @@ export async function launchLSP(
 /**
  * Kill an LSP process gracefully (SIGTERM), then force (SIGKILL) after timeout.
  */
-export async function killLSPProcess(
-  proc: LSPProcess,
-  timeoutMs = 3000,
-): Promise<void> {
-  return new Promise((resolve) => {
+export async function killLSPProcess(proc: LSPProcess, timeoutMs = 3000): Promise<void> {
+  return new Promise(resolve => {
     const child = proc.process
     if (child.killed) {
       resolve()
@@ -121,7 +114,11 @@ export async function killLSPProcess(
     }
 
     const timer = setTimeout(() => {
-      try { child.kill('SIGKILL') } catch { /* ignore */ }
+      try {
+        child.kill('SIGKILL')
+      } catch {
+        /* ignore */
+      }
       resolve()
     }, timeoutMs)
 

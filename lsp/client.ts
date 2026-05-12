@@ -9,17 +9,12 @@
  */
 
 import { EventEmitter } from 'node:events'
-import { spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
 import type { MessageConnection } from 'vscode-jsonrpc'
-import {
-  createMessageConnection,
-  StreamMessageReader,
-  StreamMessageWriter,
-} from 'vscode-jsonrpc/node.js'
+import { StreamMessageReader, StreamMessageWriter, createMessageConnection } from 'vscode-jsonrpc/node.js'
 
-import type { LSPProcess } from './launch.js'
 import { normalizeMapKey, uriToPath } from '../shared/utils/path-utils.js'
+import type { LSPProcess } from './launch.js'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -43,10 +38,7 @@ export interface LSPLocation {
 }
 
 export interface LSPHover {
-  contents:
-    | string
-    | { kind: string; value: string }
-    | Array<string | { language: string; value: string }>
+  contents: string | { kind: string; value: string } | Array<string | { language: string; value: string }>
   range?: LSPLocation['range']
 }
 
@@ -134,9 +126,7 @@ export interface LSPClientInfo {
   getDiagnostics(filePath: string): LSPDiagnostic[]
   waitForDiagnostics(filePath: string, timeoutMs?: number): Promise<void>
   getAllDiagnostics(): Map<string, { diags: LSPDiagnostic[]; ts: number }>
-  pruneDiagnostics(
-    predicate: (filePath: string, ts: number, diags: LSPDiagnostic[]) => boolean,
-  ): number
+  pruneDiagnostics(predicate: (filePath: string, ts: number, diags: LSPDiagnostic[]) => boolean): number
   getOperationSupport(): LSPOperationSupport
   definition(filePath: string, line: number, character: number): Promise<LSPLocation[]>
   references(filePath: string, line: number, character: number, includeDeclaration?: boolean): Promise<LSPLocation[]>
@@ -144,7 +134,13 @@ export interface LSPClientInfo {
   signatureHelp(filePath: string, line: number, character: number): Promise<LSPSignatureHelp | null>
   documentSymbol(filePath: string): Promise<LSPSymbol[]>
   workspaceSymbol(query: string): Promise<LSPSymbol[]>
-  codeAction(filePath: string, line: number, character: number, endLine: number, endCharacter: number): Promise<LSPCodeAction[]>
+  codeAction(
+    filePath: string,
+    line: number,
+    character: number,
+    endLine: number,
+    endCharacter: number
+  ): Promise<LSPCodeAction[]>
   rename(filePath: string, line: number, character: number, newName: string): Promise<LSPWorkspaceEdit | null>
   implementation(filePath: string, line: number, character: number): Promise<LSPLocation[]>
   prepareCallHierarchy(filePath: string, line: number, character: number): Promise<LSPCallHierarchyItem[]>
@@ -179,9 +175,7 @@ interface LSPClientState {
 }
 
 function isClientAlive(state: LSPClientState): boolean {
-  return (
-    state.isConnected && !state.isDestroyed && !state.lspProcess.process.killed
-  )
+  return state.isConnected && !state.isDestroyed && !state.lspProcess.process.killed
 }
 
 // ── Operation names ─────────────────────────────────────────────────────────
@@ -199,23 +193,15 @@ const OPERATION_NAMES: Record<string, keyof LSPOperationSupport> = {
   'textDocument/prepareCallHierarchy': 'callHierarchy',
 }
 
-function computeOperationSupport(
-  capabilities: Record<string, unknown>,
-  dynamicRegs: Set<string>,
-): LSPOperationSupport {
-  const provider = (
-    key: string,
-    cap: string,
-    method: string,
-  ): boolean => {
+function computeOperationSupport(capabilities: Record<string, unknown>, dynamicRegs: Set<string>): LSPOperationSupport {
+  const provider = (key: string, _cap: string, method: string): boolean => {
     if (dynamicRegs.has(method)) return true
     const val = (capabilities as Record<string, unknown>)[key]
     return val != null && val !== false
   }
 
-  const textDoc = (capabilities['textDocumentSync'] ??
-    {}) as Record<string, unknown>
-  const sup = capabilities as Record<string, unknown>
+  const _textDoc = (capabilities.textDocumentSync ?? {}) as Record<string, unknown>
+  const _sup = capabilities as Record<string, unknown>
 
   return {
     definition: provider('definitionProvider', 'definitionProvider', 'textDocument/definition'),
@@ -223,23 +209,11 @@ function computeOperationSupport(
     hover: provider('hoverProvider', 'hoverProvider', 'textDocument/hover'),
     signatureHelp: provider('signatureHelpProvider', 'signatureHelpProvider', 'textDocument/signatureHelp'),
     documentSymbol: provider('documentSymbolProvider', 'documentSymbolProvider', 'textDocument/documentSymbol'),
-    workspaceSymbol: provider(
-      'workspaceSymbolProvider',
-      'workspaceSymbolProvider',
-      'workspace/symbol',
-    ),
+    workspaceSymbol: provider('workspaceSymbolProvider', 'workspaceSymbolProvider', 'workspace/symbol'),
     codeAction: provider('codeActionProvider', 'codeActionProvider', 'textDocument/codeAction'),
     rename: provider('renameProvider', 'renameProvider', 'textDocument/rename'),
-    implementation: provider(
-      'implementationProvider',
-      'implementationProvider',
-      'textDocument/implementation',
-    ),
-    callHierarchy: provider(
-      'callHierarchyProvider',
-      'callHierarchyProvider',
-      'textDocument/prepareCallHierarchy',
-    ),
+    implementation: provider('implementationProvider', 'implementationProvider', 'textDocument/implementation'),
+    callHierarchy: provider('callHierarchyProvider', 'callHierarchyProvider', 'textDocument/prepareCallHierarchy'),
   }
 }
 
@@ -249,7 +223,7 @@ function makeRequest<T>(
   state: LSPClientState,
   method: string,
   params: unknown,
-  timeoutMs = NAV_REQUEST_TIMEOUT_MS,
+  timeoutMs = NAV_REQUEST_TIMEOUT_MS
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     let settled = false
@@ -263,14 +237,14 @@ function makeRequest<T>(
 
     state.connection
       .sendRequest(method, params)
-      .then((result) => {
+      .then(result => {
         if (!settled) {
           settled = true
           clearTimeout(timer)
           resolve(result as T)
         }
       })
-      .catch((err) => {
+      .catch(err => {
         if (!settled) {
           settled = true
           clearTimeout(timer)
@@ -280,11 +254,7 @@ function makeRequest<T>(
   })
 }
 
-function makeNotification(
-  state: LSPClientState,
-  method: string,
-  params: unknown,
-): void {
+function makeNotification(state: LSPClientState, method: string, params: unknown): void {
   if (!state.isConnected) return
   state.connection.sendNotification(method, params)
 }
@@ -298,9 +268,7 @@ export interface CreateLSPClientOptions {
   initializeTimeoutMs?: number
 }
 
-export async function createLSPClient(
-  options: CreateLSPClientOptions,
-): Promise<LSPClientInfo> {
+export async function createLSPClient(options: CreateLSPClientOptions): Promise<LSPClientInfo> {
   const { serverId, root } = options
   const rootUri = pathToFileURL(root).href
 
@@ -359,12 +327,10 @@ export async function createLSPClient(
       }, DIAGNOSTICS_DEBOUNCE_MS)
 
       state.pendingTimers.set(normalizedPath, timer)
-    },
+    }
   )
 
-  connection.onRequest('workspace/workspaceFolders', () => [
-    { name: 'workspace', uri: rootUri },
-  ])
+  connection.onRequest('workspace/workspaceFolders', () => [{ name: 'workspace', uri: rootUri }])
 
   connection.onRequest(
     'client/registerCapability',
@@ -376,18 +342,18 @@ export async function createLSPClient(
           state.operationSupport[OPERATION_NAMES[reg.method]] = true
         }
       }
-    },
+    }
   )
 
   connection.onRequest(
     'client/unregisterCapability',
-    async (params: {
+    async (_params: {
       unregisterations?: Array<{ id: string }>
     }) => {
       // Dynamic unregistration — we don't track registrations by ID here,
       // so just leave the operation support as-is. Servers typically
       // don't unregister core capabilities.
-    },
+    }
   )
 
   connection.listen()
@@ -438,13 +404,10 @@ export async function createLSPClient(
       initializationOptions: {},
       workspaceFolders: [{ name: 'workspace', uri: rootUri }],
     },
-    initTimeoutMs,
+    initTimeoutMs
   )
 
-  state.operationSupport = computeOperationSupport(
-    initResult.capabilities,
-    new Set(),
-  )
+  state.operationSupport = computeOperationSupport(initResult.capabilities, new Set())
 
   makeNotification(state, 'initialized', {})
 
@@ -487,7 +450,7 @@ export async function createLSPClient(
       const normalized = normalizeMapKey(filePath)
       if (state.diagnostics.has(normalized)) return
 
-      return new Promise<void>((resolve) => {
+      return new Promise<void>(resolve => {
         const timer = setTimeout(() => resolve(), timeoutMs)
         const handler = (path: string) => {
           if (path === normalized) {
@@ -508,13 +471,7 @@ export async function createLSPClient(
       return all
     },
 
-    pruneDiagnostics: (
-      predicate: (
-        filePath: string,
-        ts: number,
-        diags: LSPDiagnostic[],
-      ) => boolean,
-    ) => {
+    pruneDiagnostics: (predicate: (filePath: string, ts: number, diags: LSPDiagnostic[]) => boolean) => {
       let removed = 0
       for (const [path, diags] of state.diagnostics) {
         const ts = state.diagnosticTimestamps.get(path) ?? 0
@@ -558,24 +515,20 @@ export async function createLSPClient(
 
     signatureHelp: async (filePath, line, character) => {
       const uri = pathToFileURL(filePath).href
-      return makeRequest<LSPSignatureHelp | null>(
-        state,
-        'textDocument/signatureHelp',
-        {
-          textDocument: { uri },
-          position: { line, character },
-        },
-      )
+      return makeRequest<LSPSignatureHelp | null>(state, 'textDocument/signatureHelp', {
+        textDocument: { uri },
+        position: { line, character },
+      })
     },
 
-    documentSymbol: async (filePath) => {
+    documentSymbol: async filePath => {
       const uri = pathToFileURL(filePath).href
       return makeRequest<LSPSymbol[]>(state, 'textDocument/documentSymbol', {
         textDocument: { uri },
       })
     },
 
-    workspaceSymbol: async (query) => {
+    workspaceSymbol: async query => {
       return makeRequest<LSPSymbol[]>(state, 'workspace/symbol', { query })
     },
 
@@ -593,55 +546,35 @@ export async function createLSPClient(
 
     rename: async (filePath, line, character, newName) => {
       const uri = pathToFileURL(filePath).href
-      return makeRequest<LSPWorkspaceEdit | null>(
-        state,
-        'textDocument/rename',
-        {
-          textDocument: { uri },
-          position: { line, character },
-          newName,
-        },
-      )
+      return makeRequest<LSPWorkspaceEdit | null>(state, 'textDocument/rename', {
+        textDocument: { uri },
+        position: { line, character },
+        newName,
+      })
     },
 
     implementation: async (filePath, line, character) => {
       const uri = pathToFileURL(filePath).href
-      return makeRequest<LSPLocation[]>(
-        state,
-        'textDocument/implementation',
-        {
-          textDocument: { uri },
-          position: { line, character },
-        },
-      )
+      return makeRequest<LSPLocation[]>(state, 'textDocument/implementation', {
+        textDocument: { uri },
+        position: { line, character },
+      })
     },
 
     prepareCallHierarchy: async (filePath, line, character) => {
       const uri = pathToFileURL(filePath).href
-      return makeRequest<LSPCallHierarchyItem[]>(
-        state,
-        'textDocument/prepareCallHierarchy',
-        {
-          textDocument: { uri },
-          position: { line, character },
-        },
-      )
+      return makeRequest<LSPCallHierarchyItem[]>(state, 'textDocument/prepareCallHierarchy', {
+        textDocument: { uri },
+        position: { line, character },
+      })
     },
 
-    incomingCalls: async (item) => {
-      return makeRequest<LSPCallHierarchyIncomingCall[]>(
-        state,
-        'callHierarchy/incomingCalls',
-        { item },
-      )
+    incomingCalls: async item => {
+      return makeRequest<LSPCallHierarchyIncomingCall[]>(state, 'callHierarchy/incomingCalls', { item })
     },
 
-    outgoingCalls: async (item) => {
-      return makeRequest<LSPCallHierarchyOutgoingCall[]>(
-        state,
-        'callHierarchy/outgoingCalls',
-        { item },
-      )
+    outgoingCalls: async item => {
+      return makeRequest<LSPCallHierarchyOutgoingCall[]>(state, 'callHierarchy/outgoingCalls', { item })
     },
 
     shutdown: async () => {
@@ -665,7 +598,11 @@ export async function createLSPClient(
       // Dispose connection
       if (!state.connectionDisposed) {
         state.connectionDisposed = true
-        try { connection.dispose() } catch { /* ignore */ }
+        try {
+          connection.dispose()
+        } catch {
+          /* ignore */
+        }
       }
 
       // Kill process
@@ -673,7 +610,9 @@ export async function createLSPClient(
         if (!options.process.process.killed) {
           options.process.process.kill('SIGTERM')
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     },
   }
 
