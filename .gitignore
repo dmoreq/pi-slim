@@ -5,3 +5,4 @@ dist/
 .weeks-123-status.txt
 .DS_Store
 *.gz
+graphify-out/
