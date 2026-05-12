@@ -20,17 +20,17 @@ const DEFAULT_CONFIG = produceDefaults()
 function configFlag(name: string): unknown {
   const d = DEFAULT_CONFIG
   switch (name) {
-    case 'slim.enabled':
+    case 'scope.enabled':
       return d.enabled
-    case 'slim.maxRepoMapTokens':
+    case 'scope.maxRepoMapTokens':
       return d.maxRepoMapTokens
-    case 'slim.maxInjectionTokens':
+    case 'scope.maxInjectionTokens':
       return d.maxInjectionTokens
-    case 'slim.scanLastNMessages':
+    case 'scope.scanLastNMessages':
       return d.scanLastNMessages
-    case 'slim.contextFiles.enabled':
+    case 'scope.contextFiles.enabled':
       return d.contextFiles.enabled
-    case 'slim.providerGuidance.enabled':
+    case 'scope.providerGuidance.enabled':
       return d.providerGuidance.enabled
     default:
       return undefined

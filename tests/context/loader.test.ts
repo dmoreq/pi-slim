@@ -61,8 +61,8 @@ describe('loadConfig', () => {
       JSON.stringify({ maxRepoMapTokens: 5000, contextFiles: { enabled: false } })
     )
     const config = loadConfig(tmpDir, {
-      'slim.enabled': false,
-      'slim.contextFiles.enabled': true,
+      'scope.enabled': false,
+      'scope.contextFiles.enabled': true,
     })
     // Flag overrides both defaults and project config
     expect(config.enabled).toBe(false)
@@ -78,8 +78,8 @@ describe('loadConfig', () => {
 
   it('applies flag overrides on top of defaults alone', () => {
     const config = loadConfig(tmpDir, {
-      'slim.enabled': false,
-      'slim.maxRepoMapTokens': 9999,
+      'scope.enabled': false,
+      'scope.maxRepoMapTokens': 9999,
     })
     expect(config.enabled).toBe(false)
     expect(config.maxRepoMapTokens).toBe(9999)
