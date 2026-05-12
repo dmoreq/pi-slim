@@ -5,7 +5,7 @@
  *   - IndexService — index build/cache/load
  *   - GraphService — graph analysis (god nodes, communities, cycles)
  *   - TelemetryService — all pi-telemetry integration
- *   - PluginManager — plugins (ContextPruning, ReadAwareness, CommunityPruning)
+ *   - PluginManager — plugins (ContextPruning)
  *   - ContextInjector — per-turn context building
  *
  * SRP: manager.ts only orchestrates. Logic lives in services.
@@ -45,7 +45,6 @@ import type { GraphifyAnalysis } from './context/graph-types.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
 import type { PipelineSource } from './context/pipeline.js'
 import type { AgentMessage } from './shared/agent-message.js'
-import type { OptionalGraphAnalysisLoader } from './shared/optional-graph-analysis-loader.js'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -284,23 +283,7 @@ export class SessionManager {
     this.conversationMessages.splice(0, excess)
   }
 
-  /**
-   * Prefer {@link OptionalGraphAnalysisLoader.loadGraphifyAnalysis} when present;
-   * otherwise use cached analysis from session graph load.
-   */
   private async resolveGraphAnalysisForIntelligence(): Promise<GraphifyAnalysis | null> {
-    try {
-      const svc = this.graphService as GraphService & OptionalGraphAnalysisLoader
-      if ('loadGraphifyAnalysis' in svc && typeof svc.loadGraphifyAnalysis === 'function') {
-        const loaded = await svc.loadGraphifyAnalysis()
-        if (loaded != null) return loaded
-      }
-    } catch (error) {
-      console.warn(
-        'pi-scope: resolveGraphAnalysisForIntelligence (loadGraphifyAnalysis) failed; using cached analysis if any:',
-        error,
-      )
-    }
     return this.graphService.analysis
   }
 
@@ -449,7 +432,6 @@ export class SessionManager {
       stats.communityCount = a.communities.length
       stats.circularDependencies = a.metrics.cycleCount
       this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
-      this.registerCommunityPruning(a)
       setLspGraphAnalysis(a)
       return
     }
@@ -463,7 +445,6 @@ export class SessionManager {
       stats.communityCount = extResult.analysis.communities.length
       stats.circularDependencies = extResult.analysis.metrics.cycleCount
       this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
-      this.registerCommunityPruning(extResult.analysis)
       setLspGraphAnalysis(extResult.analysis)
       return
     }
@@ -483,19 +464,7 @@ export class SessionManager {
     stats.communityCount = nativeResult.analysis.communities.length
     stats.circularDependencies = nativeResult.analysis.metrics.cycleCount
     this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
-    this.registerCommunityPruning(nativeResult.analysis)
     setLspGraphAnalysis(nativeResult.analysis)
-  }
-
-  /**
-   * Community-level relevance filtering now lives in SmartRepositoryMapGenerator.pickCommunities()
-   * and SmartDependencyContextGenerator.buildCommunityContext() — not in a separate plugin.
-   * This method is intentionally left empty to avoid breaking the call chain.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private registerCommunityPruning(_analysis: any): void {
-    // Community relevance filtering is handled by smart-repo-map and smart-dep-context
-    // at the source level, not by a post-hoc plugin.
   }
 
   private initState(opts: {

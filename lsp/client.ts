@@ -19,7 +19,7 @@ import {
 } from 'vscode-jsonrpc/node.js'
 
 import type { LSPProcess } from './launch.js'
-import { normalizeMapKey, uriToPath } from './path-utils.js'
+import { normalizeMapKey, uriToPath } from '../shared/utils/path-utils.js'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

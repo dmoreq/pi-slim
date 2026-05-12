@@ -11,8 +11,6 @@
  *
  * Built-in plugins:
  *   - ContextPruningPlugin — removes redundant/obsolete messages
- *   - ReadAwarenessPlugin — prevents unread file edits
- *   - TelemetryReporterPlugin — records detailed telemetry
  *
  * Example custom plugin:
  * ```typescript

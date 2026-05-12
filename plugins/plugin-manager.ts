@@ -14,7 +14,7 @@
  * ```typescript
  * const pluginManager = new PluginManager();
  * pluginManager.register(new ContextPruningPlugin());
- * pluginManager.register(new ReadAwarenessPlugin());
+ * pluginManager.register(new ContextPruningPlugin());
  *
  * // Run all plugins' onContext hooks
  * await pluginManager.runHook('onContext', [messages]);

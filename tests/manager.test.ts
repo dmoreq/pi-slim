@@ -20,15 +20,14 @@ describe('SessionManager Intelligence Integration', () => {
   let manager: SessionManager
   let mockGraphService: {
     analysis: GraphifyAnalysis | null
-    loadGraphifyAnalysis: ReturnType<typeof vi.fn>
     updateGraph: ReturnType<typeof vi.fn>
   }
 
   beforeEach(async () => {
     mockGraphService = {
       analysis: null,
-      loadGraphifyAnalysis: vi.fn().mockResolvedValue(null),
       updateGraph: vi.fn().mockResolvedValue(undefined),
+      graph: null,
     }
     manager = new SessionManager('/test/workspace')
     ;(manager as unknown as { graphService: typeof mockGraphService }).graphService = mockGraphService
@@ -74,7 +73,7 @@ describe('SessionManager Intelligence Integration', () => {
       communities: [],
     }
 
-    mockGraphService.loadGraphifyAnalysis.mockResolvedValue(mockAnalysis as GraphifyAnalysis)
+    mockGraphService.analysis = mockAnalysis as GraphifyAnalysis
 
     const messages = [{ role: 'user', content: 'modify the Client class constructor' }]
 
@@ -100,22 +99,20 @@ describe('SessionManager Intelligence Integration - Error Handling', () => {
   let manager: SessionManager
   let mockGraphService: {
     analysis: GraphifyAnalysis | null
-    loadGraphifyAnalysis: ReturnType<typeof vi.fn>
     updateGraph: ReturnType<typeof vi.fn>
   }
 
   beforeEach(async () => {
     mockGraphService = {
       analysis: null,
-      loadGraphifyAnalysis: vi.fn().mockResolvedValue(null),
       updateGraph: vi.fn().mockResolvedValue(undefined),
+      graph: null,
     }
     manager = new SessionManager('/test/workspace')
     ;(manager as unknown as { graphService: typeof mockGraphService }).graphService = mockGraphService
   })
 
   it('should handle graph resolution failures gracefully', async () => {
-    mockGraphService.loadGraphifyAnalysis.mockRejectedValue(new Error('Graph load failed'))
 
     const messages = [{ role: 'user', content: 'edit function' }]
     manager.addMessages(messages)
@@ -172,7 +169,6 @@ describe('SessionManager Intelligence Integration - Error Handling', () => {
   })
 
   it('generateIntelligentGuidance survives graph loader rejection', async () => {
-    mockGraphService.loadGraphifyAnalysis.mockRejectedValue(new Error('Graph load failed'))
     mockGraphService.analysis = null
     manager.addMessages([{ role: 'user', content: 'edit the authenticate function' }])
 

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { access, stat } from 'node:fs/promises'
 import * as path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { PathUtilsInterface } from '../interfaces/path-utils.interface.js'
 
 export class PathUtils implements PathUtilsInterface {
@@ -96,4 +97,89 @@ export class PathUtils implements PathUtilsInterface {
   isTestFile = PathUtils.isTestFile
   getDirectories = PathUtils.getDirectories
   joinSafe = PathUtils.joinSafe
+}
+
+// ── LSP Path Utilities (from lsp/path-utils.ts) ────────────────────────────
+
+/**
+ * Normalize a file path for consistent Map key usage.
+ * On Windows: resolves to canonical filesystem casing.
+ * On non-Windows: returns path as-is with forward slashes.
+ */
+export function normalizeFilePath(filePath: string): string {
+  const normalized = filePath.replace(/\\\\/g, '/')
+
+  if (process.platform !== 'win32' && !/^[A-Za-z]:/.test(normalized)) {
+    return normalized
+  }
+
+  try {
+    const canonical = require('fs').realpathSync.native(filePath)
+    return canonical.replace(/\\\\/g, '/')
+  } catch {
+    try {
+      return resolveNonExisting(filePath)
+    } catch {
+      const resolved = path.win32.normalize(path.win32.resolve(filePath))
+      return resolved.replace(/\\\\/g, '/').toLowerCase()
+    }
+  }
+}
+
+function resolveNonExisting(filePath: string): string {
+  const resolved = path.win32.resolve(filePath)
+  let current = resolved
+  const nonExistentParts: string[] = []
+
+  while (true) {
+    if (PathUtils.existsSync(current)) {
+      const canonical = require('fs').realpathSync.native(current)
+      if (nonExistentParts.length === 0) {
+        return canonical.replace(/\\\\/g, '/')
+      }
+      const tail = nonExistentParts.reverse().join('/').toLowerCase()
+      const base = canonical.replace(/\\\\/g, '/')
+      return base.endsWith('/') ? base + tail : `${base}/${tail}`
+    }
+
+    const parent = path.dirname(current)
+    if (parent === current) {
+      throw new Error('No existing parent found')
+    }
+
+    nonExistentParts.push(path.win32.basename(current))
+    current = parent
+  }
+}
+
+/** Convert a file:// URI to a normalized path. */
+export function uriToPath(uri: string): string {
+  try {
+    return normalizeFilePath(fileURLToPath(uri))
+  } catch {
+    return normalizeFilePath(uri)
+  }
+}
+
+/** Convert a path to a file:// URI. */
+export function pathToUri(filePath: string): string {
+  return pathToFileURL(filePath).href
+}
+
+/** Normalize a Map key lookup for file paths. */
+export function normalizeMapKey(filePath: string): string {
+  return normalizeFilePath(filePath)
+}
+
+/** Compare two file paths for equality. */
+export function pathsEqual(a: string, b: string): boolean {
+  return normalizeFilePath(a) === normalizeFilePath(b)
+}
+
+/** Check if `child` is under `parent` directory. */
+export function isUnderDir(child: string, parent: string): boolean {
+  const normChild = normalizeFilePath(child)
+  const normParent = normalizeFilePath(parent)
+  const parentPrefix = normParent.endsWith('/') ? normParent : `${normParent}/`
+  return normChild === normParent || normChild.startsWith(parentPrefix)
 }
