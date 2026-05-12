@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { access, stat } from 'node:fs/promises'
 import * as path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -112,7 +112,7 @@ export function normalizeFilePath(filePath: string): string {
   }
 
   try {
-    const canonical = require('node:fs').realpathSync.native(filePath)
+    const canonical = realpathSync.native(filePath)
     return canonical.replace(/\\\\/g, '/')
   } catch {
     try {
@@ -131,7 +131,7 @@ function resolveNonExisting(filePath: string): string {
 
   while (true) {
     if (PathUtils.existsSync(current)) {
-      const canonical = require('node:fs').realpathSync.native(current)
+      const canonical = realpathSync.native(current)
       if (nonExistentParts.length === 0) {
         return canonical.replace(/\\\\/g, '/')
       }
