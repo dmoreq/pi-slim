@@ -7,12 +7,11 @@
  * 3. File modification times (if specific files changed)
  */
 
-import { readFile, stat } from 'node:fs/promises'
 import { execSync } from 'node:child_process'
-import { scopeDir } from '../shared/paths.js'
-import { PathUtils } from '../shared/utils/path-utils.js'
 import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 export interface StalenessResult {
   stale: boolean
@@ -27,7 +26,7 @@ export async function checkIndexFreshness(
     maxAgeHours?: number
     checkGit?: boolean
     checkFiles?: boolean
-  },
+  }
 ): Promise<StalenessResult> {
   const { maxAgeHours = 24, checkGit = true, checkFiles = true } = options ?? {}
   const reasons: string[] = []
@@ -57,7 +56,9 @@ export async function checkIndexFreshness(
     try {
       const changedFiles = await detectChangedFiles(projectRoot, storedIndex.checksums.files)
       if (changedFiles.length > 0) {
-        reasons.push(`${changedFiles.length} files changed since index (${changedFiles.slice(0, 3).join(', ')}${changedFiles.length > 3 ? '...' : ''})`)
+        reasons.push(
+          `${changedFiles.length} files changed since index (${changedFiles.slice(0, 3).join(', ')}${changedFiles.length > 3 ? '...' : ''})`
+        )
       }
     } catch {
       // Error checking files, continue without this check
@@ -117,10 +118,7 @@ async function hashFile(filePath: string): Promise<string> {
 /**
  * Detect which files have changed since index was built
  */
-async function detectChangedFiles(
-  projectRoot: string,
-  storedHashes: Record<string, string>,
-): Promise<string[]> {
+async function detectChangedFiles(projectRoot: string, storedHashes: Record<string, string>): Promise<string[]> {
   const changed: string[] = []
 
   for (const [filePath, storedHash] of Object.entries(storedHashes)) {
@@ -138,17 +136,12 @@ async function detectChangedFiles(
 /**
  * Build checksums for current state (called during index build)
  */
-export async function buildChecksums(
-  projectRoot: string,
-  filePaths: string[],
-): Promise<Record<string, string>> {
+export async function buildChecksums(projectRoot: string, filePaths: string[]): Promise<Record<string, string>> {
   const checksums: Record<string, string> = {}
 
   // Only hash a sample of files to avoid slowing down build
   const sampleSize = Math.min(filePaths.length, 100)
-  const sampleIndices = Array.from({ length: sampleSize }, (_, i) =>
-    Math.floor(i * filePaths.length / sampleSize),
-  )
+  const sampleIndices = Array.from({ length: sampleSize }, (_, i) => Math.floor((i * filePaths.length) / sampleSize))
 
   for (const idx of sampleIndices) {
     const filePath = filePaths[idx]
@@ -173,10 +166,7 @@ export function formatStalenessResult(result: StalenessResult, builtAt: string):
     critical: '🔴',
   }
 
-  const lines = [
-    `${iconMap[result.severity]} Index may be stale:`,
-    ...result.reasons.map(r => `  • ${r}`),
-  ]
+  const lines = [`${iconMap[result.severity]} Index may be stale:`, ...result.reasons.map(r => `  • ${r}`)]
 
   return lines.join('\n')
 }

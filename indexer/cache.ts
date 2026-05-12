@@ -1,6 +1,6 @@
-import { readFile, writeFile, rename, mkdir, unlink } from 'node:fs/promises'
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import type { FileIndex, CacheFile } from '../shared/types.js'
+import type { CacheFile, FileIndex } from '../shared/types.js'
 import { CACHE_VERSION } from '../shared/types.js'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
@@ -17,7 +17,9 @@ export class DiskCache {
       const raw = await readFile(this.cachePath, 'utf-8')
       const data: CacheFile = JSON.parse(raw)
       if (data.version !== CACHE_VERSION) {
-        console.log(`[slim/cache] Cache version mismatch (expected ${CACHE_VERSION}, got ${data.version}), starting fresh`)
+        console.log(
+          `[slim/cache] Cache version mismatch (expected ${CACHE_VERSION}, got ${data.version}), starting fresh`
+        )
         this.entries = new Map()
         return
       }
@@ -40,7 +42,7 @@ export class DiskCache {
       entries: Object.fromEntries(this.entries),
     }
     console.log(`[slim/cache] Persisting ${this.entries.size} entries to ${this.cachePath}`)
-    const tmp = this.cachePath + '.tmp'
+    const tmp = `${this.cachePath}.tmp`
     try {
       await writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8')
       await rename(tmp, this.cachePath)

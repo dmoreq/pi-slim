@@ -13,13 +13,13 @@
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { gzip, gunzip } from 'node:zlib'
 import { promisify } from 'node:util'
+import { gunzip, gzip } from 'node:zlib'
 import { scopeDir } from '../shared/paths.js'
-import { PathUtils } from '../shared/utils/path-utils.js'
-import type { RepoIndex } from '../shared/types.js'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
 import { STORE_VERSION_V2, migrateToV2 } from '../shared/schema-v2.js'
+import type { RepoIndex } from '../shared/types.js'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 const gzipAsync = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
@@ -81,7 +81,7 @@ export async function saveStore(
     languages?: Record<string, { fileCount: number; symbolCount: number; edgeCount: number }>
     config?: { scanPatterns: string[]; ignorePatterns: string[]; languages: string[] }
     graph?: any
-  },
+  }
 ): Promise<void> {
   await mkdir(storeDir(projectRoot), { recursive: true })
 
@@ -134,17 +134,16 @@ export async function saveStore(
   const json = JSON.stringify(stored)
   const rawSize = Buffer.byteLength(json, 'utf-8')
   const compressed = await gzipAsync(json)
-  console.log(`[slim/store] Persisting index v2 → ${indexPath(projectRoot)} (${rawSize} → ${compressed.length} bytes, ${Math.round((1 - compressed.length / rawSize) * 100)}% compressed)`)
+  console.log(
+    `[slim/store] Persisting index v2 → ${indexPath(projectRoot)} (${rawSize} → ${compressed.length} bytes, ${Math.round((1 - compressed.length / rawSize) * 100)}% compressed)`
+  )
 
-  await Promise.all([
-    writeFile(indexPath(projectRoot), compressed),
-    writeFile(mapPath(projectRoot), repoMap, 'utf-8'),
-  ])
+  await Promise.all([writeFile(indexPath(projectRoot), compressed), writeFile(mapPath(projectRoot), repoMap, 'utf-8')])
 }
 
 /** Load, gunzip-decompress, and deserialize RepoIndex + repo map from .pi/scope/. */
 export async function loadStore(
-  projectRoot: string,
+  projectRoot: string
 ): Promise<{ index: RepoIndex; repoMap: string; builtAt: string; fileCount: number; metadata?: any }> {
   const [compressed, repoMap] = await Promise.all([
     readFile(indexPath(projectRoot)),
@@ -163,19 +162,19 @@ export async function loadStore(
   } else if (stored.version === STORE_VERSION) {
     index = stored as StoredIndexV2
   } else {
-    throw new Error(`Store version mismatch: expected ${STORE_VERSION} or ${LEGACY_STORE_VERSION}, got ${stored.version}`)
+    throw new Error(
+      `Store version mismatch: expected ${STORE_VERSION} or ${LEGACY_STORE_VERSION}, got ${stored.version}`
+    )
   }
 
   const skeletons = new Map<string, string>(Object.entries(index.skeletons))
-  const deps = new Map<string, Set<string>>(
-    Object.entries(index.deps).map(([k, v]) => [k, new Set(v)]),
-  )
-  const reverseDeps = new Map<string, Set<string>>(
-    Object.entries(index.reverseDeps).map(([k, v]) => [k, new Set(v)]),
-  )
+  const deps = new Map<string, Set<string>>(Object.entries(index.deps).map(([k, v]) => [k, new Set(v)]))
+  const reverseDeps = new Map<string, Set<string>>(Object.entries(index.reverseDeps).map(([k, v]) => [k, new Set(v)]))
   const symbolIndex = new Map<string, string[]>(Object.entries(index.symbolIndex))
 
-  console.log(`[slim/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes, ${reverseDeps.size} reverse deps, ${symbolIndex.size} symbols`)
+  console.log(
+    `[slim/store] Loaded ${skeletons.size} skeletons, ${deps.size} dep nodes, ${reverseDeps.size} reverse deps, ${symbolIndex.size} symbols`
+  )
 
   return {
     index: { skeletons, deps, reverseDeps, symbolIndex },

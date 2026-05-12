@@ -1,20 +1,20 @@
-import { readFile, readdir } from 'node:fs/promises'
-import { extname, dirname, resolve, relative } from 'node:path'
-import { readFileSync } from 'node:fs'
-import { PathUtils } from '../shared/utils/path-utils.js'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { readFile, readdir } from 'node:fs/promises'
 import { createRequire } from 'node:module'
+import { dirname, extname, relative, resolve } from 'node:path'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 // CJS `export = fn` doesn't unwrap under NodeNext + esModuleInterop; use createRequire instead
 const _require = createRequire(import.meta.url)
 type IgnoreInstance = { add(p: string | string[]): IgnoreInstance; ignores(p: string): boolean }
 const ignore: () => IgnoreInstance = _require('ignore')
-import { DiskCache } from './cache.js'
-import { TypeScriptParser } from '../parsers/typescript-parser.js'
+import type { LanguageParser } from '../parsers/language-parser.js'
 import { PythonParser } from '../parsers/python-parser.js'
 import { RustParser } from '../parsers/rust-parser.js'
-import type { LanguageParser } from '../parsers/language-parser.js'
+import { TypeScriptParser } from '../parsers/typescript-parser.js'
 import type { FileIndex, RepoIndex, SlimConfig } from '../shared/types.js'
+import { DiskCache } from './cache.js'
 
 const DEFAULT_IGNORES = ['node_modules', '.git', '.pi-cache', 'dist', 'build']
 
@@ -25,14 +25,20 @@ function buildIgnore(projectRoot: string, extraExcludes: string[] = []) {
   try {
     const gitignore = readFileSync(PathUtils.joinSafe(projectRoot, '.gitignore'), 'utf-8')
     ig.add(gitignore)
-  } catch { /* no .gitignore */ }
+  } catch {
+    /* no .gitignore */
+  }
   return ig
 }
 
 async function* walkDir(dir: string, root: string, ig: IgnoreInstance): AsyncGenerator<string> {
   let entries: { name: string; isDirectory(): boolean; isFile(): boolean }[]
   try {
-    entries = (await readdir(dir, { withFileTypes: true })) as unknown as { name: string; isDirectory(): boolean; isFile(): boolean }[]
+    entries = (await readdir(dir, { withFileTypes: true })) as unknown as {
+      name: string
+      isDirectory(): boolean
+      isFile(): boolean
+    }[]
   } catch (err) {
     console.warn(`[IndexEngine] Cannot read directory ${dir}:`, err)
     return
@@ -55,8 +61,10 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
     if (!raw.startsWith('.') && !raw.startsWith('/')) return null
     const base = resolve(dirname(fromFile), raw)
     for (const candidate of [
-      base + '.ts', base + '.tsx',
-      PathUtils.joinSafe(base, 'index.ts'), PathUtils.joinSafe(base, 'index.tsx'),
+      `${base}.ts`,
+      `${base}.tsx`,
+      PathUtils.joinSafe(base, 'index.ts'),
+      PathUtils.joinSafe(base, 'index.tsx'),
       base,
     ]) {
       if (PathUtils.existsSync(candidate)) return candidate
@@ -70,14 +78,14 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
     const module = raw.slice(dots).replace(/\./g, '/')
     let dir = dirname(fromFile)
     for (let i = 1; i < dots; i++) dir = dirname(dir)
-    const candidate = PathUtils.joinSafe(dir, module + '.py')
+    const candidate = PathUtils.joinSafe(dir, `${module}.py`)
     return PathUtils.existsSync(candidate) ? candidate : null
   }
 
   if (ext === '.rs') {
     if (raw.startsWith('mod:')) {
       const name = raw.slice(4)
-      const sibling = PathUtils.joinSafe(dirname(fromFile), name + '.rs')
+      const sibling = PathUtils.joinSafe(dirname(fromFile), `${name}.rs`)
       const modFile = PathUtils.joinSafe(dirname(fromFile), name, 'mod.rs')
       if (PathUtils.existsSync(sibling)) return sibling
       if (PathUtils.existsSync(modFile)) return modFile
@@ -85,7 +93,7 @@ function resolveImport(raw: string, fromFile: string, ext: string): string | nul
     }
     if (raw.startsWith('crate::') || raw.startsWith('super::')) {
       const parts = raw.replace(/^(crate|super)::/, '').split('::')
-      const candidate = PathUtils.joinSafe(dirname(fromFile), ...parts) + '.rs'
+      const candidate = `${PathUtils.joinSafe(dirname(fromFile), ...parts)}.rs`
       return PathUtils.existsSync(candidate) ? candidate : null
     }
     return null
@@ -165,9 +173,9 @@ export class IndexEngine {
       for (const raw of f.imports) {
         const resolved = resolveImport(raw, f.path, ext)
         if (resolved && skeletons.has(resolved)) {
-          deps.get(f.path)!.add(resolved)
+          deps.get(f.path)?.add(resolved)
           if (!reverseDeps.has(resolved)) reverseDeps.set(resolved, new Set())
-          reverseDeps.get(resolved)!.add(f.path)
+          reverseDeps.get(resolved)?.add(f.path)
         }
       }
     }
@@ -177,7 +185,7 @@ export class IndexEngine {
     for (const f of files) {
       for (const sym of f.exports) {
         if (!symbolIndex.has(sym)) symbolIndex.set(sym, [])
-        symbolIndex.get(sym)!.push(f.path)
+        symbolIndex.get(sym)?.push(f.path)
       }
     }
 

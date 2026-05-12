@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { migrateToV2, STORE_VERSION_V2, extractMetadata } from '../../shared/schema-v2.js'
+import { describe, expect, it } from 'vitest'
+import { STORE_VERSION_V2, extractMetadata, migrateToV2 } from '../../shared/schema-v2.js'
 
 describe('StoredIndexV2 Migration', () => {
   it('should migrate v3 index to v2', () => {
@@ -66,9 +66,7 @@ describe('StoredIndexV2 Migration', () => {
       symbolIndex: {},
       checksums: { files: {}, timestamp: Date.now() },
       graph: {
-        nodes: [
-          { id: 'src/auth.ts:authenticate', label: 'authenticate', community: 0 },
-        ],
+        nodes: [{ id: 'src/auth.ts:authenticate', label: 'authenticate', community: 0 }],
         edges: [
           { source: 'src/auth.ts:authenticate', target: 'src/utils.ts:validateJWT', confidence: 'EXTRACTED' as const },
         ],

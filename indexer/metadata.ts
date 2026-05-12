@@ -9,9 +9,9 @@
  */
 
 import { execSync } from 'node:child_process'
+import type { LanguageCoverage } from '../shared/schema-v2.js'
 import type { RepoIndex } from '../shared/types.js'
 import type { SlimConfig } from '../shared/types.js'
-import type { LanguageCoverage } from '../shared/schema-v2.js'
 
 export interface BuildMetadata {
   buildDuration: number // milliseconds
@@ -32,7 +32,7 @@ export function collectMetadata(
   projectRoot: string,
   index: RepoIndex,
   config: SlimConfig,
-  buildStartTime: number,
+  buildStartTime: number
 ): BuildMetadata {
   const buildDuration = Date.now() - buildStartTime
 
@@ -136,16 +136,14 @@ export function collectMetadata(
  * Format metadata for display
  */
 export function formatMetadata(metadata: BuildMetadata): string {
-  const lines: string[] = [
-    `Build completed in ${metadata.buildDuration}ms`,
-  ]
+  const lines: string[] = [`Build completed in ${metadata.buildDuration}ms`]
 
   if (metadata.gitCommit) {
     lines.push(`Git: ${metadata.gitCommit.slice(0, 7)}${metadata.gitBranch ? ` (${metadata.gitBranch})` : ''}`)
   }
 
   if (Object.keys(metadata.languages).length > 0) {
-    lines.push(`Languages:`)
+    lines.push('Languages:')
     for (const [lang, coverage] of Object.entries(metadata.languages)) {
       lines.push(`  ${lang}: ${coverage.fileCount} files, ${coverage.symbolCount} symbols, ${coverage.edgeCount} edges`)
     }

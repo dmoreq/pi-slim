@@ -11,21 +11,17 @@
  *   - TTL expired → recompute (future)
  */
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { PathUtils } from '../shared/utils/path-utils.js'
 import type {
-  GraphifyGraph,
-  GraphifyAnalysis,
-  GodNode,
-  CommunityAnalysis,
-  SurprisingConnection,
-  Bottleneck,
   Anomaly,
+  GraphifyAnalysis,
+  GraphifyGraph,
+  SurprisingConnection,
   WikipediaEntry,
-  WikipediaIndex,
-  WikipediaQueryParams
+  WikipediaQueryParams,
 } from '../context/graph-types'
+import { PathUtils } from '../shared/utils/path-utils.js'
 
 // ── Cache Schema ───────────────────────────────────────────────────────────
 
@@ -38,11 +34,11 @@ export const GRAPH_CACHE_VERSION = 1
 export interface CachedGraphData {
   version: number
   cachedAt: string
-  
+
   // Graph
   nodes: Array<{ id: string; type: string; label: string }>
   edges: Array<{ source: string; target: string; type: string; surprising?: boolean }>
-  
+
   // Communities
   communities: Array<{
     id: string
@@ -53,7 +49,7 @@ export interface CachedGraphData {
     interfaceNodes: string[]
     bottlenecks: string[]
   }>
-  
+
   // God nodes
   godNodes: Array<{
     nodeId: string
@@ -65,7 +61,7 @@ export interface CachedGraphData {
     community: string
     criticality: 'CRITICAL' | 'IMPORTANT' | 'NORMAL'
   }>
-  
+
   // Surprises
   surprises: Array<{
     source: string
@@ -73,13 +69,13 @@ export interface CachedGraphData {
     reason: string
     confidence: number
   }>
-  
+
   // Bottlenecks
   bottlenecks: Array<{
     nodeId: string
     betweenness: number
   }>
-  
+
   // Anomalies
   anomalies: Array<{
     type: string
@@ -87,7 +83,7 @@ export interface CachedGraphData {
     nodes: string[]
     description: string
   }>
-  
+
   // Metrics
   metrics: {
     totalNodes: number
@@ -100,7 +96,7 @@ export interface CachedGraphData {
     cycleCount: number
     bottleneckCount: number
   }
-  
+
   // Computed stats
   computedAt: number
 }
@@ -180,10 +176,7 @@ export function serializeAnalysis(analysis: GraphifyAnalysis, graph: GraphifyGra
  * Deserialize cached data back into a full GraphifyAnalysis.
  * Note: The wikipedia index is not cached and must be rebuilt on load.
  */
-export function deserializeAnalysis(
-  cached: CachedGraphData,
-  graph?: GraphifyGraph
-): GraphifyAnalysis {
+export function deserializeAnalysis(cached: CachedGraphData, graph?: GraphifyGraph): GraphifyAnalysis {
   // Reconstruct GraphifyGraph from the cached data merged with the original graph
   const reconstructedGraph: GraphifyGraph = graph || {
     nodes: cached.nodes.map(n => ({
@@ -272,7 +265,7 @@ export async function saveGraphCache(
   cacheDir: string,
   analysis: GraphifyAnalysis,
   graph: GraphifyGraph,
-  indexFingerprint?: string,
+  indexFingerprint?: string
 ): Promise<boolean> {
   try {
     const dir = dirname(PathUtils.joinSafe(cacheDir, 'graph-cache.json'))
@@ -288,7 +281,7 @@ export async function saveGraphCache(
     console.error('[graph-cache] Failed to save:', err)
     return false
   }
-}  
+}
 
 /**
  * Load graph analysis from cache file.
@@ -301,7 +294,7 @@ export async function saveGraphCache(
 export async function loadGraphCache(
   cacheDir: string,
   graph?: GraphifyGraph,
-  expectedFingerprint?: string,
+  expectedFingerprint?: string
 ): Promise<GraphifyAnalysis | null> {
   try {
     const filePath = PathUtils.joinSafe(cacheDir, 'graph-cache.json')
