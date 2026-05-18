@@ -779,7 +779,14 @@ export class SessionManager {
   }
 
   private updateStatusBar(ctx: ExtensionContext): void {
-    if (!this.state || !ctx.hasUI) return
-    updateStatusBar(ctx.ui.setStatus, this.statusBarState())
+    if (!this.state) return
+    try {
+      if (!ctx.hasUI) return
+      updateStatusBar(ctx.ui.setStatus, this.statusBarState())
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('extension ctx is stale')) return
+      throw err
+    }
   }
 }
