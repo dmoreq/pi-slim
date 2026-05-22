@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "diff": "^9.0.0",
+    "esbuild": "^0.21.0",
     "ignore": "^6.0.2",
     "jsonc-parser": "^3.3.1",
     "pi-telemetry": "github:dmoreq/pi-telemetry",
@@ -62,7 +63,6 @@
     "@mariozechner/pi-tui": "^0.72.1",
     "@sinclair/typebox": "^0.34.49",
     "@types/node": "^20.0.0",
-    "esbuild": "^0.21.0",
     "esbuild-register": "^3.6.0",
     "typescript": "^5.7.3",
     "vitest": "^2.0.0"
