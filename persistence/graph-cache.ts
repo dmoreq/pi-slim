@@ -99,6 +99,9 @@ export interface CachedGraphData {
 
   // Computed stats
   computedAt: number
+
+  // Optional checksum fingerprint of native AST build for validation/cache invalidation
+  indexFingerprint?: string
 }
 
 // ── Serialization ──────────────────────────────────────────────────────────
@@ -107,10 +110,15 @@ export interface CachedGraphData {
  * Serialize a full GraphifyAnalysis to cacheable format.
  * Requires a GraphifyGraph for node/edge data (not part of GraphifyAnalysis).
  */
-export function serializeAnalysis(analysis: GraphifyAnalysis, graph: GraphifyGraph): CachedGraphData {
+export function serializeAnalysis(
+  analysis: GraphifyAnalysis,
+  graph: GraphifyGraph,
+  indexFingerprint?: string
+): CachedGraphData {
   return {
     version: GRAPH_CACHE_VERSION,
     cachedAt: new Date().toISOString(),
+    indexFingerprint,
     nodes: graph.nodes.map(n => ({
       id: n.id,
       type: n.type,

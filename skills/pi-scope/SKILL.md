@@ -51,15 +51,7 @@ pi-scope has its **own native TypeScript graph engine** that runs automatically 
 | Tarjan SCC | Circular dependencies | Built-in |
 | Surprise Detection | Cross-community edges | Built-in |
 
-This works on the 3 languages pi-scope parses (TypeScript, Python, Rust). No install needed.
-
-For richer graphs (15+ languages, LLM-assisted extraction), you can point pi-scope at graphifyy output:
-```bash
-pip install graphifyy && cd your-project && graphify .
-# pi-scope auto-detects graphify-out/graph.json on next start
-```
-
-**Without graphifyy:** pi-scope runs its own graph engine. You lose nothing for TS/Py/Rust projects.
+This works on the 3 languages pi-scope parses (TypeScript, Python, Rust) out of the box with zero external dependencies. No install or configuration needed.
 
 ### Auto-install Command
 
@@ -90,9 +82,9 @@ pi-scope finds files by **what they export**, not just their filename. When you 
 
 All notifications about what was injected appear as pi-telemetry badges — no user commands needed.
 
-### Graph Analysis (Automatic When graphify-out/graph.json Exists)
+### Graph Analysis (Automatic Built-in Native Pipeline)
 
-When `graphify-out/graph.json` is found at session start, pi-scope automatically runs:
+At session start, pi-scope automatically runs a full native analysis pipeline on the computed code index:
 
 | Algorithm | What it detects | Effect |
 |-----------|-----------------|--------|
@@ -142,4 +134,3 @@ You do NOT need to run any commands. Here's what the agent sees in its system pr
 - **Large projects (>10K files):** Set `exclude` patterns in `.pi/scope.jsonc`
 - **First-degree imports only** in dep graph (transitive configurable via `dependencyDepth`)
 - **Graph data not used everywhere** — graph analysis only runs at startup; incremental code changes don't trigger re-analysis (future feature)
-- **Richer graphs via graphifyy:** `pip install graphifyy && graphify .` extends graph coverage to 15+ languages and adds LLM-assisted extraction. pi-scope's native graph engine (TS/Py/Rust) works without it.

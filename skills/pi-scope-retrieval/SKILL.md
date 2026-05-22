@@ -9,7 +9,7 @@ description: Use when pi-scope fails to find the right files by context, when yo
 
 At session start, pi-scope builds a **symbol index** of every exported name across all parsed files. When you mention a function/class/variable name, the retrieval engine matches against this index — not just filenames.
 
-When graph data is available (from `graphify-out/graph.json`), retrieval is further **boosted**:
+When native graph analysis has run on the computed code index, retrieval is further **boosted**:
 - God nodes get a 2× score multiplier
 - Surprising connections are injected as context breadcrumbs
 - Community pruning keeps only relevant community context per turn
@@ -93,13 +93,7 @@ When graph data is available, the system prompt automatically includes:
 - Tarjan SCC for cycle detection
 - Surprise detection for cross-community edges
 
-All work on TS/Py/Rust projects with no external dependencies.
-
-For 15+ language support, point pi-scope at graphifyy output:
-```bash
-pip install graphifyy && cd your-project && graphify .
-# Restart pi session — graph data loads automatically
-```
+All work on TS/Py/Rust projects out of the box with zero external dependencies.
 
 ## Reading the `<dep-context>` Block
 

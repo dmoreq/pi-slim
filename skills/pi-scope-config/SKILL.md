@@ -36,13 +36,7 @@ If a server is missing, the corresponding `lsp_*` tool logs a warning and skips 
 
 pi-scope has its own native TypeScript graph engine (degree centrality, PageRank,
 Louvain clustering, cycle detection, surprise detection) for TS/Py/Rust projects.
-No install needed.
-
-For richer graphs with 15+ language support, point pi-scope at graphifyy output:
-```bash
-pip install graphifyy && cd your-project && graphify .
-# pi-scope auto-detects graphify-out/graph.json on next session start
-```
+No install or external dependencies are needed.
 
 ## Configuration Layers (Priority: Highest Wins)
 

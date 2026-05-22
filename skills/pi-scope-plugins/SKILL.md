@@ -10,13 +10,7 @@ description: Use when extending pi-scope with custom behavior via plugins, regis
 No special install needed — the plugin system is built into pi-scope and works with the same npm deps.
 
 The **CommunityPruningPlugin** activates automatically when pi-scope's native graph analysis
-detects more than 1 community (works on TS/Py/Rust projects with no extra install).
-
-For richer graphs with 15+ language support, point pi-scope at graphifyy output:
-```bash
-pip install graphifyy && cd your-project && graphify .
-# Plugin auto-registers when communities > 1
-```
+detects more than 1 community (works on TS/Py/Rust projects with zero external dependencies).
 
 ## Plugin Interface
 
@@ -106,7 +100,7 @@ Filters context messages by community membership to keep injections focused. Onl
 3. Trims context from non-relevant communities
 4. Always preserves interface nodes (cross-community bridges)
 
-**Activation:** Auto-registered by `SessionManager.start()` when graph analysis detects multiple communities. Requires graph data from `graphify-out/graph.json`.
+**Activation:** Auto-registered by `SessionManager.start()` when native graph analysis detects multiple communities in the AST index.
 
 ```typescript
 // Manual configuration

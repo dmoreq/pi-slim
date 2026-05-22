@@ -46,9 +46,9 @@ All three tools use **0-indexed** line and column positions.
 
 **Servers must be on `$PATH`.** Install them via your package manager (npm, pip, go install, rustup).
 
-## Graph-Enhanced Hover (When Graph Data Available)
+## Graph-Enhanced Hover (When Native Graph Analysis Active)
 
-When `graphify-out/graph.json` is present and graph analysis has run, the `lsp_hover` tool returns **enhanced information** beyond standard LSP type info:
+When native graph analysis has run on the computed code index, the `lsp_hover` tool returns **enhanced information** beyond standard LSP type info:
 
 | Extra Field | What it shows |
 |-------------|---------------|
