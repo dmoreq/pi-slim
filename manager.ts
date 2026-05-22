@@ -26,6 +26,7 @@ import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { setLspGraphAnalysis } from './tools/lsp-navigation.js'
 import { type StatusBarState, clearStatusBar, info as nInfo, updateStatusBar } from './ui/notifications.js'
+import { isValidCodebase } from './shared/utils/path-utils.js'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -305,6 +306,13 @@ export class SessionManager {
     if (typeof projectRoot !== 'string' || typeof getFlag !== 'function' || ctx === undefined) {
       throw new Error('session start requires (projectRoot, getFlag, ctx) when bootstrap mode is disabled')
     }
+
+    // 1. Guard against running in system/home/non-codebase directories
+    if (!isValidCodebase(projectRoot)) {
+      console.log(`[pi-scope] Directory "${projectRoot}" is not a valid codebase. pi-scope remains dormant.`)
+      return
+    }
+
     this.telemetry.register()
     this.telemetry.onSessionStart()
 
@@ -395,40 +403,12 @@ export class SessionManager {
   }
 
   /**
-   * Load graph analysis from cache or compute fresh.
-   * Tries external graphify output first, falls back to native index-based graph.
+   * Run native index-based graph analysis.
    */
   private async loadGraph(projectRoot: string, stats: SessionStats): Promise<void> {
     const cacheDir = scopeDir(projectRoot)
     setLspGraphAnalysis(null) // clear stale analysis
 
-    // Try external graphify cache first
-    if (await this.graphService.load(projectRoot, cacheDir)) {
-      const a = this.graphService.analysis!
-      this._graphNodeCount = a.metrics.totalNodes
-      this._graphEdgeCount = a.metrics.totalEdges
-      stats.godNodesCount = a.godNodes.length
-      stats.communityCount = a.communities.length
-      stats.circularDependencies = a.metrics.cycleCount
-      this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
-      setLspGraphAnalysis(a)
-      return
-    }
-
-    // Try external fresh analysis
-    const extResult = await this.graphService.analyze(projectRoot, cacheDir)
-    if (extResult) {
-      this._graphNodeCount = extResult.graph.nodes.length
-      this._graphEdgeCount = extResult.graph.edges.length
-      stats.godNodesCount = extResult.analysis.godNodes.length
-      stats.communityCount = extResult.analysis.communities.length
-      stats.circularDependencies = extResult.analysis.metrics.cycleCount
-      this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
-      setLspGraphAnalysis(extResult.analysis)
-      return
-    }
-
-    // Fall back to native index-based graph analysis
     const index = this.indexService.index
     if (!index || index.skeletons.size === 0) {
       this.telemetry.onGraphNoData()

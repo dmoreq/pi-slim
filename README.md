@@ -76,12 +76,6 @@ pi-scope has its **own native TypeScript graph engine** — 5 algorithms that ru
 
 This works on TS/Py/Rust projects out of the box. No install, no config.
 
-For 15+ language support and LLM-assisted extraction, point pi-scope at graphifyy output:
-```bash
-pip install graphifyy && cd your-project && graphify .
-# pi-scope auto-detects graphify-out/graph.json on next restart
-```
-
 ---
 
 ## How It Works
@@ -92,7 +86,7 @@ pip install graphifyy && cd your-project && graphify .
 2. **Parse** — each file is parsed via [tree-sitter](https://tree-sitter.github.io/)
 3. **Extract** — signatures (function headers, class shapes) + exported symbol names
 4. **Graph** — forward deps + reverse deps + symbol index
-5. **Graph Analysis** — if a `graphify-out/graph.json` exists, automatically runs:
+5. **Graph Analysis** — automatically runs natively on the built-in graph:
    - **Degree Centrality & PageRank** → identifies god nodes (highly depended-on symbols)
    - **Louvain Community Detection** → groups related modules
    - **Cycle Detection** (Tarjan's SCC) → finds circular dependencies
@@ -136,7 +130,7 @@ Pi-scope finds files by what they **contain**, not just their path. When you men
 
 ### Graph Analysis
 
-When graphify output (`graphify-out/graph.json`) is available, pi-scope automatically runs a full analysis pipeline:
+Pi-scope automatically runs a full native analysis pipeline on the built-in parsed AST code index:
 
 | Algorithm | What it finds | Displayed in `/scope` |
 |-----------|---------------|----------------------|
@@ -145,8 +139,6 @@ When graphify output (`graphify-out/graph.json`) is available, pi-scope automati
 | Louvain Clustering | Related module groups | Communities |
 | Tarjan's SCC | Circular dependency chains | Cycle count |
 | Surprise Detection | Cross-community edges | Alert in startup |
-
-**Without graphify:** pi-scope runs normally with all core features — graph analysis is purely additive.
 
 ### AST Skeleton Injection
 
@@ -274,7 +266,7 @@ pi-scope has **no user-visible commands.** Everything is automatic:
 | What happens | How |
 |-------------|-----|
 | Index building | Auto-triggered on session start |
-| Graph analysis | Runs automatically if `graphify-out/graph.json` exists |
+| Graph analysis | Runs automatically on the built-in parsed AST code index |
 | Context injection | Every turn, via dep-context pipeline |
 | Graph insights | Injected into system prompt at startup |
 | Notifications | All via pi-telemetry badges (cache hit, fresh build, graph loaded) |
@@ -337,7 +329,7 @@ pi-scope/
 ├── manager.ts                # SessionManager — orchestration + graph analysis
 ├── algorithms/               # Graph algorithms (centrality, PageRank, Louvain, cycles, surprises)
 ├── cli/                      # CLI command handlers (wiki commands)
-├── context/                  # Retrieval engine, injection pipeline, graphify modules
+├── context/                  # Retrieval engine, injection pipeline, graph modules
 ├── hashline/                 # Hashline edit system (6 modules)
 ├── lsp/                      # LSP client + service
 ├── indexer/                  # AST index engine + cache + store
@@ -350,16 +342,13 @@ pi-scope/
 ├── shared/                   # Utilities
 ├── ui/                       # TUI notifications, dashboard, init prompt
 ├── docs/                     # Reference documentation
-│   ├── GRAPHIFY_IMPLEMENTATION_GUIDE.md
-│   ├── GRAPHIFY_WIKIPEDIA_INTEGRATION.md
 │   └── algorithms/
 │       └── GRAPH_ALGORITHMS_REFERENCE.md
 └── tests/                    # Test suite (594 tests, all passing)
     ├── algorithms/           # Algorithm unit tests
     ├── cli/                  # CLI test
     ├── context/              # Context module tests
-    ├── graphify/             # Schema + loader tests
-    ├── integration/          # End-to-end graphify + session tests
+    ├── integration/          # End-to-end native graph + session tests
     └── visualization/        # Renderer tests
 ```
 
@@ -375,14 +364,14 @@ npm test
 
 Test coverage includes:
 - All graph algorithms (centrality, PageRank, Louvain, cycles, surprises)
-- Schema validation and graph loading
+- Graph building and native processing
 - Retrieval boost and community filtering
 - Wikipedia subsystem and impact analysis
 - LSP hover enhancement
 - Graph caching (serialize/deserialize round-trip)
 - Community pruning plugin
 - Graph metrics (token savings, quality, health scores)
-- Full end-to-end integration (7 phases)
+- Full end-to-end integration
 
 ---
 

@@ -2,13 +2,12 @@
  * Integration tests for the graphify system.
  *
  * Tests the end-to-end flow:
- *   1. Loading a graph.json
- *   2. Running graph analysis (god nodes, communities, surprises, cycles)
- *   3. Caching analysis results
- *   4. Loading from cache
- *   5. Graph-cached persistence
- *   6. Community pruning plugin
- *   7. LSP hover enhancement
+ *   1. Running graph analysis (god nodes, communities, surprises, cycles)
+ *   2. Caching analysis results
+ *   3. Loading from cache
+ *   4. Graph-cached persistence
+ *   5. Community pruning plugin
+ *   6. LSP hover enhancement
  */
 
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -23,10 +22,9 @@ import { computeGlobalModularity, detectCommunitiesLouvain } from '../../algorit
 import { detectAllCycles } from '../../algorithms/cycle-detection'
 import { computePageRank, identifyGodNodesByPageRank } from '../../algorithms/pagerank'
 import { detectSurprisingConnections } from '../../algorithms/surprising-connections'
-import { loadGraphifyJson, saveGraphifyJson } from '../../context/graph-loader'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../../context/graph-lsp-hover'
-import { validateGraphSchema } from '../../context/graph-schema'
 import { deserializeAnalysis, loadGraphCache, saveGraphCache, serializeAnalysis } from '../../persistence/graph-cache'
+
 // ── Fixtures ─────────────────────────────────────────────────────────────
 
 /**
@@ -106,49 +104,6 @@ function createLargeGraph(nodeCount = 100): GraphifyGraph {
 describe('Graphify Integration', () => {
   let graph: GraphifyGraph
   let analysis: GraphifyAnalysis
-  let tempDir: string
-
-  // ── Phase 1: Load & Validate ───────────────────────────────────────
-
-  describe('Phase 1: Graph Loading & Validation', () => {
-    beforeAll(() => {
-      graph = createTestGraph()
-      tempDir = mkdtempSync(join(tmpdir(), 'graphify-test-'))
-    })
-
-    afterAll(() => {
-      rmSync(tempDir, { recursive: true, force: true })
-    })
-
-    it('should validate a well-formed graph', () => {
-      const result = validateGraphSchema(graph)
-      expect(result.valid).toBe(true)
-      expect(result.errors).toHaveLength(0)
-    })
-
-    it('should save and load graph', async () => {
-      const filePath = join(tempDir, 'graph.json')
-      const saved = await saveGraphifyJson(graph, filePath)
-      expect(saved).toBe(true)
-
-      const loaded = await loadGraphifyJson(filePath)
-      expect(loaded.success).toBe(true)
-      expect(loaded.graph?.nodes).toHaveLength(graph.nodes.length)
-      expect(loaded.graph?.edges).toHaveLength(graph.edges.length)
-    })
-
-    it('should report error for missing graph file', async () => {
-      const result = await loadGraphifyJson('/nonexistent/graph.json')
-      expect(result.success).toBe(false)
-      expect(result.error).toContain('not found')
-    })
-
-    it('should validate minimal graph (only nodes, no edges)', () => {
-      const minimalGraph: GraphifyGraph = { nodes: [{ id: 'a', type: 'module', label: 'A' }], edges: [] }
-      const result = validateGraphSchema(minimalGraph)
-      expect(result.valid).toBe(true)
-    })
-  })
 
   // ── Phase 2: Algorithm Analysis ─────────────────────────────────────
 
@@ -526,8 +481,4 @@ describe('Graphify Integration', () => {
       expect(true).toBe(true)
     })
   })
-
-  // Phase 7 (Graph Metrics) removed — graph-metrics.ts had no production consumers.
-  // Token estimation uses shared/token.ts estimateTokens().
-  // Graph summaries use manager.ts formatGraphInsightsSection().
 })

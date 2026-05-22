@@ -3,7 +3,7 @@
  *
  * Zero-config, fully automatic. No user commands needed.
  *   - Auto-indexes on first codebase-relevant query
- *   - Graph analysis runs automatically when graphify data is present
+ *   - Native graph analysis runs automatically on the computed code index
  *   - All lifecycle events reported via pi-telemetry
  *   - 4 LLM tools: hashline_edit, lsp_go_to_definition, lsp_find_references, lsp_hover
  *
@@ -76,9 +76,9 @@ const _CODEBASE_PATTERNS = [
   /\b(?:refactor|rewrite|edit|update|fix|debug|test|build|deploy|implement|add|remove|change|migrate|optimize)\b/,
 ]
 
-function isCodebaseRelevant(_prompt: string): boolean {
-  // Auto-activate for all queries — the extension is lightweight when inactive
-  return true
+function isCodebaseRelevant(prompt: string): boolean {
+  if (!prompt) return false
+  return _CODEBASE_PATTERNS.some(pattern => pattern.test(prompt))
 }
 
 // ── Extension entry ────────────────────────────────────────────────────

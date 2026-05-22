@@ -56,7 +56,6 @@ describe('Enhanced Context Intelligence Integration', () => {
         computedAt: Date.now(),
         version: '1.0.0',
       },
-      loadGraphifyAnalysis: vi.fn().mockResolvedValue(null),
       updateGraph: vi.fn().mockResolvedValue(undefined),
     }
 
@@ -163,7 +162,6 @@ describe('Enhanced Context Intelligence Integration - Extended', () => {
         computedAt: Date.now(),
         version: '1.0.0',
       },
-      loadGraphifyAnalysis: vi.fn().mockResolvedValue(null),
       updateGraph: vi.fn().mockResolvedValue(undefined),
     }
 
@@ -201,14 +199,12 @@ describe('Enhanced Context Intelligence Integration - Extended', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     try {
-      mockGraphService.loadGraphifyAnalysis.mockResolvedValueOnce(mockGraphService.analysis)
       manager.addMessages([{ role: 'user', content: 'modify the Client class constructor' }])
 
       const withGraph = await manager.generateIntelligentGuidance()
       expect(withGraph).toContain('HIGH-IMPACT SYMBOLS')
 
       mockGraphService.analysis = null
-      mockGraphService.loadGraphifyAnalysis.mockRejectedValueOnce(new Error('Load failed'))
 
       const fallback = await manager.generateIntelligentGuidance()
       expect(fallback).toContain('WORKFLOW OPTIMIZATION')
