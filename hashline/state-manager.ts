@@ -28,10 +28,10 @@ export class AnchorStateManager {
   public static reconcile(
     filePath: string,
     currentContent: string,
-    expectedEdits: Array<{ pos: { line: number; hash: string }; end?: { line: number; hash: string } }>
+    expectedEdits: any[]
   ): {
     warnings: string[]
-    rebasedEdits: Array<{ pos: { line: number; hash: string }; end?: { line: number; hash: string } }>
+    rebasedEdits: any[]
   } {
     const currentLines = currentContent.split('\n')
     const currentHashes = new Uint32Array(currentLines.length)
