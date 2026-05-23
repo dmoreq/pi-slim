@@ -5,6 +5,7 @@
  */
 
 import { HASHLINE_BIGRAM_RE_SRC, computeLineHash, formatHashLine } from './line-hash.js'
+import { AnchorStateManager } from './state-manager.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -416,7 +417,8 @@ function buildResult(
 
 export function applyHashlineEdits(
   text: string,
-  edits: HashlineEdit[]
+  edits: HashlineEdit[],
+  filePath?: string
 ): {
   lines: string
   firstChangedLine: number | undefined
@@ -429,6 +431,11 @@ export function applyHashlineEdits(
   let fc: number | undefined
   const noopEdits: Array<{ editIndex: number; loc: string; current: string }> = []
   const warnings: string[] = []
+
+  if (filePath) {
+    const reconciliation = AnchorStateManager.reconcile(filePath, text, edits)
+    warnings.push(...reconciliation.warnings)
+  }
 
   const mismatches = validateRefs(edits, fileLines, warnings)
   if (mismatches.length > 0) throw new HashlineMismatchError(mismatches, fileLines)
@@ -445,5 +452,9 @@ export function applyHashlineEdits(
       if (fc === undefined || l < fc) fc = l
     })
 
-  return buildResult(fileLines, fc, warnings, noopEdits)
+  const result = buildResult(fileLines, fc, warnings, noopEdits)
+  if (filePath) {
+    AnchorStateManager.record(filePath, result.lines)
+  }
+  return result
 }

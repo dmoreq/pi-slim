@@ -99,7 +99,7 @@ async function makeEdit(
     throw new Error(`Unknown loc shape: ${JSON.stringify(loc)}.`)
   }) as HashlineEdit[]
 
-  const result = applyHashlineEdits(normalizedContent, resolvedEdits)
+  const result = applyHashlineEdits(normalizedContent, resolvedEdits, absPath)
 
   const details: HashlineEditDetails = {
     path,
@@ -183,8 +183,7 @@ const hashlineTool = defineTool({
     _ctx: unknown
   ) {
     const cwd = (_ctx as { cwd?: string })?.cwd ?? process.cwd()
-    // @ts-ignore dry_run from LLM string
-    return makeEdit(params.path, params.edits, cwd, !!params.dry_run as unknown as boolean)
+    return makeEdit(!!params.dry_run, params.path, params.edits, cwd)
   },
 })
 
