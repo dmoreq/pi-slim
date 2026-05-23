@@ -1,6 +1,6 @@
 /**
  * Analyzer-facing graph shapes (generic `from` / `to` edges).
- * Distinct from graphify loader types in `context/graph-types.ts`.
+ * Distinct from code-graph loader types in `context/graph-types.ts`.
  */
 
 export interface GraphNode {

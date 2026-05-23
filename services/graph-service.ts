@@ -6,7 +6,7 @@
  * are standalone modules imported here.
  *
  * Algorithm pipeline (runs at startup when native graph data is computed):
- *   1. Assemble GraphifyGraph from RepoIndex
+ *   1. Assemble CodeGraph from RepoIndex
  *   2. Degree Centrality + PageRank → god nodes
  *   3. Louvain → communities
  *   4. DFS + Tarjan SCC → cycles
@@ -14,18 +14,18 @@
  *   6. Cache results for fast reload
  */
 
-import type { GraphifyAnalysis, GraphifyGraph } from '../context/graph-types.js'
-import { assembleGraphifyAnalysis } from '../graph/analyzers/compute-graphify-analysis.js'
+import type { GraphAnalysis, CodeGraph } from '../context/graph-types.js'
+import { assembleGraphAnalysis } from '../graph/analyzers/compute-graph-analysis.js'
 import { GraphAnalyzer } from '../graph/analyzers/graph-analyzer.js'
-import { repoIndexToGraphifyGraph } from '../graph/bridge.js'
+import { repoIndexToCodeGraph } from '../graph/bridge.js'
 import { InMemoryAnalysisCache } from '../graph/cache/analysis-cache.js'
 import type { Graph as AnalysisGraph } from '../graph/interfaces/analyzer.interface.js'
 import { loadGraphCache, saveGraphCache } from '../persistence/graph-cache.js'
 import type { RepoIndex } from '../shared/types.js'
 
 export interface GraphResult {
-  graph: GraphifyGraph
-  analysis: GraphifyAnalysis
+  graph: CodeGraph
+  analysis: GraphAnalysis
 }
 
 /**
@@ -43,7 +43,7 @@ function indexFingerprint(index: RepoIndex): string {
   return parts.join('|')
 }
 
-function graphifyStructureCacheKey(graph: GraphifyGraph): string {
+function graphStructureCacheKey(graph: CodeGraph): string {
   const content = JSON.stringify({
     nodeCount: graph.nodes.length,
     edgeCount: graph.edges.length,
@@ -56,12 +56,12 @@ function graphifyStructureCacheKey(graph: GraphifyGraph): string {
     hash = (hash << 5) - hash + char
     hash |= 0
   }
-  return `graphify-${Math.abs(hash)}`
+  return `graph-${Math.abs(hash)}`
 }
 
 export class GraphService {
-  private _analysis: GraphifyAnalysis | null = null
-  private _graph: GraphifyGraph | null = null
+  private _analysis: GraphAnalysis | null = null
+  private _graph: CodeGraph | null = null
   private readonly sessionAnalysisCache = new InMemoryAnalysisCache()
   private readonly graphAnalyzer: GraphAnalyzer
 
@@ -69,16 +69,16 @@ export class GraphService {
     this.graphAnalyzer = new GraphAnalyzer(new InMemoryAnalysisCache())
   }
 
-  get analysis(): GraphifyAnalysis | null {
+  get analysis(): GraphAnalysis | null {
     return this._analysis
   }
-  get graph(): GraphifyGraph | null {
+  get graph(): CodeGraph | null {
     return this._graph
   }
 
   /**
-   * Run graph analysis natively from a RepoIndex (no external graphify needed).
-   * Converts the index into a GraphifyGraph on the fly, runs all 5 algorithms,
+   * Run graph analysis natively from a RepoIndex (no external tools needed).
+   * Converts the index into a CodeGraph on the fly, runs all 5 algorithms,
    * and caches the result.
    */
   async analyzeFromIndex(index: RepoIndex, projectRoot: string, cacheDir: string): Promise<GraphResult> {
@@ -87,14 +87,14 @@ export class GraphService {
     // Try cache with index-fingerprinted key
     const cached = await loadGraphCache(cacheDir, undefined, fp)
     if (cached) {
-      const cachedWithGraph = cached as GraphifyAnalysis & { _restoredGraph?: GraphifyGraph }
+      const cachedWithGraph = cached as GraphAnalysis & { _restoredGraph?: CodeGraph }
       this._graph = cachedWithGraph._restoredGraph ?? null
       this._analysis = cached
       return { graph: this._graph!, analysis: cached }
     }
 
-    // Build GraphifyGraph from RepoIndex
-    const graph = repoIndexToGraphifyGraph(index, projectRoot)
+    // Build CodeGraph from RepoIndex
+    const graph = repoIndexToCodeGraph(index, projectRoot)
     this._graph = graph
 
     const result = await this.runAlgorithms(graph)
@@ -109,19 +109,19 @@ export class GraphService {
   /**
    * Run all algorithms on the graph.
    */
-  private async runAlgorithms(graph: GraphifyGraph): Promise<GraphResult> {
-    const key = graphifyStructureCacheKey(graph)
-    const cached = this.sessionAnalysisCache.get(key) as GraphifyAnalysis | null
+  private async runAlgorithms(graph: CodeGraph): Promise<GraphResult> {
+    const key = graphStructureCacheKey(graph)
+    const cached = this.sessionAnalysisCache.get(key) as GraphAnalysis | null
     if (cached) {
       return { graph, analysis: cached }
     }
     const analyzerResult = await this.graphAnalyzer.analyze(this.toAnalysisGraph(graph))
-    const analysis = assembleGraphifyAnalysis(graph, analyzerResult)
+    const analysis = assembleGraphAnalysis(graph, analyzerResult)
     this.sessionAnalysisCache.set(key, analysis)
     return { graph, analysis }
   }
 
-  private toAnalysisGraph(graph: GraphifyGraph): AnalysisGraph {
+  private toAnalysisGraph(graph: CodeGraph): AnalysisGraph {
     return {
       nodes: graph.nodes.map(n => ({
         id: n.id,

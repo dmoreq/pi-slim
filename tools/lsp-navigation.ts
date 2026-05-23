@@ -11,17 +11,17 @@ import { resolve } from 'node:path'
 import { Type } from '@mariozechner/pi-ai'
 import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../context/graph-lsp-hover.js'
-import type { GraphifyAnalysis } from '../context/graph-types.js'
+import type { GraphAnalysis } from '../context/graph-types.js'
 import { LspNavigationService } from '../lsp/service.js'
 
 // Module-level cache of current graph analysis, set by SessionManager.
-let currentAnalysis: GraphifyAnalysis | null = null
+let currentAnalysis: GraphAnalysis | null = null
 
 /**
  * Set the current graph analysis for hover tool enrichment.
  * Called by SessionManager when graph data is loaded/unloaded.
  */
-export function setLspGraphAnalysis(a: GraphifyAnalysis | null): void {
+export function setLspGraphAnalysis(a: GraphAnalysis | null): void {
   currentAnalysis = a
 }
 

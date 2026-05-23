@@ -1,11 +1,11 @@
 // tests/context/intelligence-engine.test.ts
 import { describe, expect, it } from 'vitest'
-import type { CommunityAnalysis, GodNode, GraphifyAnalysis } from '../../context/graph-types.js'
+import type { CommunityAnalysis, GodNode, GraphAnalysis } from '../../context/graph-types.js'
 import { ContextIntelligenceEngine } from '../../context/intelligence-engine.js'
 import type { AgentMessage } from '../../shared/agent-message.js'
 import type { ContextInsights } from '../../shared/intelligence-types.js'
 
-function makeAnalysis(overrides?: Partial<GraphifyAnalysis>): GraphifyAnalysis {
+function makeAnalysis(overrides?: Partial<GraphAnalysis>): GraphAnalysis {
   return {
     godNodes: [],
     communities: [],
@@ -56,7 +56,7 @@ describe('ContextIntelligenceEngine', () => {
     metrics: { cohesion: 0.91 },
   }
 
-  const mockGraphAnalysis: GraphifyAnalysis = {
+  const mockGraphAnalysis: GraphAnalysis = {
     godNodes: [godClient],
     communities: [communityAuth],
     surprises: [],
@@ -235,7 +235,7 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
     metrics: { cohesion: 0.91 },
   }
 
-  const mockGraphAnalysis: GraphifyAnalysis = {
+  const mockGraphAnalysis: GraphAnalysis = {
     godNodes: [godClient],
     communities: [communityAuth],
     surprises: [],

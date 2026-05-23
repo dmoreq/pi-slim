@@ -51,7 +51,7 @@ describe('DiskCache', () => {
 
     // Tamper with version
     const { readFile, writeFile } = await import('node:fs/promises')
-    const cachePath = join(tmpDir, '.pi-cache', 'scope.json')
+    const cachePath = join(tmpDir, '.pi', 'pi-scope', 'parser-cache.json')
     const data = JSON.parse(await readFile(cachePath, 'utf-8'))
     data.version = 999
     await writeFile(cachePath, JSON.stringify(data))
@@ -67,7 +67,7 @@ describe('DiskCache', () => {
     await cache.save()
 
     const { writeFile } = await import('node:fs/promises')
-    const cachePath = join(tmpDir, '.pi-cache', 'scope.json')
+    const cachePath = join(tmpDir, '.pi', 'pi-scope', 'parser-cache.json')
     await writeFile(cachePath, '{ this is not valid json !!!', 'utf-8')
 
     const cache2 = new DiskCache(tmpDir)

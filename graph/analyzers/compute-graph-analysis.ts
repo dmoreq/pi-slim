@@ -1,6 +1,6 @@
 /**
- * Assemble Graphify-shaped analysis from a Graphify graph plus generic analyzer output.
- * Louvain, cycles, surprises, and bottlenecks stay on Graphify types; clustering and
+ * Assemble analysis from a CodeGraph plus generic analyzer output.
+ * Louvain, cycles, surprises, and bottlenecks stay on CodeGraph types; clustering and
  * god-node ranking come from {@link GraphAnalyzer}.
  */
 
@@ -9,19 +9,19 @@ import { detectCommunitiesLouvain } from '../../algorithms/community-detection.j
 import { detectAllCycles } from '../../algorithms/cycle-detection.js'
 import { computePageRank } from '../../algorithms/pagerank.js'
 import { detectSurprisingConnections } from '../../algorithms/surprising-connections.js'
-import type { GodNode, GraphifyAnalysis, GraphifyGraph } from '../../context/graph-types.js'
+import type { GodNode, GraphAnalysis, CodeGraph } from '../../context/graph-types.js'
 import type { AnalysisResult } from '../interfaces/analyzer.interface.js'
 
-export interface GraphifyAnalysisResult {
-  graph: GraphifyGraph
-  analysis: GraphifyAnalysis
+export interface GraphAnalysisResult {
+  graph: CodeGraph
+  analysis: GraphAnalysis
 }
 
 /**
- * Build full {@link GraphifyAnalysis} using Louvain/PageRank/cycles pipeline and
+ * Build full {@link GraphAnalysis} using Louvain/PageRank/cycles pipeline and
  * analyzer-derived god-node set plus average clustering coefficient.
  */
-export function assembleGraphifyAnalysis(graph: GraphifyGraph, analyzerResult: AnalysisResult): GraphifyAnalysis {
+export function assembleGraphAnalysis(graph: CodeGraph, analyzerResult: AnalysisResult): GraphAnalysis {
   const degResults = computeDegreeCentrality(graph)
   const prResults = computePageRank(graph)
 
@@ -71,20 +71,29 @@ export function assembleGraphifyAnalysis(graph: GraphifyGraph, analyzerResult: A
       impact: { ifRemoved: [], pathsThrough: 0, dependentCount: d.outDegree },
     }))
 
-  const analysis: GraphifyAnalysis = {
+  const analysis: GraphAnalysis = {
     godNodes,
     communities,
     surprises,
     bottlenecks,
-    anomalies: cycles.anomalies.map(a => ({
-      // @ts-expect-error - Type mapping from Anomaly to AnomalyReport
-      type: a.type,
-      // @ts-expect-error - Type mapping from Anomaly to AnomalyReport
-      severity: a.severity,
-      nodes: a.affectedNodes,
-      description: a.description,
-      suggestion: a.recommendation,
-    })),
+    anomalies: cycles.anomalies.map(a => {
+      let type: 'circular_dependency' | 'god_node_violation' | 'fragile_pattern' | 'bottleneck' = 'circular_dependency'
+      if (a.type === 'highCoupling') type = 'god_node_violation'
+      else if (a.type === 'crossLayer') type = 'fragile_pattern'
+      else if (a.type === 'orphan') type = 'bottleneck'
+
+      let severity: 'ERROR' | 'WARNING' | 'INFO' = 'INFO'
+      if (a.severity === 'CRITICAL' || a.severity === 'HIGH') severity = 'ERROR'
+      else if (a.severity === 'MEDIUM') severity = 'WARNING'
+
+      return {
+        type,
+        severity,
+        nodes: a.affectedNodes,
+        description: a.description,
+        suggestion: a.recommendation,
+      }
+    }),
     wikipedia: {
       entries: new Map(),
       query: () => [],

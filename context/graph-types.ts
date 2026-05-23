@@ -1,9 +1,9 @@
 /**
- * Graphify Integration Types
+ * Code-Graph Integration Types
  *
- * Core type definitions for loading and analyzing graphify's knowledge graphs.
- * These types represent both the input from graphify (GraphifyGraph) and the
- * computed analysis output (GraphifyAnalysis).
+ * Core type definitions for loading and analyzing codebase graphs.
+ * These types represent both the input from graphify (CodeGraph) and the
+ * computed analysis output (GraphAnalysis).
  */
 
 // ── Input: Graphify Graph Structure ────────────────────────────────────────
@@ -93,17 +93,17 @@ export interface ConfidenceScore {
 }
 
 /**
- * Complete knowledge graph from graphify.
- * This is the input we receive from the graphify CLI tool.
+ * Complete knowledge graph.
+ * This is the input we receive from the parsed repository index.
  */
-export interface GraphifyGraph {
+export interface CodeGraph {
   /** All nodes in the graph */
   nodes: GraphNode[]
 
   /** All edges in the graph */
   edges: GraphEdge[]
 
-  /** Optional communities detected by graphify */
+  /** Optional communities detected in the graph */
   communities?: Community[]
 
   /** Optional confidence scores for different information types */
@@ -350,9 +350,9 @@ export interface GraphMetrics {
 
 /**
  * Complete analysis results from running graph algorithms.
- * This is what we compute from the graphify input and feed into pi-scope.
+ * This is what we compute from the input and feed into pi-scope.
  */
-export interface GraphifyAnalysis {
+export interface GraphAnalysis {
   /** God nodes detected via centrality analysis */
   godNodes: GodNode[]
 
@@ -385,9 +385,9 @@ export interface GraphifyAnalysis {
  * Graph context injected into RepoIndex.
  * Extends pi-scope's existing RepoIndex with graph information.
  */
-export interface GraphContext {
-  graph: GraphifyGraph
-  analysis: GraphifyAnalysis
+export interface ScopeGraphContext {
+  graph: CodeGraph
+  analysis: GraphAnalysis
   valid: boolean
   lastUpdated: number
   errors: string[]
@@ -405,16 +405,16 @@ export interface ValidationResult {
 /**
  * Graph analysis tagged for the Enhanced Context Intelligence pipeline.
  *
- * This is intentionally an **empty interface extension** of {@link GraphifyAnalysis}:
- * at runtime the object is still a `GraphifyAnalysis`, but TypeScript keeps a
+ * This is intentionally an **empty interface extension** of {@link GraphAnalysis}:
+ * at runtime the object is still a `GraphAnalysis`, but TypeScript keeps a
  * separate nominal type so intelligence producers/consumers do not pollute every
  * generic graph call site. When the pipeline adds fields (e.g. cached guidance
- * blobs), extend them here rather than on `GraphifyAnalysis` itself.
+ * blobs), extend them here rather than on `GraphAnalysis` itself.
  *
- * @remarks Structural typing means any `GraphifyAnalysis` is assignable here today;
+ * @remarks Structural typing means any `GraphAnalysis` is assignable here today;
  * use this type only where the extra semantic (“intelligence-ready analysis”) matters.
  */
-export interface EnhancedGraphInsights extends GraphifyAnalysis {}
+export interface EnhancedGraphInsights extends GraphAnalysis {}
 
 /**
  * Tunable limits for smart / enhanced context generation.

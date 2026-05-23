@@ -5,7 +5,7 @@
  * These metrics identify important nodes in the dependency graph.
  */
 
-import type { GraphifyGraph } from '../context/graph-types.js'
+import type { CodeGraph } from '../context/graph-types.js'
 
 /**
  * Degree centrality score for a single node.
@@ -29,7 +29,7 @@ export interface DegreeScore {
  * @param graph The knowledge graph
  * @returns Degree scores for all nodes, sorted by total degree (descending)
  */
-export function computeDegreeCentrality(graph: GraphifyGraph): DegreeScore[] {
+export function computeDegreeCentrality(graph: CodeGraph): DegreeScore[] {
   const inDegree = new Map<string, number>()
   const outDegree = new Map<string, number>()
 

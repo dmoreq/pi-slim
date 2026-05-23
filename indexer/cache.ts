@@ -9,7 +9,7 @@ export class DiskCache {
   private entries: Map<string, FileIndex> = new Map()
 
   constructor(projectRoot: string) {
-    this.cachePath = PathUtils.joinSafe(projectRoot, '.pi-cache', 'scope.json')
+    this.cachePath = PathUtils.joinSafe(projectRoot, '.pi', 'pi-scope', 'parser-cache.json')
   }
 
   async load(): Promise<void> {

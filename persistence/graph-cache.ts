@@ -2,7 +2,7 @@
  * Graph Cache — persistent caching of graph analysis results.
  *
  * Avoids recomputing graph analysis on every session startup.
- * Caches GraphifyAnalysis in the .pi/scope/ store alongside the index.
+ * Caches GraphifyAnalysis in the .pi/pi-scope/ store alongside the index.
  * On cache hit, deserializes and reconstructs the analysis from stored data.
  *
  * Cache invalidation:
@@ -15,12 +15,17 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type {
   Anomaly,
-  GraphifyAnalysis,
-  GraphifyGraph,
+  GraphAnalysis,
+  CodeGraph,
   SurprisingConnection,
   WikipediaEntry,
   WikipediaQueryParams,
-} from '../context/graph-types'
+  GraphNode,
+  GraphEdge,
+  CommunityAnalysis,
+  GodNode,
+  Bottleneck,
+} from '../context/graph-types.js'
 import { PathUtils } from '../shared/utils/path-utils.js'
 
 // ── Cache Schema ───────────────────────────────────────────────────────────
@@ -29,7 +34,7 @@ export const GRAPH_CACHE_VERSION = 1
 
 /**
  * Storable graph analysis data.
- * Minified JSON-serializable version of GraphifyAnalysis.
+ * Minified JSON-serializable version of GraphAnalysis.
  */
 export interface CachedGraphData {
   version: number
@@ -93,6 +98,7 @@ export interface CachedGraphData {
     averageDegree: number
     maxDegree: number
     graphDensity: number
+    avgClusteringCoeff: number
     cycleCount: number
     bottleneckCount: number
   }
@@ -107,30 +113,30 @@ export interface CachedGraphData {
 // ── Serialization ──────────────────────────────────────────────────────────
 
 /**
- * Serialize a full GraphifyAnalysis to cacheable format.
- * Requires a GraphifyGraph for node/edge data (not part of GraphifyAnalysis).
+ * Serialize a full GraphAnalysis to cacheable format.
+ * Requires a CodeGraph for node/edge data (not part of GraphAnalysis).
  */
 export function serializeAnalysis(
-  analysis: GraphifyAnalysis,
-  graph: GraphifyGraph,
+  analysis: GraphAnalysis,
+  graph: CodeGraph,
   indexFingerprint?: string
 ): CachedGraphData {
   return {
     version: GRAPH_CACHE_VERSION,
     cachedAt: new Date().toISOString(),
     indexFingerprint,
-    nodes: graph.nodes.map(n => ({
+    nodes: graph.nodes.map((n: GraphNode) => ({
       id: n.id,
       type: n.type,
       label: n.label,
     })),
-    edges: graph.edges.map(e => ({
+    edges: graph.edges.map((e: GraphEdge) => ({
       source: e.source,
       target: e.target,
       type: e.type,
       surprising: e.surprising,
     })),
-    communities: analysis.communities.map(c => ({
+    communities: analysis.communities.map((c: CommunityAnalysis) => ({
       id: c.id,
       label: c.label,
       nodes: c.nodes,
@@ -139,7 +145,7 @@ export function serializeAnalysis(
       interfaceNodes: c.interfaceNodes,
       bottlenecks: c.bottlenecks,
     })),
-    godNodes: analysis.godNodes.map(g => ({
+    godNodes: analysis.godNodes.map((g: GodNode) => ({
       nodeId: g.nodeId,
       label: g.label,
       inDegree: g.inDegree,
@@ -149,17 +155,17 @@ export function serializeAnalysis(
       community: g.community,
       criticality: g.criticality,
     })),
-    surprises: analysis.surprises.map(s => ({
+    surprises: analysis.surprises.map((s: SurprisingConnection) => ({
       source: s.source,
       target: s.target,
       reason: s.reason,
       confidence: s.confidence,
     })),
-    bottlenecks: analysis.bottlenecks.map(b => ({
+    bottlenecks: analysis.bottlenecks.map((b: Bottleneck) => ({
       nodeId: b.nodeId,
       betweenness: b.betweenness,
     })),
-    anomalies: analysis.anomalies.map(a => ({
+    anomalies: analysis.anomalies.map((a: Anomaly) => ({
       type: a.type,
       severity: a.severity,
       nodes: a.nodes,
@@ -173,6 +179,7 @@ export function serializeAnalysis(
       averageDegree: analysis.metrics.averageDegree,
       maxDegree: analysis.metrics.maxDegree,
       graphDensity: analysis.metrics.graphDensity,
+      avgClusteringCoeff: analysis.metrics.avgClusteringCoeff,
       cycleCount: analysis.metrics.cycleCount,
       bottleneckCount: analysis.metrics.bottleneckCount,
     },
@@ -181,26 +188,26 @@ export function serializeAnalysis(
 }
 
 /**
- * Deserialize cached data back into a full GraphifyAnalysis.
+ * Deserialize cached data back into a full GraphAnalysis.
  * Note: The wikipedia index is not cached and must be rebuilt on load.
  */
-export function deserializeAnalysis(cached: CachedGraphData, graph?: GraphifyGraph): GraphifyAnalysis {
-  // Reconstruct GraphifyGraph from the cached data merged with the original graph
-  const reconstructedGraph: GraphifyGraph = graph || {
+export function deserializeAnalysis(cached: CachedGraphData, graph?: CodeGraph): GraphAnalysis {
+  // Reconstruct CodeGraph from the cached data merged with the original graph
+  const reconstructedGraph: CodeGraph = graph || {
     nodes: cached.nodes.map(n => ({
       id: n.id,
-      type: n.type as GraphifyGraph['nodes'][0]['type'],
+      type: n.type as CodeGraph['nodes'][0]['type'],
       label: n.label,
     })),
     edges: cached.edges.map(e => ({
       source: e.source,
       target: e.target,
-      type: e.type as GraphifyGraph['edges'][0]['type'],
+      type: e.type as CodeGraph['edges'][0]['type'],
       surprising: e.surprising,
     })),
   }
 
-  const base: Omit<GraphifyAnalysis, '_restoredGraph'> = {
+  const base: Omit<GraphAnalysis, '_restoredGraph'> & { graph?: CodeGraph } = {
     graph: reconstructedGraph,
     godNodes: cached.godNodes.map(g => ({
       nodeId: g.nodeId,
@@ -256,7 +263,7 @@ export function deserializeAnalysis(cached: CachedGraphData, graph?: GraphifyGra
   return {
     ...base,
     _restoredGraph: reconstructedGraph,
-  } as GraphifyAnalysis & { _restoredGraph: GraphifyGraph }
+  } as GraphAnalysis & { _restoredGraph: CodeGraph }
 }
 
 // ── File I/O ───────────────────────────────────────────────────────────────
@@ -264,15 +271,15 @@ export function deserializeAnalysis(cached: CachedGraphData, graph?: GraphifyGra
 /**
  * Save graph analysis to cache file.
  *
- * @param cacheDir Directory to store cache file (e.g., .pi/scope/)
+ * @param cacheDir Directory to store cache file (e.g., .pi/pi-scope/)
  * @param analysis Graph analysis to cache
- * @param graph The original GraphifyGraph (nodes/edges not in analysis)
+ * @param graph The original CodeGraph (nodes/edges not in analysis)
  * @param indexFingerprint Optional fingerprint for native index builds (invalidation key)
  */
 export async function saveGraphCache(
   cacheDir: string,
-  analysis: GraphifyAnalysis,
-  graph: GraphifyGraph,
+  analysis: GraphAnalysis,
+  graph: CodeGraph,
   indexFingerprint?: string
 ): Promise<boolean> {
   try {
@@ -295,15 +302,15 @@ export async function saveGraphCache(
  * Load graph analysis from cache file.
  *
  * @param cacheDir Directory to look for cache file
- * @param graph Optional GraphifyGraph (for external graphs where nodes/edges exist on disk)
+ * @param graph Optional CodeGraph (for external graphs where nodes/edges exist on disk)
  * @param expectedFingerprint Optional fingerprint to validate against (native builds)
  * @returns Deserialized analysis or null if cache miss/version mismatch/fingerprint mismatch
  */
 export async function loadGraphCache(
   cacheDir: string,
-  graph?: GraphifyGraph,
+  graph?: CodeGraph,
   expectedFingerprint?: string
-): Promise<GraphifyAnalysis | null> {
+): Promise<GraphAnalysis | null> {
   try {
     const filePath = PathUtils.joinSafe(cacheDir, 'graph-cache.json')
 

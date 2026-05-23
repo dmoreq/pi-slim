@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { GodNode, GraphifyAnalysis } from '../context/graph-types.js'
+import type { GodNode, GraphAnalysis } from '../context/graph-types.js'
 import { ContextIntelligenceEngine } from '../context/intelligence-engine.js'
 import type { ExtensionContext } from '../manager.js'
 import { SessionManager, buildRepoMapSource, formatGraphInsightsSection } from '../manager.js'
@@ -19,7 +19,7 @@ function ctxStub(): ExtensionContext {
 describe('SessionManager Intelligence Integration', () => {
   let manager: SessionManager
   let mockGraphService: {
-    analysis: GraphifyAnalysis | null
+    analysis: GraphAnalysis | null
     updateGraph: ReturnType<typeof vi.fn>
   }
 
@@ -53,9 +53,9 @@ describe('SessionManager Intelligence Integration', () => {
   })
 
   it('should generate actionable guidance when available', async () => {
-    const mockAnalysis: Partial<GraphifyAnalysis> & {
-      godNodes: GraphifyAnalysis['godNodes']
-      communities: GraphifyAnalysis['communities']
+    const mockAnalysis: Partial<GraphAnalysis> & {
+      godNodes: GraphAnalysis['godNodes']
+      communities: GraphAnalysis['communities']
     } = {
       godNodes: [
         {
@@ -72,7 +72,7 @@ describe('SessionManager Intelligence Integration', () => {
       communities: [],
     }
 
-    mockGraphService.analysis = mockAnalysis as GraphifyAnalysis
+    mockGraphService.analysis = mockAnalysis as GraphAnalysis
 
     const messages = [{ role: 'user', content: 'modify the Client class constructor' }]
 
@@ -97,7 +97,7 @@ describe('SessionManager Intelligence Integration', () => {
 describe('SessionManager Intelligence Integration - Error Handling', () => {
   let manager: SessionManager
   let mockGraphService: {
-    analysis: GraphifyAnalysis | null
+    analysis: GraphAnalysis | null
     updateGraph: ReturnType<typeof vi.fn>
   }
 
@@ -174,7 +174,7 @@ describe('SessionManager Intelligence Integration - Error Handling', () => {
   })
 })
 
-function makeAnalysis(overrides?: Partial<GraphifyAnalysis>): GraphifyAnalysis {
+function makeAnalysis(overrides?: Partial<GraphAnalysis>): GraphAnalysis {
   return {
     godNodes: [],
     communities: [],

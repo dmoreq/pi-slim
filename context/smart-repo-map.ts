@@ -5,7 +5,7 @@
 
 import type { ContextInsights } from '../shared/intelligence-types.js'
 import { godNodeMatchesSymbol } from './god-node-match.js'
-import type { GodNode, GraphifyAnalysis } from './graph-types.js'
+import type { GodNode, GraphAnalysis } from './graph-types.js'
 
 export class SmartRepositoryMapGenerator {
   /**
@@ -14,7 +14,7 @@ export class SmartRepositoryMapGenerator {
   generatePrioritizedRepoMap(
     baseRepoMap: string,
     insights: ContextInsights,
-    graphAnalysis: GraphifyAnalysis | null
+    graphAnalysis: GraphAnalysis | null
   ): string {
     if (!graphAnalysis || !baseRepoMap.trim()) {
       return baseRepoMap
@@ -42,7 +42,7 @@ export class SmartRepositoryMapGenerator {
     return `${blocks.join('\n\n')}\n\n---\n\n${baseRepoMap}`
   }
 
-  private pickCommunities(insights: ContextInsights, graph: GraphifyAnalysis) {
+  private pickCommunities(insights: ContextInsights, graph: GraphAnalysis) {
     const mentionedLower = new Set(insights.conversationContext.mentionedCommunities.map(m => m.toLowerCase()))
     const symbolsLower = new Set(
       [...insights.editingIntent.targetSymbols, ...insights.navigationRequests.requestedSymbols].map(s =>

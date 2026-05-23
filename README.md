@@ -91,7 +91,7 @@ This works on TS/Py/Rust projects out of the box. No install, no config.
    - **Louvain Community Detection** → groups related modules
    - **Cycle Detection** (Tarjan's SCC) → finds circular dependencies
    - **Surprising Connection Detection** → cross-community edges, legacy dependencies
-6. **Cache** — gzip-compressed index + graph cache saved to `.pi/scope/` for instant reload
+6. **Cache** — gzip-compressed index + graph cache saved to `.pi/pi-scope/` for instant reload
 
 ### Every LLM call: Context Injection
 
@@ -310,7 +310,7 @@ pi-scope has **no user-visible commands.** Everything is automatic:
 
 **Performance benchmarks:**
 - First index: ~1-2s for 1,000 files, ~5-10s for 10,000 files
-- Cache load: < 50ms from `.pi/scope/index.json.gz`
+- Cache load: < 50ms from `.pi/pi-scope/index.json.gz`
 - Pruning overhead: < 5ms per turn
 
 ---

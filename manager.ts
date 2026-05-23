@@ -1,6 +1,6 @@
 import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
 import { ContextInjector } from './context/dep-context.js'
-import type { GraphifyAnalysis } from './context/graph-types.js'
+import type { GraphAnalysis } from './context/graph-types.js'
 import { type ProviderGuidanceFile, formatProviderGuidanceSection, loadProviderGuidance } from './context/guidance.js'
 import { ContextIntelligenceEngine } from './context/intelligence-engine.js'
 import { loadConfig } from './context/loader.js'
@@ -84,7 +84,7 @@ export interface SessionState {
 export function buildRepoMapSource(
   baseMap: string,
   insights: ContextInsights,
-  graph: GraphifyAnalysis | null
+  graph: GraphAnalysis | null
 ): PipelineSource {
   return {
     name: 'repo-map',
@@ -102,7 +102,7 @@ export function buildRepoMapSource(
 /**
  * Format the graph analysis insights block for system-prompt injection.
  */
-export function formatGraphInsightsSection(a: GraphifyAnalysis): string {
+export function formatGraphInsightsSection(a: GraphAnalysis): string {
   const lines: string[] = [
     '## Graph Analysis Insights',
     '',
@@ -225,7 +225,7 @@ export class SessionManager {
    */
   private async buildIntelligenceSnapshot(): Promise<{
     insights: ContextInsights
-    graph: GraphifyAnalysis | null
+    graph: GraphAnalysis | null
   }> {
     try {
       const graph = await this.resolveGraphAnalysisForIntelligence()
@@ -261,7 +261,7 @@ export class SessionManager {
     this.conversationMessages.splice(0, excess)
   }
 
-  private async resolveGraphAnalysisForIntelligence(): Promise<GraphifyAnalysis | null> {
+  private async resolveGraphAnalysisForIntelligence(): Promise<GraphAnalysis | null> {
     return this.graphService.analysis
   }
 

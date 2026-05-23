@@ -8,7 +8,7 @@
  * - Anomaly detection for problematic patterns
  */
 
-import type { GraphifyGraph } from '../context/graph-types.js'
+import type { CodeGraph } from '../context/graph-types.js'
 
 /**
  * Represents a cycle in the graph.
@@ -65,7 +65,7 @@ export interface Anomaly {
  * @param graph The dependency graph
  * @returns Cycle detection result
  */
-export function detectAllCycles(graph: GraphifyGraph): CycleDetectionResult {
+export function detectAllCycles(graph: CodeGraph): CycleDetectionResult {
   const visited = new Set<string>()
   const recursionStack = new Set<string>()
   const cycles: Cycle[] = []
@@ -130,7 +130,7 @@ function detectCyclesDFS(
   recursionStack: Set<string>,
   path: string[],
   cycles: Cycle[],
-  graph: GraphifyGraph
+  graph: CodeGraph
 ): void {
   visited.add(node)
   recursionStack.add(node)
@@ -169,7 +169,7 @@ function detectCyclesDFS(
  * @param graph Graph data
  * @returns Array of edges
  */
-function getCycleEdges(path: string[], _graph: GraphifyGraph): Array<[string, string]> {
+function getCycleEdges(path: string[], _graph: CodeGraph): Array<[string, string]> {
   const edges: Array<[string, string]> = []
 
   for (let i = 0; i < path.length - 1; i++) {
@@ -226,7 +226,7 @@ function getCycleRecommendation(length: number): string {
  * @param graph The graph
  * @returns Array of strongly connected components
  */
-export function detectStronglyConnectedComponents(graph: GraphifyGraph): StronglyConnectedComponent[] {
+export function detectStronglyConnectedComponents(graph: CodeGraph): StronglyConnectedComponent[] {
   const index = new Map<string, number>()
   const lowLink = new Map<string, number>()
   const onStack = new Set<string>()
@@ -305,7 +305,7 @@ export function detectStronglyConnectedComponents(graph: GraphifyGraph): Strongl
  * @param graph Graph data
  * @returns Density (0-1)
  */
-function computeComponentDensity(nodes: string[], graph: GraphifyGraph): number {
+function computeComponentDensity(nodes: string[], graph: CodeGraph): number {
   const nodeSet = new Set(nodes)
   let edges = 0
 
@@ -327,7 +327,7 @@ function computeComponentDensity(nodes: string[], graph: GraphifyGraph): number 
  * @param graph Graph data
  * @returns Array of anomalies
  */
-function detectAnomalies(cycles: Cycle[], _sccs: StronglyConnectedComponent[], graph: GraphifyGraph): Anomaly[] {
+function detectAnomalies(cycles: Cycle[], _sccs: StronglyConnectedComponent[], graph: CodeGraph): Anomaly[] {
   const anomalies: Anomaly[] = []
 
   // Circular dependency anomalies
@@ -381,7 +381,7 @@ function detectAnomalies(cycles: Cycle[], _sccs: StronglyConnectedComponent[], g
  * @param graph Graph data
  * @returns Nodes with >10 connections
  */
-function detectHighCoupling(graph: GraphifyGraph): string[] {
+function detectHighCoupling(graph: CodeGraph): string[] {
   const coupling = new Map<string, number>()
 
   for (const edge of graph.edges) {
@@ -400,7 +400,7 @@ function detectHighCoupling(graph: GraphifyGraph): string[] {
  * @param graph Graph data
  * @returns Orphan node IDs
  */
-function detectOrphans(graph: GraphifyGraph): string[] {
+function detectOrphans(graph: CodeGraph): string[] {
   const connected = new Set<string>()
 
   for (const edge of graph.edges) {

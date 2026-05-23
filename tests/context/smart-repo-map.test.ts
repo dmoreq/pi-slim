@@ -1,6 +1,6 @@
 // tests/context/smart-repo-map.test.ts
 import { describe, expect, it } from 'vitest'
-import type { GraphifyAnalysis } from '../../context/graph-types.js'
+import type { GraphAnalysis } from '../../context/graph-types.js'
 import { SmartRepositoryMapGenerator } from '../../context/smart-repo-map.js'
 import type { ContextInsights } from '../../shared/intelligence-types.js'
 
@@ -9,7 +9,7 @@ describe('SmartRepositoryMapGenerator', () => {
 
   const baseMap = '<repo-map>\n## src\n- auth/\n- core/\n</repo-map>'
 
-  const mockAnalysis: GraphifyAnalysis = {
+  const mockAnalysis: GraphAnalysis = {
     godNodes: [
       {
         nodeId: 'Client',
@@ -215,7 +215,7 @@ describe('SmartRepositoryMapGenerator', () => {
   })
 
   it('should align god matching with dependency context (substring when symbol length ≥ 4)', () => {
-    const analysis: GraphifyAnalysis = {
+    const analysis: GraphAnalysis = {
       ...mockAnalysis,
       godNodes: [
         ...mockAnalysis.godNodes,

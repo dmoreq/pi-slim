@@ -3,7 +3,7 @@ import { extractText } from '../shared/message.js'
 import { isBroadCodebaseQuery } from '../shared/query-intent.js'
 import { estimateTokens } from '../shared/token.js'
 import type { RepoIndex } from '../shared/types.js'
-import type { GraphifyAnalysis } from './graph-types.js'
+import type { GraphAnalysis } from './graph-types.js'
 import { RetrievalEngine, type ScoredFile } from './retrieval.js'
 
 const FILE_PATH_RE = /(?:^|[\s'"`(])([.\/\w-]+\/[\w.\/-]+\.(?:tsx|ts|py|rs))/g
@@ -35,7 +35,7 @@ export class ContextInjector {
     extraPaths?: Set<string>,
     retrieval?: RetrievalEngine,
     transitiveDepth = 1,
-    graphAnalysis?: GraphifyAnalysis | null
+    graphAnalysis?: GraphAnalysis | null
   ): string {
     const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval, graphAnalysis)
 
@@ -124,7 +124,7 @@ export class ContextInjector {
     messages: Message[],
     extraPaths?: Set<string>,
     retrieval?: RetrievalEngine,
-    graphAnalysis?: GraphifyAnalysis | null
+    graphAnalysis?: GraphAnalysis | null
   ): Set<string> {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()

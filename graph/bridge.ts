@@ -1,9 +1,9 @@
 /**
- * RepoIndex → GraphifyGraph Bridge
+ * RepoIndex → CodeGraph Bridge
  *
- * Converts pi-scope's file-level RepoIndex into the symbol-level GraphifyGraph
+ * Converts pi-scope's file-level RepoIndex into the symbol-level CodeGraph
  * format that all 5 graph algorithms expect. This lets the native TypeScript
- * graph engine run without requiring the external `graphify` tool.
+ * graph engine run without requiring the external tool.
  *
  * Strategy:
  *   - Each file becomes a "module" node
@@ -15,17 +15,17 @@
  * @module
  */
 
-import type { GraphEdge, GraphNode, GraphifyGraph } from '../context/graph-types.js'
+import type { GraphEdge, GraphNode, CodeGraph } from '../context/graph-types.js'
 import type { RepoIndex } from '../shared/types.js'
 
 /**
- * Convert a RepoIndex (from AST parsing) into a GraphifyGraph.
+ * Convert a RepoIndex (from AST parsing) into a CodeGraph.
  *
  * @param index  The parsed RepoIndex from IndexEngine
  * @param projectRoot  Project root for generating relative labels
- * @returns A GraphifyGraph compatible with all 5 graph algorithms
+ * @returns A CodeGraph compatible with all 5 graph algorithms
  */
-export function repoIndexToGraphifyGraph(index: RepoIndex, projectRoot: string): GraphifyGraph {
+export function repoIndexToCodeGraph(index: RepoIndex, projectRoot: string): CodeGraph {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
   const nodeIds = new Set<string>()
@@ -150,7 +150,7 @@ export function repoIndexToGraphifyGraph(index: RepoIndex, projectRoot: string):
  * Get the broader overview graph (file-level only, no symbol expansion).
  * More compact for large codebases; still powers all algorithms.
  */
-export function repoIndexToFileGraph(index: RepoIndex, projectRoot: string): GraphifyGraph {
+export function repoIndexToFileGraph(index: RepoIndex, projectRoot: string): CodeGraph {
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
   const processedEdges = new Set<string>()

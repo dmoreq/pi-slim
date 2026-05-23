@@ -13,7 +13,7 @@ import type {
   NavigationContext,
   OptimizationSuggestion,
 } from '../shared/intelligence-types.js'
-import type { GodNode, GraphifyAnalysis, GraphifyGraph } from './graph-types.js'
+import type { GodNode, GraphAnalysis, CodeGraph } from './graph-types.js'
 import { AgentPatternDetector } from './pattern-detector.js'
 
 /**
@@ -32,7 +32,7 @@ export class ContextIntelligenceEngine {
    *   {@link detectAffectedGodNodes}. Omit or pass null when no graph is loaded;
    *   the field stays empty and callers may compute it later.
    */
-  analyzeConversationContext(messages: AgentMessage[], graphAnalysis?: GraphifyAnalysis | null): ContextInsights {
+  analyzeConversationContext(messages: AgentMessage[], graphAnalysis?: GraphAnalysis | null): ContextInsights {
     let editingIntent = this.patternDetector.detectEditingIntent(messages)
     const navigationRequests = this.patternDetector.detectNavigationRequests(messages)
     const suboptimalPatterns = this.patternDetector.detectSuboptimalToolUsage(messages)
@@ -62,8 +62,8 @@ export class ContextIntelligenceEngine {
    */
   generateActionableGuidance(
     insights: ContextInsights,
-    graphAnalysis: GraphifyAnalysis | null,
-    graphData?: GraphifyGraph | null
+    graphAnalysis: GraphAnalysis | null,
+    graphData?: CodeGraph | null
   ): string {
     if (!graphAnalysis) {
       return this.generateBasicGuidance(insights)
@@ -100,7 +100,7 @@ export class ContextIntelligenceEngine {
   /**
    * Detect which god nodes are affected by editing intent target symbols.
    */
-  detectAffectedGodNodes(editingContext: EditingContext, graphAnalysis: GraphifyAnalysis): string[] {
+  detectAffectedGodNodes(editingContext: EditingContext, graphAnalysis: GraphAnalysis): string[] {
     if (!editingContext.detected) return []
 
     const affectedGodNodes: string[] = []
@@ -180,8 +180,8 @@ export class ContextIntelligenceEngine {
    */
   private computeDependencyFanout(
     godNode: GodNode,
-    graphAnalysis: GraphifyAnalysis,
-    graphData?: GraphifyGraph
+    graphAnalysis: GraphAnalysis,
+    graphData?: CodeGraph
   ): { affected: number; communities: number } {
     if (!graphData) {
       // Fallback to heuristic
@@ -239,8 +239,8 @@ export class ContextIntelligenceEngine {
    */
   private generateRiskWarnings(
     affectedGodNodes: string[],
-    graphAnalysis: GraphifyAnalysis,
-    graphData?: GraphifyGraph
+    graphAnalysis: GraphAnalysis,
+    graphData?: CodeGraph
   ): string {
     const matched = affectedGodNodes
       .map(nodeId =>
@@ -266,7 +266,7 @@ export class ContextIntelligenceEngine {
   /**
    * Generate architectural guidance based on top communities in the graph.
    */
-  private generateArchitecturalGuidance(graphAnalysis: GraphifyAnalysis): string {
+  private generateArchitecturalGuidance(graphAnalysis: GraphAnalysis): string {
     const guidance: string[] = []
 
     for (const community of graphAnalysis.communities.slice(0, 5)) {
@@ -287,7 +287,7 @@ export class ContextIntelligenceEngine {
   /**
    * Generate contextual suggestions based on the current transcript signals.
    */
-  private generateContextualSuggestions(insights: ContextInsights, graphAnalysis: GraphifyAnalysis): string | null {
+  private generateContextualSuggestions(insights: ContextInsights, graphAnalysis: GraphAnalysis): string | null {
     if (!insights.editingIntent.detected && !insights.navigationRequests.detected) {
       return null
     }
@@ -428,7 +428,7 @@ export class ContextIntelligenceEngine {
   /**
    * Rough estimate of how many communities a god node may span from degree.
    */
-  private estimateAffectedCommunities(godNode: GodNode, graphAnalysis: GraphifyAnalysis): number {
+  private estimateAffectedCommunities(godNode: GodNode, graphAnalysis: GraphAnalysis): number {
     const degree = godNode.inDegree + godNode.outDegree
     if (degree > 30) return Math.min(graphAnalysis.communities.length, 6)
     if (degree > 15) return Math.min(graphAnalysis.communities.length, 3)

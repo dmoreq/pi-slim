@@ -1,9 +1,9 @@
 /**
- * Persists the generated RepoIndex and repo map to .pi/scope/ inside
+ * Persists the generated RepoIndex and repo map to .pi/pi-scope/ inside
  * the project root so they survive across sessions.
  *
  * Layout:
- *   .pi/scope/
+ *   .pi/pi-scope/
  *     repo-map.txt      — the <repo-map>…</repo-map> string
  *     index.json.gz     — gzip-compressed skeletons + dep graph + metadata
  *
@@ -66,7 +66,7 @@ export async function storeExists(projectRoot: string): Promise<boolean> {
 }
 
 /**
- * Serialize, gzip-compress, and write RepoIndex + repo map to .pi/scope/.
+ * Serialize, gzip-compress, and write RepoIndex + repo map to .pi/pi-scope/.
  *
  * Saves as StoredIndexV2 (new format) with rich metadata.
  */
@@ -141,7 +141,7 @@ export async function saveStore(
   await Promise.all([writeFile(indexPath(projectRoot), compressed), writeFile(mapPath(projectRoot), repoMap, 'utf-8')])
 }
 
-/** Load, gunzip-decompress, and deserialize RepoIndex + repo map from .pi/scope/. */
+/** Load, gunzip-decompress, and deserialize RepoIndex + repo map from .pi/pi-scope/. */
 export async function loadStore(
   projectRoot: string
 ): Promise<{ index: RepoIndex; repoMap: string; builtAt: string; fileCount: number; metadata?: any }> {

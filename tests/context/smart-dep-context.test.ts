@@ -1,13 +1,13 @@
 // tests/context/smart-dep-context.test.ts
 import { describe, expect, it } from 'vitest'
-import type { GraphifyAnalysis } from '../../context/graph-types.js'
+import type { GraphAnalysis } from '../../context/graph-types.js'
 import { SmartDependencyContextGenerator } from '../../context/smart-dep-context.js'
 import type { ContextInsights } from '../../shared/intelligence-types.js'
 
 describe('SmartDependencyContextGenerator', () => {
   const generator = new SmartDependencyContextGenerator()
 
-  const mockGraphAnalysis: GraphifyAnalysis = {
+  const mockGraphAnalysis: GraphAnalysis = {
     godNodes: [
       {
         nodeId: 'Client',
@@ -370,7 +370,7 @@ describe('SmartDependencyContextGenerator', () => {
     })
 
     it('should prioritize multiple god nodes by criticality then inDegree', () => {
-      const multiGodMockAnalysis: GraphifyAnalysis = {
+      const multiGodMockAnalysis: GraphAnalysis = {
         ...mockGraphAnalysis,
         godNodes: [
           {

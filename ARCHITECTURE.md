@@ -55,11 +55,11 @@ Builds and maintains the symbol index.
 **Components:**
 - `engine.ts` — Parses files, extracts symbols and imports
 - `index-store.ts` — Persists/loads index from disk
-- `cache.ts` — Gzip-compressed disk cache (`.pi/scope/index.json.gz`)
+- `cache.ts` — Gzip-compressed disk cache (`.pi/pi-scope/index.json.gz`)
 - `freshness.ts` — Detects stale indexes
 
 **Lifecycle:**
-1. On session start, check `.pi/scope/index.json.gz` for freshness
+1. On session start, check `.pi/pi-scope/index.json.gz` for freshness
 2. If stale or missing, run `IndexEngine` to walk/parse/extract
 3. Save to cache, build dependency graph
 4. If `graphify-out/graph.json` exists, load and analyze
@@ -220,7 +220,7 @@ User-facing feedback.
 ### Session Start: Indexing & Analysis
 
 ```
-1. Check ~/.pi/scope/index.json.gz
+1. Check ~/.pi/pi-scope/index.json.gz
    ↓
 2. [Cache hit] Load index + graph cache
    ↓
@@ -359,7 +359,7 @@ Optional integration:
 - Respects `.gitignore`
 - Supports `.pi/scope.jsonc` config
 - Loads `.context`, `.guidance`, provider-specific guidance files
-- Stores cache at `.pi/scope/index.json.gz`
+- Stores cache at `.pi/pi-scope/index.json.gz`
 
 ---
 

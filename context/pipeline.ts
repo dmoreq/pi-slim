@@ -10,7 +10,7 @@ import type { ContextInsights } from '../shared/intelligence-types.js'
  * layer graph + conversation intelligence without changing the legacy `register` / `build` flow.
  */
 import { estimateTokens } from '../shared/token.js'
-import type { GraphifyAnalysis } from './graph-types.js'
+import type { GraphAnalysis } from './graph-types.js'
 import { SmartDependencyContextGenerator } from './smart-dep-context.js'
 import { SmartRepositoryMapGenerator } from './smart-repo-map.js'
 
@@ -41,7 +41,7 @@ export class InjectionPipeline {
   private sources: PipelineSource[] = []
 
   /** Graph- and insight-aware dependency context (optional; callers still use `register` for injection). */
-  buildEnhancedDependencyContext(insights: ContextInsights, graphAnalysis: GraphifyAnalysis | null): string {
+  buildEnhancedDependencyContext(insights: ContextInsights, graphAnalysis: GraphAnalysis | null): string {
     return this.smartDependencyContext.generateEnhancedDependencyContext(insights, graphAnalysis)
   }
 
@@ -49,7 +49,7 @@ export class InjectionPipeline {
   enhanceRepoMapWithGraphPriorities(
     baseRepoMap: string,
     insights: ContextInsights,
-    graphAnalysis: GraphifyAnalysis | null
+    graphAnalysis: GraphAnalysis | null
   ): string {
     return this.smartRepositoryMap.generatePrioritizedRepoMap(baseRepoMap, insights, graphAnalysis)
   }

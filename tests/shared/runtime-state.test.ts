@@ -35,7 +35,7 @@ describe('state persistence (async)', () => {
 
   it('writes to correct path', async () => {
     await writeState(tmpDir, { foo: 'bar' })
-    const raw = await readFile(join(tmpDir, '.pi', 'scope', 'state.json'), 'utf-8')
+    const raw = await readFile(join(tmpDir, '.pi', 'pi-scope', 'state.json'), 'utf-8')
     expect(JSON.parse(raw)).toEqual({ foo: 'bar' })
   })
 

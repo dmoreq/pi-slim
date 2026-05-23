@@ -11,14 +11,14 @@ import {
   identifyGodNodesByPageRank,
   rankByPageRank,
 } from '../../algorithms/pagerank'
-import type { GraphifyGraph } from '../../context/graph-types'
+import type { CodeGraph } from '../../context/graph-types'
 
 describe('PageRank', () => {
   // ── Basic Functionality ────────────────────────────────────────────────
 
   describe('computePageRank', () => {
     it('computes PageRank for simple linear graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -52,7 +52,7 @@ describe('PageRank', () => {
     })
 
     it('identifies hub node with multiple incoming edges', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'hub', type: 'function', label: 'Hub' },
           { id: 'a', type: 'function', label: 'A' },
@@ -75,7 +75,7 @@ describe('PageRank', () => {
     })
 
     it('ranks sorted by score descending', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -95,7 +95,7 @@ describe('PageRank', () => {
     })
 
     it('normalizes scores correctly', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -113,7 +113,7 @@ describe('PageRank', () => {
     })
 
     it('handles empty graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [],
         edges: [],
       }
@@ -124,7 +124,7 @@ describe('PageRank', () => {
     })
 
     it('handles isolated nodes', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -140,7 +140,7 @@ describe('PageRank', () => {
     })
 
     it('converges with different damping factors', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -164,7 +164,7 @@ describe('PageRank', () => {
     })
 
     it('converges within max iterations', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -184,7 +184,7 @@ describe('PageRank', () => {
 
   describe('identifyGodNodesByPageRank', () => {
     it('identifies nodes above threshold', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'important', type: 'function', label: 'Important' },
           { id: 'a', type: 'function', label: 'A' },
@@ -204,7 +204,7 @@ describe('PageRank', () => {
     })
 
     it('respects threshold', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -225,7 +225,7 @@ describe('PageRank', () => {
 
   describe('rankByPageRank', () => {
     it('returns all scores by default', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -244,7 +244,7 @@ describe('PageRank', () => {
     })
 
     it('respects limit', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -267,7 +267,7 @@ describe('PageRank', () => {
 
   describe('getPageRankStats', () => {
     it('computes statistics correctly', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -299,7 +299,7 @@ describe('PageRank', () => {
     })
 
     it('percentile95 is reasonable', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: 20 }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
@@ -324,7 +324,7 @@ describe('PageRank', () => {
 
   describe('combineImportanceScores', () => {
     it('combines degree and PageRank scores', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -384,7 +384,7 @@ describe('PageRank', () => {
   describe('Performance', () => {
     it('handles medium-sized graph efficiently', () => {
       const n = 100
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: n }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
@@ -407,7 +407,7 @@ describe('PageRank', () => {
 
     it('handles large-sized graph within reasonable time', () => {
       const n = 500
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: n }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,

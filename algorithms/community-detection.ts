@@ -5,7 +5,7 @@
  * Iteratively optimizes modularity to find natural groupings in the graph.
  */
 
-import type { CommunityAnalysis, GraphifyGraph } from '../context/graph-types.js'
+import type { CommunityAnalysis, CodeGraph } from '../context/graph-types.js'
 
 /**
  * Modularity statistics for a community.
@@ -30,7 +30,7 @@ export interface ModularityStats {
  * @param maxIterations Maximum iterations (default: 10)
  * @returns Array of detected communities
  */
-export function detectCommunitiesLouvain(graph: GraphifyGraph, maxIterations = 10): CommunityAnalysis[] {
+export function detectCommunitiesLouvain(graph: CodeGraph, maxIterations = 10): CommunityAnalysis[] {
   const n = graph.nodes.length
 
   if (n === 0) {
@@ -130,7 +130,7 @@ export function detectCommunitiesLouvain(graph: GraphifyGraph, maxIterations = 1
  * @param graph The knowledge graph
  * @returns Map of node ID to neighbor set
  */
-function buildNeighborMap(graph: GraphifyGraph): Map<string, Set<string>> {
+function buildNeighborMap(graph: CodeGraph): Map<string, Set<string>> {
   const neighbors = new Map<string, Set<string>>()
 
   // Initialize
@@ -182,7 +182,7 @@ function computeModularityDelta(
   fromCommunity: string,
   toCommunity: string,
   communities: Map<string, Set<string>>,
-  _graph: GraphifyGraph,
+  _graph: CodeGraph,
   neighbors: Map<string, Set<string>>,
   _m: number
 ): number {
@@ -217,7 +217,7 @@ function computeModularityDelta(
  * @param graph The graph
  * @returns Number of edges within community
  */
-function countEdgesInCommunity(community: Set<string>, graph: GraphifyGraph): number {
+function countEdgesInCommunity(community: Set<string>, graph: CodeGraph): number {
   let count = 0
   for (const edge of graph.edges) {
     if (community.has(edge.source) && community.has(edge.target)) {
@@ -234,7 +234,7 @@ function countEdgesInCommunity(community: Set<string>, graph: GraphifyGraph): nu
  * @param graph The graph
  * @returns Number of edges crossing boundary
  */
-function countEdgesOutside(community: Set<string>, graph: GraphifyGraph): number {
+function countEdgesOutside(community: Set<string>, graph: CodeGraph): number {
   let count = 0
   for (const edge of graph.edges) {
     const sourceIn = community.has(edge.source)
@@ -270,7 +270,7 @@ function computeDensity(community: Set<string>, internalEdges: number): number {
  * @param graph The graph
  * @returns Array of interface node IDs
  */
-function findInterfaceNodes(community: Set<string>, graph: GraphifyGraph): string[] {
+function findInterfaceNodes(community: Set<string>, graph: CodeGraph): string[] {
   const interfaceNodes = new Set<string>()
 
   for (const edge of graph.edges) {
@@ -334,7 +334,7 @@ function findBottlenecksInCommunity(community: Set<string>, neighbors: Map<strin
  * @param graph The graph
  * @returns Modularity score (0-1)
  */
-export function computeGlobalModularity(communities: CommunityAnalysis[], graph: GraphifyGraph): number {
+export function computeGlobalModularity(communities: CommunityAnalysis[], graph: CodeGraph): number {
   let modularity = 0
 
   for (const community of communities) {

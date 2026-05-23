@@ -10,14 +10,14 @@ import {
   identifyGodNodesByDegree,
   rankByInDegree,
 } from '../../algorithms/centrality'
-import type { GraphifyGraph } from '../../context/graph-types'
+import type { CodeGraph } from '../../context/graph-types'
 
 describe('DegreeCentrality', () => {
   // ── Basic Functionality ────────────────────────────────────────────────
 
   describe('computeDegreeCentrality', () => {
     it('computes degree for simple linear graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -51,7 +51,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('identifies hub node with multiple edges', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'hub', type: 'function', label: 'Hub' },
           { id: 'a', type: 'function', label: 'A' },
@@ -73,7 +73,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('normalizes scores correctly', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -95,7 +95,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('sorts by total degree descending', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -115,7 +115,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('handles isolated nodes', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -134,7 +134,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('handles bidirectional edges', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -155,7 +155,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('handles multiple edges between same nodes', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -178,7 +178,7 @@ describe('DegreeCentrality', () => {
 
   describe('identifyGodNodesByDegree', () => {
     it('identifies nodes with high in-degree', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'auth', type: 'module', label: 'Auth' },
           { id: 'a', type: 'function', label: 'A' },
@@ -202,7 +202,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('respects threshold', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -234,7 +234,7 @@ describe('DegreeCentrality', () => {
 
   describe('identifyBottlenecksByDegree', () => {
     it('identifies nodes with high out-degree', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'index', type: 'module', label: 'Index' },
           { id: 'a', type: 'module', label: 'A' },
@@ -261,7 +261,7 @@ describe('DegreeCentrality', () => {
 
   describe('rankByInDegree', () => {
     it('ranks nodes by in-degree', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -284,7 +284,7 @@ describe('DegreeCentrality', () => {
     })
 
     it('respects limit', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -310,7 +310,7 @@ describe('DegreeCentrality', () => {
 
   describe('getDegreeCentralityStats', () => {
     it('computes basic statistics', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },

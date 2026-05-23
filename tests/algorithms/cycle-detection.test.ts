@@ -8,14 +8,14 @@ import {
   detectStronglyConnectedComponents,
   getCycleDetectionSummary,
 } from '../../algorithms/cycle-detection'
-import type { GraphifyGraph } from '../../context/graph-types'
+import type { CodeGraph } from '../../context/graph-types'
 
 describe('CycleDetection', () => {
   // ── Basic Cycle Detection ──────────────────────────────────────────
 
   describe('detectAllCycles', () => {
     it('detects simple 2-node cycle', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -35,7 +35,7 @@ describe('CycleDetection', () => {
     })
 
     it('detects 3-node cycle', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -57,7 +57,7 @@ describe('CycleDetection', () => {
     })
 
     it('detects multiple cycles', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -81,7 +81,7 @@ describe('CycleDetection', () => {
     })
 
     it('handles acyclic graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -101,7 +101,7 @@ describe('CycleDetection', () => {
     })
 
     it('handles empty graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [],
         edges: [],
       }
@@ -113,7 +113,7 @@ describe('CycleDetection', () => {
     })
 
     it('handles single node', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
         edges: [],
       }
@@ -124,7 +124,7 @@ describe('CycleDetection', () => {
     })
 
     it('handles self-loop', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
         edges: [{ source: 'a', target: 'a', type: 'calls' }],
       }
@@ -135,7 +135,7 @@ describe('CycleDetection', () => {
     })
 
     it('categorizes cycle severity correctly', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -161,7 +161,7 @@ describe('CycleDetection', () => {
     })
 
     it('provides recommendations for cycles', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -183,7 +183,7 @@ describe('CycleDetection', () => {
 
   describe('detectStronglyConnectedComponents', () => {
     it('detects single-node SCCs', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -197,7 +197,7 @@ describe('CycleDetection', () => {
     })
 
     it('detects multi-node SCC', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -217,7 +217,7 @@ describe('CycleDetection', () => {
     })
 
     it('computes density correctly', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -242,7 +242,7 @@ describe('CycleDetection', () => {
 
   describe('getCycleDetectionSummary', () => {
     it('generates summary for acyclic graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -258,7 +258,7 @@ describe('CycleDetection', () => {
     })
 
     it('generates summary for cyclic graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -277,7 +277,7 @@ describe('CycleDetection', () => {
     })
 
     it('includes anomalies in summary', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -302,7 +302,7 @@ describe('CycleDetection', () => {
   describe('Performance', () => {
     it('detects cycles efficiently', () => {
       const nodeCount = 100
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
@@ -325,7 +325,7 @@ describe('CycleDetection', () => {
 
     it('computes SCCs efficiently', () => {
       const nodeCount = 100
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,

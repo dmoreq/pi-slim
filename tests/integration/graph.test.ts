@@ -1,5 +1,5 @@
 /**
- * Integration tests for the graphify system.
+ * Integration tests for the code-graph system.
  *
  * Tests the end-to-end flow:
  *   1. Running graph analysis (god nodes, communities, surprises, cycles)
@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { GodNode, GraphifyAnalysis, GraphifyGraph } from '../../context/graph-types'
+import type { GodNode, GraphAnalysis, CodeGraph } from '../../context/graph-types'
 
 import { computeDegreeCentrality, identifyGodNodesByDegree } from '../../algorithms/centrality'
 import { computeGlobalModularity, detectCommunitiesLouvain } from '../../algorithms/community-detection'
@@ -40,7 +40,7 @@ import { deserializeAnalysis, loadGraphCache, saveGraphCache, serializeAnalysis 
  * God nodes: auth (high in-degree), db (high in-degree)
  * Surprises: email -> config (cross-community)
  */
-function createTestGraph(): GraphifyGraph {
+function createTestGraph(): CodeGraph {
   return {
     nodes: [
       { id: 'auth', type: 'module', label: 'Authentication' },
@@ -74,9 +74,9 @@ function createTestGraph(): GraphifyGraph {
 }
 
 /** A larger graph for stress testing (100 nodes). */
-function createLargeGraph(nodeCount = 100): GraphifyGraph {
-  const nodes: GraphifyGraph['nodes'] = []
-  const edges: GraphifyGraph['edges'] = []
+function createLargeGraph(nodeCount = 100): CodeGraph {
+  const nodes: CodeGraph['nodes'] = []
+  const edges: CodeGraph['edges'] = []
 
   for (let i = 0; i < nodeCount; i++) {
     nodes.push({ id: `node${i}`, type: 'module', label: `Node ${i}` })
@@ -101,9 +101,9 @@ function createLargeGraph(nodeCount = 100): GraphifyGraph {
 
 // ── Test Suite ──────────────────────────────────────────────────────────
 
-describe('Graphify Integration', () => {
-  let graph: GraphifyGraph
-  let analysis: GraphifyAnalysis
+describe('Code-Graph Integration', () => {
+  let graph: CodeGraph
+  let analysis: GraphAnalysis
 
   // ── Phase 2: Algorithm Analysis ─────────────────────────────────────
 
@@ -247,7 +247,7 @@ describe('Graphify Integration', () => {
   // ── Phase 3: Retrieval Boost ────────────────────────────────────────
 
   describe('Phase 3: Retrieval Boost', () => {
-    let _analysis: GraphifyAnalysis
+    let _analysis: GraphAnalysis
 
     beforeAll(() => {
       graph = createTestGraph()

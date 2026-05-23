@@ -137,7 +137,7 @@ Customize which files are loaded per provider/model:
 | Symptom | Check |
 |---------|-------|
 | "No such file" for LSP | Required binary not on `$PATH`. Install: `typescript-language-server`, `pyright-langserver`, `gopls`, `rust-analyzer` |
-| Index builds every session | Cache corrupt. Delete `.pi-cache/slim.json` and `.pi/scope/index.json.gz` |
+| Index builds every session | Cache corrupt. Delete `.pi/pi-scope/parser-cache.json` and `.pi/pi-scope/index.json.gz` |
 | Config changes not applied | Check layer priority. CLI flags > project config > global config |
 | "store corrupted, rebuilding" | Index version mismatch — auto-recovers |
 | Context file not found | File must exist in project root or ancestor directory; filenames must match exactly |

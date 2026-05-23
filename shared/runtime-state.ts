@@ -4,7 +4,7 @@
  * Ported from pi-me shared/ext-state.ts
  * ─────────────────────────────────────
  * Persists lightweight runtime state (e.g., last session stats, build
- * metadata) to <project>/.pi/scope/state.json so it survives
+ * metadata) to <project>/.pi/pi-scope/state.json so it survives
  * across session restarts.
  *
  * For the heavy data (index, repo map), use store.ts which has atomic

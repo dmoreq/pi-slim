@@ -8,7 +8,7 @@
 import { PathUtils } from './utils/path-utils.js'
 
 /** Relative path from project root to the scope data directory. */
-export const SCOPE_DIR = PathUtils.joinSafe('.pi', 'scope')
+export const SCOPE_DIR = PathUtils.joinSafe('.pi', 'pi-scope')
 
 /** Absolute path to the scope data directory for a project. */
 export function scopeDir(projectRoot: string): string {

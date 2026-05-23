@@ -9,7 +9,7 @@
  * - Impact on dependent code
  */
 
-import type { GodNode, GraphifyAnalysis, GraphifyGraph, SurprisingConnection } from './graph-types.js'
+import type { GodNode, GraphAnalysis, CodeGraph, SurprisingConnection, GraphNode, GraphEdge } from './graph-types.js'
 
 /**
  * Enhanced hover information with graph metrics.
@@ -86,7 +86,7 @@ interface ImpactAnalysis {
 export function enhanceHoverWithGraphMetrics(
   symbol: string,
   baseInfo: string,
-  analysis: GraphifyAnalysis | null
+  analysis: GraphAnalysis | null
 ): EnhancedHoverInfo {
   const hoverInfo: EnhancedHoverInfo = {
     symbol,
@@ -222,7 +222,7 @@ function normalizeNodeId(symbol: string): string {
  * @param analysis Graph analysis
  * @returns Graph metrics
  */
-function computeGraphMetrics(nodeId: string, analysis: GraphifyAnalysis): GraphMetrics {
+function computeGraphMetrics(nodeId: string, analysis: GraphAnalysis): GraphMetrics {
   const godNode = analysis.godNodes.find(gn => normalizeNodeId(gn.nodeId) === nodeId)
 
   if (godNode) {
@@ -236,12 +236,12 @@ function computeGraphMetrics(nodeId: string, analysis: GraphifyAnalysis): GraphM
   }
 
   // Try to find in graph nodes (legacy compat via analysis.graph)
-  const g = (analysis as Record<string, GraphifyGraph>).graph as GraphifyGraph | undefined
+  const g = (analysis as any).graph as CodeGraph | undefined
   if (g) {
-    const graphNode = g.nodes.find((n: Record<string, string>) => normalizeNodeId(n.id) === nodeId)
+    const graphNode = g.nodes.find((n: GraphNode) => normalizeNodeId(n.id) === nodeId)
     if (graphNode) {
-      const inDegree = g.edges.filter((e: Record<string, string>) => e.target === graphNode.id).length
-      const outDegree = g.edges.filter((e: Record<string, string>) => e.source === graphNode.id).length
+      const inDegree = g.edges.filter((e: GraphEdge) => e.target === graphNode.id).length
+      const outDegree = g.edges.filter((e: GraphEdge) => e.source === graphNode.id).length
 
       return {
         inDegree,
@@ -270,7 +270,7 @@ function computeGraphMetrics(nodeId: string, analysis: GraphifyAnalysis): GraphM
  * @param analysis Graph analysis
  * @returns God node or undefined
  */
-function findGodNode(nodeId: string, analysis: GraphifyAnalysis): GodNode | undefined {
+function findGodNode(nodeId: string, analysis: GraphAnalysis): GodNode | undefined {
   return analysis.godNodes.find(gn => normalizeNodeId(gn.nodeId) === nodeId)
 }
 
@@ -281,13 +281,13 @@ function findGodNode(nodeId: string, analysis: GraphifyAnalysis): GodNode | unde
  * @param analysis Graph analysis
  * @returns Array of surprising connections
  */
-function findSurprises(nodeId: string, analysis: GraphifyAnalysis): SurprisingConnection[] {
+function findSurprises(nodeId: string, analysis: GraphAnalysis): SurprisingConnection[] {
   if (!analysis.surprises) {
     return []
   }
 
   return analysis.surprises.filter(
-    (s: Record<string, string>) => normalizeNodeId(s.source) === nodeId || normalizeNodeId(s.target) === nodeId
+    (s: SurprisingConnection) => normalizeNodeId(s.source) === nodeId || normalizeNodeId(s.target) === nodeId
   )
 }
 
@@ -317,7 +317,7 @@ function createGodNodeInfo(godNode: GodNode): GodNodeInfo {
  * @returns Surprise info
  */
 function createSurpriseInfo(surprises: SurprisingConnection[]): SurpriseInfo {
-  const types = Array.from(new Set(surprises.map((s: Record<string, string>) => s.reason || s.type)))
+  const types = Array.from(new Set(surprises.map((s: SurprisingConnection) => s.reason || (s as any).type)))
 
   return {
     hasUnexpectedConnections: true,
@@ -335,7 +335,7 @@ function createSurpriseInfo(surprises: SurprisingConnection[]): SurpriseInfo {
  * @param analysis Graph analysis
  * @returns Community or undefined
  */
-function findCommunity(nodeId: string, analysis: GraphifyAnalysis) {
+function findCommunity(nodeId: string, analysis: GraphAnalysis) {
   return analysis.communities.find(c => c.nodes.some(n => normalizeNodeId(n) === nodeId))
 }
 
@@ -346,7 +346,7 @@ function findCommunity(nodeId: string, analysis: GraphifyAnalysis) {
  * @param nodeId Node ID
  * @returns Community info
  */
-function createCommunityInfo(community: GraphifyAnalysis['communities'][0], nodeId: string): CommunityInfo {
+function createCommunityInfo(community: GraphAnalysis['communities'][0], nodeId: string): CommunityInfo {
   return {
     communityId: community.id,
     communityLabel: community.label,
@@ -364,8 +364,8 @@ function createCommunityInfo(community: GraphifyAnalysis['communities'][0], node
  * @param analysis Graph analysis
  * @returns Impact analysis
  */
-function analyzeImpact(nodeId: string, analysis: GraphifyAnalysis): ImpactAnalysis {
-  const g = (analysis as Record<string, GraphifyGraph>).graph as GraphifyGraph | undefined
+function analyzeImpact(nodeId: string, analysis: GraphAnalysis): ImpactAnalysis {
+  const g = (analysis as any).graph as CodeGraph | undefined
   const edges = g?.edges ?? []
   // Find all dependents (nodes that depend on this one)
   const dependents = edges.filter(e => normalizeNodeId(e.source) === nodeId)
@@ -409,7 +409,7 @@ function analyzeImpact(nodeId: string, analysis: GraphifyAnalysis): ImpactAnalys
  */
 export function getNodeRoleSummary(
   symbol: string,
-  analysis: GraphifyAnalysis | null
+  analysis: GraphAnalysis | null
 ): {
   isCritical: boolean
   summary: string

@@ -12,14 +12,14 @@ import {
   getSurpriseRecommendation,
   getTopSurprises,
 } from '../../algorithms/surprising-connections'
-import type { GraphifyGraph, SurprisingConnection } from '../../context/graph-types'
+import type { CodeGraph, SurprisingConnection } from '../../context/graph-types'
 
 describe('SurprisingConnections', () => {
   // ── Cross-Community Detection ──────────────────────────────────────
 
   describe('detectSurprisingConnections - Cross-Community', () => {
     it('detects cross-community edges', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'auth:module', type: 'module', label: 'Auth' },
           { id: 'auth:func', type: 'function', label: 'AuthFunc' },
@@ -44,7 +44,7 @@ describe('SurprisingConnections', () => {
     })
 
     it('ignores same-community edges', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -67,7 +67,7 @@ describe('SurprisingConnections', () => {
 
   describe('detectSurprisingConnections - Legacy', () => {
     it('detects modern code using legacy', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'src/auth.ts', type: 'module', label: 'Auth' },
           { id: 'src/legacy/login.ts', type: 'module', label: 'Legacy Login' },
@@ -83,7 +83,7 @@ describe('SurprisingConnections', () => {
     })
 
     it('ignores legacy-to-legacy connections', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'legacy/v1', type: 'module', label: 'Legacy V1' },
           { id: 'legacy/v2', type: 'module', label: 'Legacy V2' },
@@ -101,7 +101,7 @@ describe('SurprisingConnections', () => {
 
   describe('detectSurprisingConnections - Circular', () => {
     it('detects circular edges', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -330,7 +330,7 @@ describe('SurprisingConnections', () => {
 
   describe('Full flow', () => {
     it('detects all surprise types in complex graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'auth', type: 'module', label: 'Auth' },
           { id: 'db', type: 'module', label: 'DB' },

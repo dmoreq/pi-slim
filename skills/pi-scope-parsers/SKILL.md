@@ -97,6 +97,6 @@ constructor(projectRoot, config) {
 ## Cache Behavior
 
 - **SHA-256 content hash** — unchanged files are not re-parsed
-- **DiskCache** at `.pi-cache/slim.json` — persists between sessions
+- **DiskCache** at `.pi/pi-scope/parser-cache.json` — persists between sessions
 - **Cache version** (`CACHE_VERSION = 1`) — stale caches are invalidated automatically
-- **IndexStore** at `.pi/scope/index.json.gz` — gzip-compressed for fast load
+- **IndexStore** at `.pi/pi-scope/index.json.gz` — gzip-compressed for fast load

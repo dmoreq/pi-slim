@@ -5,7 +5,7 @@
  * These are edges that appear unusual based on various criteria.
  */
 
-import type { GraphifyGraph, SurprisingConnection } from '../context/graph-types.js'
+import type { CodeGraph, SurprisingConnection } from '../context/graph-types.js'
 
 /**
  * Reasons why a connection might be surprising.
@@ -36,7 +36,7 @@ export type SurpriseReason =
  * @returns Array of surprising connections
  */
 export function detectSurprisingConnections(
-  graph: GraphifyGraph,
+  graph: CodeGraph,
   communities?: Map<string, string>, // nodeId -> communityId
   cycles?: Set<string> // "source->target" edges in cycles
 ): SurprisingConnection[] {

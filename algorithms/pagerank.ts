@@ -5,7 +5,7 @@
  * based on Google's PageRank. Important nodes depend on other important nodes.
  */
 
-import type { GraphifyGraph } from '../context/graph-types.js'
+import type { CodeGraph } from '../context/graph-types.js'
 
 /**
  * PageRank score for a single node.
@@ -34,7 +34,7 @@ export interface PageRankScore {
  * @returns PageRank scores for all nodes, sorted by score (descending)
  */
 export function computePageRank(
-  graph: GraphifyGraph,
+  graph: CodeGraph,
   damping = 0.85,
   maxIterations = 30,
   tolerance = 1e-6

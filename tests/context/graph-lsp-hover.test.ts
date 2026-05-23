@@ -4,9 +4,9 @@
 
 import { describe, expect, it } from 'vitest'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown, getNodeRoleSummary } from '../../context/graph-lsp-hover'
-import type { GraphifyAnalysis } from '../../context/graph-types'
+import type { GraphAnalysis } from '../../context/graph-types'
 
-const createMockAnalysis = (godNodes: any[] = [], communities: any[] = [], surprises: any[] = []): GraphifyAnalysis => {
+const createMockAnalysis = (godNodes: any[] = [], communities: any[] = [], surprises: any[] = []): GraphAnalysis => {
   return {
     graph: {
       nodes: [
@@ -361,7 +361,7 @@ describe('GraphifyLSPHover', () => {
         const result = enhanceHoverWithGraphMetrics(
           'authenticate',
           'function authenticate(token: string): boolean',
-          analysis as GraphifyAnalysis
+          analysis as GraphAnalysis
         )
         expect(result.godNodeInfo).toBeDefined()
         expect(result.godNodeInfo?.inDegree).toBe(2)

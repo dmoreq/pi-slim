@@ -8,14 +8,14 @@ import {
   detectCommunitiesLouvain,
   getCommunityStats,
 } from '../../algorithms/community-detection'
-import type { GraphifyGraph } from '../../context/graph-types'
+import type { CodeGraph } from '../../context/graph-types'
 
 describe('CommunityDetection', () => {
   // ── Basic Functionality ────────────────────────────────────────────
 
   describe('detectCommunitiesLouvain', () => {
     it('detects simple two-community structure', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a1', type: 'function', label: 'A1' },
           { id: 'a2', type: 'function', label: 'A2' },
@@ -56,7 +56,7 @@ describe('CommunityDetection', () => {
     })
 
     it('handles single connected component', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -80,7 +80,7 @@ describe('CommunityDetection', () => {
     })
 
     it('handles disconnected components', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a', type: 'function', label: 'A' },
           { id: 'b', type: 'function', label: 'B' },
@@ -104,7 +104,7 @@ describe('CommunityDetection', () => {
     })
 
     it('handles empty graph', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [],
         edges: [],
       }
@@ -115,7 +115,7 @@ describe('CommunityDetection', () => {
     })
 
     it('handles single node', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
         edges: [],
       }
@@ -128,7 +128,7 @@ describe('CommunityDetection', () => {
     })
 
     it('identifies interface nodes correctly', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a1', type: 'function', label: 'A1' },
           { id: 'a2', type: 'function', label: 'A2' },
@@ -156,7 +156,7 @@ describe('CommunityDetection', () => {
     })
 
     it('respects max iterations', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: 10 }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
@@ -180,7 +180,7 @@ describe('CommunityDetection', () => {
 
   describe('computeGlobalModularity', () => {
     it('gives higher modularity for well-separated communities', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           { id: 'a1', type: 'function', label: 'A1' },
           { id: 'a2', type: 'function', label: 'A2' },
@@ -221,7 +221,7 @@ describe('CommunityDetection', () => {
     })
 
     it('handles empty communities array', () => {
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [{ id: 'a', type: 'function', label: 'A' }],
         edges: [],
       }
@@ -302,7 +302,7 @@ describe('CommunityDetection', () => {
   describe('Full community detection flow', () => {
     it('detects and analyzes complex network', () => {
       // Create a network with 3 communities
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: [
           // Community 1
           { id: 'auth1', type: 'module', label: 'Auth1' },
@@ -357,7 +357,7 @@ describe('CommunityDetection', () => {
   describe('Performance', () => {
     it('handles medium-sized graph efficiently', () => {
       const nodeCount = 100
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,
@@ -380,7 +380,7 @@ describe('CommunityDetection', () => {
 
     it('handles large graph within reasonable time', () => {
       const nodeCount = 500
-      const graph: GraphifyGraph = {
+      const graph: CodeGraph = {
         nodes: Array.from({ length: nodeCount }, (_, i) => ({
           id: `node${i}`,
           type: 'function' as const,

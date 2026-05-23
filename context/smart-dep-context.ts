@@ -5,7 +5,7 @@
 
 import type { ContextInsights } from '../shared/intelligence-types.js'
 import { godNodeMatchesSymbol } from './god-node-match.js'
-import type { GodNode, GraphifyAnalysis } from './graph-types.js'
+import type { GodNode, GraphAnalysis } from './graph-types.js'
 
 export class SmartDependencyContextGenerator {
   /**
@@ -16,7 +16,7 @@ export class SmartDependencyContextGenerator {
    * few god nodes (by criticality, then inbound degree) are still surfaced so the
    * graph stays actionable in read-only turns.
    */
-  generateEnhancedDependencyContext(insights: ContextInsights, graphAnalysis: GraphifyAnalysis | null): string {
+  generateEnhancedDependencyContext(insights: ContextInsights, graphAnalysis: GraphAnalysis | null): string {
     const sections: string[] = []
 
     const highPri = graphAnalysis ? this.collectHighPrioritySymbols(insights, graphAnalysis) : []
@@ -57,7 +57,7 @@ export class SmartDependencyContextGenerator {
    * Resolve high-priority god nodes: conversation-relevant matches first; otherwise
    * the top three by graph impact so navigation/read turns still get prioritization.
    */
-  private collectHighPrioritySymbols(insights: ContextInsights, graphAnalysis: GraphifyAnalysis): GodNode[] {
+  private collectHighPrioritySymbols(insights: ContextInsights, graphAnalysis: GraphAnalysis): GodNode[] {
     const relevantSymbols = [
       ...insights.editingIntent.targetSymbols,
       ...insights.navigationRequests.requestedSymbols,
@@ -115,7 +115,7 @@ export class SmartDependencyContextGenerator {
     return `🔧 RECOMMENDED TOOLS\n${lines.join('\n')}`
   }
 
-  private buildCommunityContext(insights: ContextInsights, graph: GraphifyAnalysis): string | null {
+  private buildCommunityContext(insights: ContextInsights, graph: GraphAnalysis): string | null {
     const mentionedLower = this.buildMentionedCommunitiesLower(insights)
     const symbolsLower = this.buildRelevantSymbolsLower(insights)
 
