@@ -1,4 +1,5 @@
 import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
+import { watch, type FSWatcher } from 'node:fs'
 import { ContextInjector } from './context/dep-context.js'
 import type { GraphAnalysis } from './context/graph-types.js'
 import { type ProviderGuidanceFile, formatProviderGuidanceSection, loadProviderGuidance } from './context/guidance.js'
@@ -25,7 +26,7 @@ import { scopeDir } from './shared/paths.js'
 import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { setLspGraphAnalysis } from './tools/lsp-navigation.js'
-import { type StatusBarState, clearStatusBar, info as nInfo, updateStatusBar } from './ui/notifications.js'
+import { type StatusBarState, clearStatusBar, info as nInfo, success as nSuccess, updateStatusBar, warn as nWarn } from './ui/notifications.js'
 import { isValidCodebase } from './shared/utils/path-utils.js'
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -175,6 +176,10 @@ export class SessionManager {
   private _graphEdgeCount = 0
 
   private intelligenceEngine: ContextIntelligenceEngine
+  private autoReindexWatcher: FSWatcher | null = null
+  private autoReindexTimer: ReturnType<typeof setTimeout> | null = null
+  private autoReindexInFlight: Promise<void> | null = null
+  private autoReindexQueued = false
   /**
    * Conversation buffer for intelligence analysis.
    *
@@ -333,7 +338,8 @@ export class SessionManager {
     await this.pluginManager.runHook('onSessionStart', ctx)
 
     // Try cache
-    if (await this.indexService.loadFromCache(projectRoot)) {
+    const cached = await this.indexService.loadFromCacheIfFresh(projectRoot)
+    if (cached.loaded) {
       const idx = this.indexService.index!
       stats.indexSource = 'cache'
       stats.indexedFiles = idx.skeletons.size
@@ -360,8 +366,13 @@ export class SessionManager {
 
       // Load graph from cache
       await this.loadGraph(projectRoot, stats)
+      this.startAutoReindexWatcher(ctx)
       this.updateStatusBar(ctx)
       return
+    }
+
+    if (cached.stale?.stale) {
+      ctx.ui.notify(nWarn(`Cached index stale, rebuilding (${cached.stale.reasons.join('; ')})`), 'warning')
     }
 
     // Fresh build
@@ -395,6 +406,7 @@ export class SessionManager {
         contextFiles,
       })
       this.state.retrieval = retrieval
+      this.startAutoReindexWatcher(ctx)
       this.updateStatusBar(ctx)
     } catch (err) {
       this.telemetry.onError('index_failed', err)
@@ -734,6 +746,7 @@ export class SessionManager {
   // ── Session shutdown ──────────────────────────────────────────────
 
   async shutdown(ctx: ExtensionContext): Promise<void> {
+    this.stopAutoReindexWatcher()
     await this.pluginManager.runHook('onSessionShutdown')
     const s = this.state
     if (!s) return
@@ -768,5 +781,104 @@ export class SessionManager {
       if (msg.includes('extension ctx is stale')) return
       throw err
     }
+  }
+
+  private startAutoReindexWatcher(ctx: ExtensionContext): void {
+    this.stopAutoReindexWatcher()
+    const s = this.state
+    if (!s) return
+
+    try {
+      this.autoReindexWatcher = watch(s.projectRoot, { recursive: true }, (_eventType, filename) => {
+        const path = typeof filename === 'string' ? filename.replaceAll('\\', '/') : ''
+        if (path && this.shouldIgnoreAutoReindexPath(path)) return
+        this.scheduleAutoReindex(ctx)
+      })
+    } catch (error) {
+      console.warn('pi-scope: auto-reindex watcher unavailable:', error)
+    }
+  }
+
+  private stopAutoReindexWatcher(): void {
+    if (this.autoReindexTimer) {
+      clearTimeout(this.autoReindexTimer)
+      this.autoReindexTimer = null
+    }
+    this.autoReindexQueued = false
+    this.autoReindexWatcher?.close()
+    this.autoReindexWatcher = null
+  }
+
+  private shouldIgnoreAutoReindexPath(path: string): boolean {
+    return (
+      path.startsWith('.git/') ||
+      path.startsWith('.pi/') ||
+      path.includes('/.git/') ||
+      path.includes('/.pi/') ||
+      path.startsWith('node_modules/') ||
+      path.includes('/node_modules/') ||
+      path.startsWith('dist/') ||
+      path.includes('/dist/')
+    )
+  }
+
+  private scheduleAutoReindex(ctx: ExtensionContext): void {
+    if (!this.state) return
+    if (this.autoReindexTimer) clearTimeout(this.autoReindexTimer)
+    this.autoReindexTimer = setTimeout(() => {
+      this.autoReindexTimer = null
+      void this.runAutoReindex(ctx)
+    }, 300)
+  }
+
+  private async runAutoReindex(ctx: ExtensionContext): Promise<void> {
+    if (!this.state) return
+    if (this.autoReindexInFlight) {
+      this.autoReindexQueued = true
+      return
+    }
+
+    const currentState = this.state
+    this.autoReindexInFlight = (async () => {
+      try {
+        ctx.ui.notify(nInfo('Reindexing after code changes...'), 'info')
+        const result = await this.indexService.buildFresh(currentState.projectRoot, currentState.config)
+        const contextFiles = currentState.config.contextFiles.enabled
+          ? loadContextFiles(currentState.projectRoot, { filenames: currentState.config.contextFiles.filenames })
+          : []
+
+        currentState.stats.indexSource = 'fresh'
+        currentState.stats.indexedFiles = result.fileCount
+        currentState.stats.depEdges = [...result.index.deps.values()].reduce((sum, deps) => sum + deps.size, 0)
+        currentState.stats.recordIndexLoaded(result.metadata as any)
+        currentState.stats.recordIndexAge(0, false)
+
+        await this.loadGraph(currentState.projectRoot, currentState.stats)
+
+        this.state = this.initState({
+          index: result.index,
+          repoMap: result.repoMap,
+          injector: currentState.injector,
+          config: currentState.config,
+          stats: currentState.stats,
+          projectRoot: currentState.projectRoot,
+          contextFiles,
+        })
+        this.state.retrieval = new RetrievalEngine(result.index)
+        this.updateStatusBar(ctx)
+        ctx.ui.notify(nSuccess(`Reindexed ${result.fileCount} files`), 'info')
+      } catch (error) {
+        console.warn('pi-scope: auto-reindex failed:', error)
+        ctx.ui.notify(nWarn('Auto-reindex failed; continuing with previous index'), 'warning')
+      } finally {
+        this.autoReindexInFlight = null
+        if (this.autoReindexQueued) {
+          this.autoReindexQueued = false
+          this.scheduleAutoReindex(ctx)
+        }
+      }
+    })()
+
+    await this.autoReindexInFlight
   }
 }

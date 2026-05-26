@@ -7,6 +7,7 @@
 
 import { RepoMapGenerator } from '../context/repo-map.js'
 import { IndexEngine } from '../indexer/engine.js'
+import { checkIndexFreshness, type StalenessResult } from '../indexer/freshness.js'
 import { loadStore, saveStore, storeExists } from '../indexer/index-store.js'
 import { collectMetadata } from '../indexer/metadata.js'
 import { type IndexMetadata, extractMetadata } from '../shared/schema-v2.js'
@@ -19,6 +20,11 @@ export interface IndexResult {
   builtAt: number
   fileCount: number
   buildTimeMs: number
+}
+
+export interface CacheLoadResult {
+  loaded: boolean
+  stale?: StalenessResult
 }
 
 export class IndexService {
@@ -45,10 +51,31 @@ export class IndexService {
       const result = await loadStore(projectRoot)
       this._index = result.index
       this._repoMap = result.repoMap
-      this._metadata = extractMetadata(result.metadata)
+      this._metadata = extractMetadata(result.storedIndex)
       return true
     } catch {
       return false
+    }
+  }
+
+  /**
+   * Load cache only if it passes freshness validation.
+   */
+  async loadFromCacheIfFresh(
+    projectRoot: string,
+    options?: { maxAgeHours?: number; checkGit?: boolean; checkFiles?: boolean }
+  ): Promise<CacheLoadResult> {
+    if (!(await storeExists(projectRoot))) return { loaded: false }
+    try {
+      const result = await loadStore(projectRoot)
+      const stale = await checkIndexFreshness(projectRoot, result.storedIndex, options)
+      if (stale.stale) return { loaded: false, stale }
+      this._index = result.index
+      this._repoMap = result.repoMap
+      this._metadata = extractMetadata(result.storedIndex)
+      return { loaded: true }
+    } catch {
+      return { loaded: false }
     }
   }
 
@@ -66,11 +93,11 @@ export class IndexService {
     const rawMetadata = collectMetadata(projectRoot, index, config, buildStartTime) as any
 
     // Save to cache
-    await saveStore(projectRoot, index, repoMap, rawMetadata)
+    const stored = await saveStore(projectRoot, index, repoMap, rawMetadata)
 
     this._index = index
     this._repoMap = repoMap
-    this._metadata = extractMetadata(rawMetadata)
+    this._metadata = extractMetadata(stored)
 
     return {
       index,

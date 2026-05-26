@@ -122,7 +122,7 @@ async function detectChangedFiles(projectRoot: string, storedHashes: Record<stri
   const changed: string[] = []
 
   for (const [filePath, storedHash] of Object.entries(storedHashes)) {
-    const fullPath = PathUtils.joinSafe(projectRoot, filePath)
+    const fullPath = filePath.startsWith('/') ? filePath : PathUtils.joinSafe(projectRoot, filePath)
     const currentHash = await hashFile(fullPath)
 
     if (currentHash && currentHash !== storedHash) {
@@ -145,7 +145,7 @@ export async function buildChecksums(projectRoot: string, filePaths: string[]): 
 
   for (const idx of sampleIndices) {
     const filePath = filePaths[idx]
-    const fullPath = PathUtils.joinSafe(projectRoot, filePath)
+    const fullPath = filePath.startsWith('/') ? filePath : PathUtils.joinSafe(projectRoot, filePath)
     checksums[filePath] = await hashFile(fullPath)
   }
 

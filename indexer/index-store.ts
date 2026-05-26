@@ -15,6 +15,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { promisify } from 'node:util'
 import { gunzip, gzip } from 'node:zlib'
+import { buildChecksums } from './freshness.js'
 import { scopeDir } from '../shared/paths.js'
 import type { StoredIndexV2 } from '../shared/schema-v2.js'
 import { STORE_VERSION_V2, migrateToV2 } from '../shared/schema-v2.js'
@@ -41,6 +42,28 @@ interface StoredIndexV3 {
 }
 
 type StoredIndex = StoredIndexV2 | StoredIndexV3
+
+export interface LoadStoreResult {
+  index: RepoIndex
+  repoMap: string
+  builtAt: string
+  fileCount: number
+  metadata: {
+    version: number
+    builtAt: string
+    fileCount: number
+    symbolCount: number
+    edgeCount: number
+    languages: Record<string, { fileCount: number; symbolCount: number; edgeCount: number }>
+    gitCommit?: string
+    gitBranch?: string
+    buildDuration: number
+    circularDependencies?: number
+    godNodes?: string[]
+    communities?: number
+  }
+  storedIndex: StoredIndexV2
+}
 
 function storeDir(projectRoot: string): string {
   return scopeDir(projectRoot)
@@ -82,7 +105,7 @@ export async function saveStore(
     config?: { scanPatterns: string[]; ignorePatterns: string[]; languages: string[] }
     graph?: any
   }
-): Promise<void> {
+): Promise<StoredIndexV2> {
   await mkdir(storeDir(projectRoot), { recursive: true })
 
   const skeletons: Record<string, string> = {}
@@ -100,6 +123,8 @@ export async function saveStore(
   // Calculate stats
   const edgeCount = [...index.deps.values()].reduce((s, v) => s + v.size, 0)
   const symbolCount = [...index.symbolIndex.values()].reduce((s, v) => s + v.length, 0)
+
+  const checksums = await buildChecksums(projectRoot, [...index.skeletons.keys()])
 
   const stored: StoredIndexV2 = {
     version: STORE_VERSION,
@@ -125,7 +150,7 @@ export async function saveStore(
     reverseDeps,
     symbolIndex,
     checksums: {
-      files: {},
+      files: checksums,
       timestamp: Date.now(),
     },
     ...(metadata?.graph && { graph: metadata.graph }),
@@ -139,12 +164,13 @@ export async function saveStore(
   )
 
   await Promise.all([writeFile(indexPath(projectRoot), compressed), writeFile(mapPath(projectRoot), repoMap, 'utf-8')])
+  return stored
 }
 
 /** Load, gunzip-decompress, and deserialize RepoIndex + repo map from .pi/pi-scope/. */
 export async function loadStore(
   projectRoot: string
-): Promise<{ index: RepoIndex; repoMap: string; builtAt: string; fileCount: number; metadata?: any }> {
+): Promise<LoadStoreResult> {
   const [compressed, repoMap] = await Promise.all([
     readFile(indexPath(projectRoot)),
     readFile(mapPath(projectRoot), 'utf-8'),
@@ -183,14 +209,18 @@ export async function loadStore(
     fileCount: index.fileCount,
     metadata: {
       version: index.version,
+      builtAt: index.builtAt,
+      fileCount: index.fileCount,
       symbolCount: index.symbolCount,
       edgeCount: index.edgeCount,
       languages: index.languages,
       gitCommit: index.gitCommit,
       gitBranch: index.gitBranch,
       buildDuration: index.builtIn,
+      circularDependencies: index.graph?.circularDependencies,
       godNodes: index.graph?.godNodes,
       communities: index.graph?.communities,
     },
+    storedIndex: index,
   }
 }
