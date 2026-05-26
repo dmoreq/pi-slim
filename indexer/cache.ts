@@ -42,7 +42,7 @@ export class DiskCache {
       entries: Object.fromEntries(this.entries),
     }
     console.log(`[scope/cache] Persisting ${this.entries.size} entries to ${this.cachePath}`)
-    const tmp = `${this.cachePath}.tmp`
+    const tmp = `${this.cachePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`
     try {
       await writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8')
       await rename(tmp, this.cachePath)

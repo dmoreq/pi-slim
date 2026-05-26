@@ -147,9 +147,20 @@ export class IndexEngine {
       if (cached && cached.contentHash === hash) {
         fileIndexes.push(cached)
       } else {
-        const index = parser.parseFile(filePath, content)
-        this.cache.set(index)
-        fileIndexes.push(index)
+        try {
+          const index = parser.parseFile(filePath, content)
+          this.cache.set(index)
+          fileIndexes.push(index)
+        } catch (err) {
+          // During active editing a file may be transiently invalid; keep the last
+          // known-good parse for that file so a single failure does not abort reindexing.
+          if (cached) {
+            console.warn(`[IndexEngine] Parser failed for ${filePath}, reusing cached index entry:`, err)
+            fileIndexes.push(cached)
+          } else {
+            console.warn(`[IndexEngine] Parser failed for ${filePath}, skipping file:`, err)
+          }
+        }
       }
     }
 

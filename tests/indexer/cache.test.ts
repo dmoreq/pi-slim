@@ -85,4 +85,25 @@ describe('DiskCache', () => {
     await cache2.load()
     expect(cache2.get(SAMPLE.path)).toBeUndefined()
   })
+
+  it('allows concurrent saves to the same cache path', async () => {
+    const cache1 = new DiskCache(tmpDir)
+    const cache2 = new DiskCache(tmpDir)
+
+    cache1.set(SAMPLE)
+    cache2.set({
+      ...SAMPLE,
+      path: '/project/src/bar.ts',
+      skeleton: 'export function bar(): void { ... }',
+      contentHash: 'def456',
+    })
+
+    await expect(Promise.all([cache1.save(), cache2.save()])).resolves.toEqual([undefined, undefined])
+
+    const cache3 = new DiskCache(tmpDir)
+    await cache3.load()
+    const foo = cache3.get('/project/src/foo.ts')
+    const bar = cache3.get('/project/src/bar.ts')
+    expect(foo || bar).toBeDefined()
+  })
 })

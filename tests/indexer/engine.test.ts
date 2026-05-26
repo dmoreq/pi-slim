@@ -83,6 +83,29 @@ export function add(a: number, b: number): number {
     expect(engine2.getRepoIndex().skeletons.has(fooPath)).toBe(true)
   })
 
+  it('reuses cached file data when parsing a changed file fails', async () => {
+    await writeFixture('src/foo.ts', 'export function foo() { return 1 }')
+
+    const engine1 = new IndexEngine(tmpDir, DEFAULT_CONFIG)
+    await engine1.build()
+
+    await writeFixture('src/foo.ts', 'export function foo() {')
+
+    const engine2 = new IndexEngine(tmpDir, DEFAULT_CONFIG)
+    const parsers = (engine2 as unknown as { parsers: Map<string, { parseFile(path: string, content: string): unknown }> })
+      .parsers
+    parsers.set('.ts', {
+      parseFile() {
+        throw new Error('synthetic parse failure')
+      },
+    })
+
+    await engine2.build()
+
+    const fooPath = join(tmpDir, 'src/foo.ts')
+    expect(engine2.getRepoIndex().skeletons.get(fooPath)).toContain('foo')
+  })
+
   it('persists and restores symbolIndex and reverseDeps in store', async () => {
     // Create files with exports and dependencies
     await writeFixture(
