@@ -10,6 +10,7 @@
  */
 
 import { computeDependentFanout } from './graph-impact.js'
+import { resolveGraphLookup } from './graph-lsp-resolve.js'
 import { normalizeNodeIdForMatch } from './graph-node-id.js'
 import type { GodNode, GraphAnalysis, CodeGraph, SurprisingConnection, GraphNode, GraphEdge } from './graph-types.js'
 
@@ -20,6 +21,7 @@ export interface EnhancedHoverInfo {
   symbol: string
   range: { start: number; end: number }
   baseInfo: string
+  reverseDepFiles?: string[]
   graphMetrics?: GraphMetrics
   godNodeInfo?: GodNodeInfo
   surpriseInfo?: SurpriseInfo
@@ -89,20 +91,24 @@ export function enhanceHoverWithGraphMetrics(
   symbol: string,
   baseInfo: string,
   analysis: GraphAnalysis | null,
-  relativeFilePath?: string
+  relativeFilePath?: string,
+  reverseDepFiles?: string[]
 ): EnhancedHoverInfo {
+  const resolved = resolveGraphLookup(relativeFilePath, symbol, analysis)
+  const lookupKey = resolved.lookupKey
+
   const hoverInfo: EnhancedHoverInfo = {
-    symbol,
+    symbol: resolved.nodeId ?? symbol,
     range: { start: 0, end: symbol.length },
     baseInfo,
+    reverseDepFiles: reverseDepFiles?.length ? reverseDepFiles.slice(0, 5) : undefined,
   }
 
   if (!analysis) {
     return hoverInfo
   }
 
-  const nodeId = normalizeNodeIdForMatch(symbol)
-  void relativeFilePath
+  const nodeId = normalizeNodeIdForMatch(lookupKey)
 
   // Compute graph metrics
   hoverInfo.graphMetrics = computeGraphMetrics(nodeId, analysis)
@@ -190,6 +196,14 @@ export function formatHoverAsMarkdown(hover: EnhancedHoverInfo): string {
     lines.push(`**Count:** ${hover.surpriseInfo.count}`)
     lines.push('')
     lines.push(`_${hover.surpriseInfo.recommendation}_`)
+    lines.push('')
+  }
+
+  if (hover.reverseDepFiles && hover.reverseDepFiles.length > 0) {
+    lines.push('## 📥 Used by')
+    for (const f of hover.reverseDepFiles) {
+      lines.push(`- \`${f}\``)
+    }
     lines.push('')
   }
 
