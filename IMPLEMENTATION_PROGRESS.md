@@ -1,7 +1,7 @@
 # Code-Graph Integration — Implementation Progress
 
-> Last updated: 2025-05-30  
-> All 609 tests passing across 51 test files.
+> Last updated: 2026-05-30  
+> All 690 tests passing across 81 test files.
 
 ---
 
@@ -80,7 +80,7 @@ the live conversation history.
 
 Registered in `SessionManager` constructor alongside `ContextPruningPlugin`:
 ```typescript
-this.pluginManager.register(new CommunityPruningPlugin(this.graphService))
+this.pluginManager.register(new CommunityPruningPlugin(this.graphService, () => this.state))
 ```
 
 **Tests**: `tests/plugins/community-pruning-plugin.test.ts` — 13 tests.
@@ -143,7 +143,7 @@ Total: **11 tests**.
 | Community pruning plugin | `tests/plugins/community-pruning-plugin.test.ts` | 13 |
 | Code-graph E2E | `tests/integration/code-graph-integration.test.ts` | 11 |
 | **Total new** | | **45** |
-| **Full suite** | 51 files | **609** |
+| **Full suite** | 81 files | **690** |
 
 ---
 

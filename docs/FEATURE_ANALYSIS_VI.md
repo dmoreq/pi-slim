@@ -3,8 +3,8 @@
 > Tác giả: Claude Code  
 > Ngày cập nhật: 2026-05-30  
 > Phiên bản: pi-scope v0.7.0  
-> Số tests: **681/681 pass** (76 file test)  
-> Kế hoạch đã hoàn tất: [Hashline adoption v2](HASHLINE_ADOPTION_PLAN_VI.md) · [LSP adoption v1](LSP_ADOPTION_PLAN_VI.md)  
+> Số tests: **690/690 pass** (81 file test)  
+> Kế hoạch đã hoàn tất: [Hashline v2](HASHLINE_ADOPTION_PLAN_VI.md) · [LSP v1](LSP_ADOPTION_PLAN_VI.md) · [Graph adoption v1](GRAPH_ADOPTION_PLAN_VI.md)  
 
 ---
 
@@ -41,14 +41,14 @@ Mỗi lần start session
     ├─ IndexEngine: parse AST → RepoIndex
     ├─ GraphService: RepoIndex → CodeGraph → GraphAnalysis (cache)
     ├─ RetrievalEngine: khởi tạo từ RepoIndex
-    ├─ LSP: probe servers (optional), register 9 navigation tools
-    └─ PluginManager: ContextPruning, CommunityPruning, HashlineSteer/Validate, LspSteer
+    ├─ LSP: probe servers (optional), register 9 navigation tools + graph_symbol_impact
+    └─ PluginManager: ContextPruning, CommunityPruning, HashlineSteer/Validate, LspSteer, GraphSteer
 
 Mỗi lượt LLM call
     │
     ├─ handleBeforeAgentStart (lần đầu)
     │    ├─ RepoMap (graph-prioritized)
-    │    ├─ GraphInsights (god nodes, communities)
+    │    ├─ GraphInsights (god nodes, communities, anomalies, bottlenecks)
     │    ├─ ContextIntelligence (workflow guidance)
     │    ├─ ProviderGuidance (CLAUDE.md, CODEX.md...)
     │    └─ ContextFiles (AGENTS.local.md...)
@@ -56,11 +56,13 @@ Mỗi lượt LLM call
     └─ handleContext (mỗi turn)
          ├─ FileDetector + compiler-error locations: paths từ tool/bash output
          ├─ LSP path inject (cùng turn): tool args, details.paths, compiler hints
-         ├─ RetrievalEngine: score + rank files
+         ├─ RetrievalEngine: score + rank files (+ graph god/community boost)
          ├─ ContextInjector: build dep-context (+ hashline anchors)
-         ├─ SmartDepContext: community-aware hints
+         ├─ Graph pulse (compact, sau insights lần đầu) — god nodes + active community
+         ├─ SmartDepContext: HIGH-PRIORITY SYMBOLS (dedupe vs insights)
+         ├─ ContextIntelligence: cycle warnings khi edit file trong SCC
          ├─ hashline-dry-run-followup (priority 8, turn sau dry_run)
-         └─ PluginManager.onContext: pruning
+         └─ PluginManager.onContext: context + community pruning
 ```
 
 ### Kết quả đánh giá nhanh
@@ -74,8 +76,8 @@ Mỗi lượt LLM call
 | Retrieval Engine | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Provider Guidance | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Context Files | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
-| Plugin System | ✅ 5 plugins (prune + steer) | ✅ Tốt | 🟡 Trung bình |
-| LSP Integration | ✅ Adoption v1 (9 tools) | 🟢 Tốt (steer + inject + bridge) | 🟢 Thấp — tùy chọn Phase D+ |
+| Plugin System | ✅ 6 plugins (prune + steer) | ✅ Tốt | 🟡 Trung bình |
+| LSP Integration | ✅ Adoption v1 (9 LSP tools) | 🟢 Tốt (steer + inject + bridge) | 🟢 Thấp — tùy chọn Phase D+ |
 | Hashline Editor | ✅ Adoption v2 (Phases A–D) | 🟢 Tốt (có enforcement) | 🟡 Trung bình |
 | File Detector | ✅ + compiler `file.ts(12,5)` | ✅ Tốt | 🟢 Thấp (symbol extract) |
 | Query Intent | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
@@ -131,9 +133,10 @@ RepoIndex = {
 |-------|----------|---------|--------------|
 | `repo-map` | 1 | Lần đầu (first turn) | `maxRepoMapTokens` = 4000 |
 | `provider-guidance` | 2 | Lần đầu | shared budget |
-| `graph-insights` | 3 | Lần đầu | shared budget |
+| `graph-insights` | 3 | Lần đầu (`slim.graph.enabled`) | shared budget |
+| `graph-pulse` | 4.5 | Mỗi turn sau insights (`compactPulseEachTurn`) | shared budget |
 | `context-intelligence` | 4 | Mỗi turn | `maxInjectionTokens` = 8000 |
-| `smart-dep-context` | 5 | Mỗi turn | shared budget |
+| `smart-dep-context` | 5 | Mỗi turn (dedupe god labels đã có trong insights) | shared budget |
 | `context-files` | 6 | Lần đầu | shared budget |
 | `dep-context` | 7 | Mỗi turn | shared budget |
 | `hashline-dry-run-followup` | 8 | Turn sau `hashline_edit` dry_run | shared budget |
@@ -151,13 +154,13 @@ RepoIndex = {
 ### 3.4 Cơ hội cải thiện
 
 - **Dynamic budget allocation**: Budget 4000+8000 tokens là fixed. Nên điều chỉnh theo kích thước codebase (project nhỏ cần ít hơn, project lớn cần nhiều hơn).
-- **Source deduplication**: `smart-dep-context` nên check xem god nodes đã được inject bởi `graph-insights` chưa để tránh lặp.
+- ~~**Source deduplication**~~: ✅ `dedupeGodNodesAcrossSources` + `graphInsightGodLabels` session state.
 
 ---
 
 ## 4. Nhóm 3: Code-Graph Analysis
 
-> **Kế hoạch khai thác đầy đủ:** [`docs/GRAPH_ADOPTION_PLAN_VI.md`](GRAPH_ADOPTION_PLAN_VI.md) (adoption workflow, graph pulse, retrieval boost, steer, tích hợp LSP/hashline).
+> **Kế hoạch adoption:** [`docs/GRAPH_ADOPTION_PLAN_VI.md`](GRAPH_ADOPTION_PLAN_VI.md) — **v1 hoàn tất** (Phases A–C); Phase D tùy chọn.
 
 ### 4.1 Cách hoạt động
 
@@ -190,36 +193,63 @@ RepoIndex
 
 **Status bar enhancement**: Khi có > 1 community, status bar hiển thị thêm "N comm" (ví dụ: "120 files | map ~3500t | 5 inj | **5 comm**").
 
-### 4.2 Tình trạng kích hoạt
+### 4.2 Config `slim.graph` (adoption v1)
 
-✅ **Hoàn toàn kích hoạt.** Graph analysis chạy trong mọi session. Cache được sử dụng đúng cách — test cho thấy second start load từ cache với metrics giống hệt first start.
+Schema trong `context/schema.ts` — master switch và tuning từng lớp enrichment:
 
-### 4.3 Nhận xét sử dụng
+| Key | Mặc định | Vai trò |
+|-----|----------|---------|
+| `enabled` | true | Bật pulse, insights enrichment, retrieval boost (không tắt GraphService) |
+| `compactPulseEachTurn` | true | Inject block gọn mỗi turn sau insights lần đầu |
+| `repeatFullInsights` | false | Cho phép lặp full god-node list mỗi turn (tốn token) |
+| `dedupeGodNodesAcrossSources` | true | Smart-dep bỏ label đã có trong insights |
+| `boostRetrievalWithGodNodes` | true | Boost file/symbol god node trong `RetrievalEngine` |
+| `boostRetrievalWithActiveCommunity` | true | Boost file thuộc community đang active |
+| `surfaceAnomaliesInInsights` | true | Subsection anomalies (cycles) trong insights |
+| `surfaceSurprisesMax` | 5 | Cap notable connections trong insights |
+| `warnWhenEditingCycleParticipant` | true | Intelligence + pulse cảnh báo cycle |
+| `communityPruningEnabled` | true | `CommunityPruningPlugin` |
+| `steerOnCriticalGodNode` | true | `GraphSteerPlugin` nhắc LSP trước edit |
+| `strictGraphImpact` | false | Block edit thay vì chỉ notify trên god CRITICAL |
 
-🟡 **Hạ tầng mạnh, adoption workflow chưa đủ** (tương tự LSP trước adoption v1):
+**Skill:** `skills/pi-scope-graph/SKILL.md` — workflow agent: god nodes, communities, LSP trước edit rủi ro cao.
 
-| Đã làm tốt | Còn thiếu (xem adoption plan) |
-|------------|-------------------------------|
-| Pipeline 5 thuật toán + cache disk | Config `slim.graph` + pulse/steer v1 |
-| Insights lần đầu + `/scope` Q-score | **Graph pulse** mỗi turn — agent dễ “quên” god nodes |
-| Smart repo map & smart-dep | Trùng lặp god/community giữa các nguồn inject |
-| God file boost trong dep-context | `RetrievalEngine` chưa boost theo symbol/community |
-| LSP hover + graph impact BFS | **GraphSteerPlugin** — chưa nhắc find-refs trên god node |
-| Community pruning transcript | `anomalies` / `wikipedia` hầu như không feed agent |
-| Broad query + community overview | Incremental graph khi auto-reindex |
+### 4.3 Tình trạng kích hoạt
 
-**Giới hạn mô hình:** graph hiện tại dựa trên **import/export AST**, không phải call graph — god node = hub import, không phải mọi runtime dependency.
+✅ **Pipeline + adoption v1 hoàn tất** (Phases A–C, 690 tests). Graph analysis chạy mọi session; cache disk hoạt động.
 
-### 4.4 Cơ hội cải thiện (theo `GRAPH_ADOPTION_PLAN_VI.md`)
+| Thành phần | File | Trạng thái |
+|------------|------|------------|
+| Full insights (lần đầu) | `context/graph-insights-format.ts` | ✅ God nodes, communities, bottlenecks, anomalies, surprises |
+| Graph pulse (mỗi turn) | `context/graph-pulse.ts` | ✅ Active community, god nodes liên quan, cycle one-liner |
+| Graph-aware retrieval | `context/retrieval.ts`, `dep-context.ts` | ✅ Signals `graph:god-node`, `graph:community` |
+| Smart-dep dedupe | `smart-dep-context.ts` + `graphInsightGodLabels` | ✅ |
+| Cycle warnings | `graph-cycle-warn.ts` + intelligence `extraSections` | ✅ |
+| Graph steer | `plugins/graph-steer-plugin.ts` | ✅ CRITICAL god → `lsp_find_references` / `lsp_hover` |
+| Tool không cần LSP | `tools/graph-impact-tool.ts` → `graph_symbol_impact` | ✅ |
+| Dashboard | `/scope graph` | ✅ God nodes, communities, anomalies, active community |
+| Metrics session | `graphPulseTokens`, `graphSteerCount`, `graphBoostedRetrievalCount`, `activeCommunityId` | ✅ |
 
-| Ưu tiên | Hạng mục | Phase |
-|---------|-----------|-------|
-| 🔴 | `slim.graph` + skill `pi-scope-graph` + metrics | A |
-| 🔴 | Graph pulse per-turn; dedupe insights/smart-dep | B |
-| 🔴 | Graph-aware retrieval; surface anomalies | B |
-| 🟡 | GraphSteerPlugin; cycle warning; `/scope graph` | C |
-| 🟡 | Tool `graph_symbol_impact` (không cần LSP) | C |
-| 🟢 | Incremental graph; community auto-label; wikipedia inject | D |
+### 4.4 Nhận xét sử dụng
+
+🟢 **Adoption v1 hoàn tất** — graph là lớp ra quyết định kiến trúc mặc định, không chỉ dump một lần vào system prompt:
+
+- Agent được **nhắc lại** god nodes quan trọng mỗi turn (pulse) thay vì chỉ đọc insights lúc start.
+- Retrieval và dep-context **ưu tiên** file hub và module đang focus.
+- Edit trên god node `CRITICAL` bị steer về LSP (tùy `strictGraphImpact`).
+- Trùng lặp god labels giữa insights và smart-dep đã giảm nhờ dedupe.
+
+**Giới hạn mô hình (không đổi):** graph dựa trên **import/export AST**, không phải call graph — god node = hub import. Với coupling runtime, vẫn cần `lsp_find_references` / `lsp_hover` để xác nhận.
+
+### 4.5 Cơ hội cải thiện (Phase D — tùy chọn)
+
+| Ưu tiên | Hạng mục | Ghi chú |
+|---------|-----------|---------|
+| 🟢 | Incremental graph sau auto-reindex | Patch nodes/edges thay vì full `assembleGraphAnalysis` |
+| 🟢 | Community auto-label (`auth`, `metrics`, …) | Từ path prefix mode |
+| 🟢 | Wikipedia inject | `analysis.wikipedia` cap 5 links cho symbol in-focus |
+| 🟢 | `/scope graph --json` | Debug export, không đưa vào LLM context |
+| 🟢 | Call-edge future | ADR tree-sitter call graph |
 
 ---
 
@@ -275,6 +305,7 @@ RepoIndex
 - **BFS fan-out**: `computeDependentFanout()` từ `graph-impact.ts` cho risk warnings.
 - **No-graph fallback**: Block `IMPACT UNKNOWN` + gợi ý `lsp_find_references` khi đang edit mà không có graph.
 - **Dedupe injection**: Workflow một lần/session (`intelligenceWorkflowInjected`); architectural guidance chỉ ở `smart-dep-context`.
+- **Cycle-aware guidance**: `formatCycleIntelligenceBlock` inject qua `IntelligenceGuidanceOptions.extraSections` khi `warnWhenEditingCycleParticipant` và file in-focus ∈ cycle.
 
 **Còn lại (ưu tiên thấp):** feedback loop khi agent follow suggestion; unify intent với `query-intent` module.
 
@@ -298,7 +329,13 @@ score = 3 × symbolMatch      // file export symbol mà user nhắc đến
       + 1 × depProximity       // file là dep của file đang focus
 ```
 
-**God Node Boost**: Nếu graph analysis available, các file mà tên (stem) match với god node ID được boost `score × 2` — đảm bảo các file quan trọng nhất luôn xuất hiện trong context.
+**Graph-aware boost** (`RetrievalEngine.applyGraphBoosts`, khi `slim.graph` bật):
+
+- `+2` và signal `graph:god-node` — file path match god node (`godNodeMatchesFilePath`)
+- `+2` và signal `graph:god-symbol` — symbol match god node label/id
+- `+1` và signal `graph:community` — file thuộc `activeCommunityId` (từ `CommunityPruningPlugin`)
+
+Boost chạy sau multi-signal scoring cơ bản; `dep-context` ghi `graphBoostedRetrievalCount` trên session stats.
 
 **2-phase retrieval**: Phase 1 dùng symbol index (fast O(symbols)), Phase 2 scan toàn bộ files (fallback cho filename/dep matches).
 
@@ -308,15 +345,13 @@ score = 3 × symbolMatch      // file export symbol mà user nhắc đến
 
 ### 6.3 Nhận xét sử dụng
 
-✅ **Đúng cách.** Scoring formula đơn giản nhưng hiệu quả. God node boost đảm bảo high-centrality files được ưu tiên.
-
-**Điểm yếu tiềm ẩn**: God node boost dùng `f.file.split('/').pop()?.replace(/\.[^.]+$/, '').toLowerCase()` để lấy stem, rồi so sánh với `godNode.nodeId.toLowerCase()`. Nhưng nodeId có format `file:relative/path/to/file.ts` — sẽ không match với stem. Match này có thể đang bị miss.
+✅ **Đúng cách.** Scoring heuristic + graph boost tách module (`retrieval.ts`); path matching dùng `godNodeMatchesFilePath` / `godNodeMatchesSymbol` thống nhất với dep-context và LSP.
 
 ### 6.4 Cơ hội cải thiện
 
-- **Fix god node boost matching**: Trích xuất path segment từ nodeId (`file:auth.ts` → `auth`) thay vì dùng toàn bộ nodeId.
-- **BM25 scoring**: Thay multi-signal heuristic bằng BM25 trên symbol names + file names + skeleton content để retrieval chính xác hơn.
+- **BM25 scoring**: Thay multi-signal heuristic bằng BM25 trên symbol names + file names + skeleton content.
 - **Decay factor**: Các file được inject thường xuyên nên có higher base score (tránh fetch lại cold files liên tục).
+- **Tune boost weights**: Hiện +2/+1 cố định — có thể expose qua `slim.graph` nếu cần A/B trên repo lớn.
 
 ---
 
@@ -400,18 +435,20 @@ onToolCall?(event, ctx)   // có thể block tool
 onSessionShutdown?()
 ```
 
-**Năm plugins đang active:**
+**Sáu plugins đang active:**
 
-**A. ContextPruningPlugin**: 4 rules:
+**A. ContextPruningPlugin**: 3 rules thi hành + 2 stub cấu hình:
 - `deduplication`: Remove identical consecutive user/assistant messages (hash-based)
 - `superseded-writes`: Remove cũ write results khi có write mới hơn cho cùng file
 - `error-purging`: Remove tool errors khi followed by success
-- `recency`: Protect last 10 messages from pruning
+- ~~`recency`~~: Có trong `DEFAULT_RULE_CONFIG` (`recencyWindow: 10`) nhưng **chưa có implementation** trong `applyPruningRules` — dead config
+- ~~`tool-pairing`~~: Cũng có trong `DEFAULT_RULE_CONFIG` nhưng **chưa có implementation** — dead config
 
 **B. CommunityPruningPlugin**: 
 - Detect active community từ file references trong user messages (3 gần nhất)
 - Prune `developer`-role messages (context injections) không liên quan đến active community
 - Luôn giữ developer message cuối cùng (fresh context)
+- Tắt qua `slim.graph.communityPruningEnabled`; `activeCommunityId` feed retrieval boost + `/scope`
 
 **C. HashlineSteerPlugin** / **HashlineValidatePlugin** (`plugins/hashline-*`):
 - Steer hoặc block built-in `edit` khi file đã có hashline anchor (`strictMode`, `contextualStrictMode`)
@@ -421,9 +458,14 @@ onSessionShutdown?()
 - Nudge/block `grep`, `rg`, `read` line-targeted trên file đã index khi LSP phù hợp hơn
 - `strictNavigation` → hard block thay vì chỉ notify
 
+**E. GraphSteerPlugin** (`plugins/graph-steer-plugin.ts`):
+- Khi edit (`hashline_edit`, `edit`, …) target symbol ∈ god node `CRITICAL` và chưa có `lsp_find_references` / `lsp_hover` / `graph_symbol_impact` gần đây
+- Gợi ý hoặc block (`strictGraphImpact`) trước khi apply thay đổi blast radius cao
+- `recordGraphSteer()` trên session stats
+
 ### 9.2 Tình trạng kích hoạt
 
-✅ **Đầy đủ.** Tất cả plugins register trong constructor `SessionManager`, trước `start()`. `onToolCall` được dùng bởi HashlineSteer, HashlineValidate, LspSteer.
+✅ **Đầy đủ.** Tất cả plugins register trong constructor `SessionManager`, trước `start()`. `onToolCall`: HashlineSteer, HashlineValidate, LspSteer, GraphSteer.
 
 ### 9.3 Nhận xét sử dụng
 
@@ -463,6 +505,7 @@ Tools LLM (`tools/lsp-navigation.ts`), server lazy-start per language (`lsp/serv
 | `lsp_go_to_definition_batch` | (batch) | Nhiều vị trí một lần |
 | `lsp_diagnostics` | `publishDiagnostics` | Lỗi server trên file |
 | `lsp_signature_help` | `textDocument/signatureHelp` | Gợi ý tham số tại call site |
+| `graph_symbol_impact` | (graph only) | Impact markdown giống phần graph của hover — không cần LSP |
 
 **`lsp_hover` enrichment** (`context/graph-lsp-hover.ts`):
 
@@ -491,7 +534,8 @@ Tools LLM (`tools/lsp-navigation.ts`), server lazy-start per language (`lsp/serv
 
 | Thành phần | Trạng thái |
 |------------|------------|
-| Navigation + extended tools (9 tools) | ✅ |
+| Navigation + extended tools (9 LSP tools) | ✅ |
+| `graph_symbol_impact` (graph-only) | ✅ |
 | Graph-enhanced hover + file-scoped lookup | ✅ |
 | Hashline anchor on hover | ✅ |
 | Same-turn dep-context từ LSP paths | ✅ (`injectPathsSameTurn`) |
@@ -682,10 +726,11 @@ Khi detect broad query: inject top files by reverse-dependency centrality + entr
 
 ```
 indexedFiles, indexSource (cache/fresh), depEdges
-repoMapTokens, graphInsightsTokens, intelligenceTokens
+repoMapTokens, graphInsightsTokens, graphPulseTokens, intelligenceTokens
 depContextTriggers, depContextTotalTokens
 totalTokensSaved, savingsRatio
 godNodesCount, communityCount, circularDependencies
+graphSteerCount, graphBoostedRetrievalCount, activeCommunityId
 hashlineEdits, hashlineMismatches, builtinEditSteered
 lspGoToDef, lspFindRefs, lspHover, lspWorkspaceSymbol, …, lspErrors
 ```
@@ -705,7 +750,8 @@ lspGoToDef, lspFindRefs, lspHover, lspWorkspaceSymbol, …, lspErrors
 
 | Kênh | Nội dung |
 |------|----------|
-| `/scope` | Dashboard: index, graph, injections, hashline/LSP counters, server health, savings |
+| `/scope` | Dashboard: index, graph, injections, graph pulse/steer, hashline/LSP, active community, savings |
+| `/scope graph` | Chi tiết god nodes, communities, surprises, anomalies, prune stats |
 | `/scope history` | 5 session gần nhất từ `stats.jsonl` + averages |
 | Status bar | `Q{score}`, `saved ~Nt` khi có dữ liệu |
 | Startup notify | Graph quality warn/info (`slim.metrics`) |
@@ -718,7 +764,7 @@ Config: `slim.metrics` (`enabled`, `notifyOnShutdown`, `notifyQualityOnStart`, `
 
 - **CSV export** hoặc HTML trend chart từ `stats.jsonl`.
 - **Per-turn injection log** (`injections.jsonl`) cho debug chi tiết.
-- **Real-time `activeCommunityCount`** feed vào `computeGraphTokenMetrics` từ CommunityPruningPlugin.
+- ~~**Real-time `activeCommunityId`**~~: ✅ `setActiveCommunityId` + cập nhật `computeGraphTokenMetrics(..., 1)` khi có community active.
 
 ---
 
@@ -736,11 +782,12 @@ Config: `slim.metrics` (`enabled`, `notifyOnShutdown`, `notifyQualityOnStart`, `
 
 1. ~~**Intelligence double compute**~~: ✅ `getIntelligenceSnapshot()`.
 2. ~~**LSP adoption gap**~~: ✅ Steer, same-turn inject, graph `file:path:Symbol`, compiler bridge, 9 tools.
-3. ~~**God node path match**~~: ✅ `godNodeMatchesFilePath` trong dep-context retrieval boost.
+3. ~~**God node path match**~~: ✅ `godNodeMatchesFilePath` + graph-aware `RetrievalEngine`.
 4. ~~**Community keywords hardcoded**~~: ✅ Graph communities + fallback.
 5. ~~**Metrics invisible**~~: ✅ `/scope`, status bar, persist JSONL.
-6. **Phụ thuộc agent discipline**: Steer là nudge/block có điều kiện — agent vẫn có thể bỏ qua nếu tắt strict flags.
+6. **Phụ thuộc agent discipline**: Steer (LSP, hashline, graph) là nudge/block có điều kiện — agent vẫn có thể bỏ qua nếu tắt strict flags.
 7. **Polyglot index**: Chỉ TS/TSX/PY/RS parse AST; Go/Java/C++ chưa có skeleton trong index.
+8. ~~**Graph adoption thụ động**~~: ✅ Pulse, retrieval boost, steer, `graph_symbol_impact` (v1).
 
 ### 15.3 Tính năng "hidden gem" — trạng thái (2026-05-30)
 
@@ -759,8 +806,13 @@ Config: `slim.metrics` (`enabled`, `notifyOnShutdown`, `notifyQualityOnStart`, `
 | Provider guidance (`agent-guidance.json`) | ✅ Kích hoạt | Telemetry khi load file; hiện trong `/scope` dashboard |
 | `dependencyDepth` (0–3) | ✅ Kích hoạt | README/skills + dòng trong tools block + `/scope` |
 | Surprise connections | ✅ Kích hoạt (một phần) | Session-start graph insights + hover khi symbol khớp |
-| Bottlenecks trong graph insights | ✅ Kích hoạt (mới) | `formatGraphInsightsSection` + `/scope` |
-| `/scope` dashboard | ✅ Kích hoạt (mới) | Lệnh `/scope` — trước đây chỉ có trong README |
+| Bottlenecks trong graph insights | ✅ Kích hoạt | `graph-insights-format.ts` + `/scope` |
+| Anomalies (cycles) trong insights | ✅ Kích hoạt | `surfaceAnomaliesInInsights` |
+| Graph pulse mỗi turn | ✅ Kích hoạt | `formatGraphPulse` priority 4.5 |
+| GraphSteerPlugin | ✅ Kích hoạt | CRITICAL god → LSP trước edit |
+| `graph_symbol_impact` tool | ✅ Kích hoạt | Không cần language server |
+| `/scope graph` | ✅ Kích hoạt | Subcommand architecture detail |
+| `/scope` dashboard | ✅ Kích hoạt | Lệnh `/scope` + graph/LSP/hashline counters |
 
 ---
 
@@ -789,7 +841,8 @@ Xếp theo độ ưu tiên (impact × effort):
 | 9 | ~~Auto-inject line anchors~~ | ✅ Hashline adoption A–D |
 | 10 | ~~`/scope` dashboard~~ | ✅ |
 | 11 | ~~LSP extended tools + compiler bridge~~ | ✅ LSP adoption v1 |
-| 12 | Code-Graph adoption (pulse, steer, retrieval) | 📋 `GRAPH_ADOPTION_PLAN_VI.md` |
+| 12 | ~~Code-Graph adoption v1~~ | ✅ `GRAPH_ADOPTION_PLAN_VI.md` Phases A–C |
+| 12b | Code-Graph Phase D (incremental, wikipedia, …) | 📋 Tùy chọn |
 
 ### 🟢 Ưu tiên dài hạn — New capabilities
 
@@ -811,9 +864,10 @@ Xếp theo độ ưu tiên (impact × effort):
 |----------|----------|
 | `docs/HASHLINE_ADOPTION_PLAN_VI.md` | Hashline Phases A–D (hoàn tất) |
 | `docs/LSP_ADOPTION_PLAN_VI.md` | LSP Phases A–D (hoàn tất) |
-| `docs/GRAPH_ADOPTION_PLAN_VI.md` | Code-Graph adoption Phases A–D (kế hoạch) |
+| `docs/GRAPH_ADOPTION_PLAN_VI.md` | Code-Graph adoption Phases A–C (hoàn tất), D (tùy chọn) |
 | `skills/pi-scope-hashline/SKILL.md` | Workflow hashline cho agent |
 | `skills/pi-scope-lsp/SKILL.md` | Workflow LSP cho agent |
+| `skills/pi-scope-graph/SKILL.md` | Workflow graph / god nodes / communities cho agent |
 | `ARCHITECTURE.md` | Kiến trúc kỹ thuật (EN) |
 
 ---
