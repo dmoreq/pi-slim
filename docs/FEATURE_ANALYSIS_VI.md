@@ -71,7 +71,7 @@ Mỗi lượt LLM call
 | Provider Guidance | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Context Files | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Plugin System | ✅ Đầy đủ | ✅ Tốt | 🔴 Cao |
-| LSP Integration | ✅ Đầy đủ | 🟡 Một phần | 🔴 Cao |
+| LSP Integration | ✅ Core (3 tools) | 🟡 Adoption chưa đủ | 🔴 Cao — xem `LSP_ADOPTION_PLAN_VI.md` |
 | Hashline Editor | ✅ Đầy đủ (adoption v2) | 🟢 Tốt (có enforcement) | 🟡 Trung bình |
 | File Detector | ✅ Đầy đủ | ✅ Tốt | 🟢 Thấp |
 | Query Intent | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
@@ -415,50 +415,55 @@ onSessionShutdown?()
 
 ## 10. Nhóm 9: LSP Integration
 
+> **Kế hoạch triển khai đầy đủ:** `docs/LSP_ADOPTION_PLAN_VI.md` (adoption workflow, graph alignment, tools mở rộng, metrics).
+
 ### 10.1 Cách hoạt động
 
-Ba tools được đăng ký với Pi agent:
+Ba tools LLM (`tools/lsp-navigation.ts`), server lazy-start per language (`lsp/service.ts`: TS, Python, Go, Rust):
 
-**`lsp_go_to_definition`**: Tìm canonical declaration của symbol tại vị trí cursor. Sử dụng LSP `textDocument/definition`. Returns file path + line number.
+| Tool | LSP method | Vai trò |
+|------|------------|---------|
+| `lsp_go_to_definition` | `textDocument/definition` | Tìm khai báo canonical |
+| `lsp_find_references` | `textDocument/references` | Blast radius trước khi sửa |
+| `lsp_hover` | `textDocument/hover` | Type/docs + graph + hashline anchor |
 
-**`lsp_find_references`**: Liệt kê tất cả call sites và usages. Sử dụng LSP `textDocument/references`. Hữu ích để assess "blast radius" trước khi sửa symbol.
+**`lsp_hover` enrichment** (`context/graph-lsp-hover.ts`):
 
-**`lsp_hover` (graph-enhanced)**: 
-- Gọi LSP `textDocument/hover` lấy type info + docs
-- Nếu `currentAnalysis` available, pass qua `enhanceHoverWithGraphMetrics()`:
-  - God node info + criticality level
-  - Community membership
-  - Impact analysis (BFS computed affected count)
-  - Surprising connections info
-  - Format thành Markdown với icons (🔥⚠️🔍)
+- Parse symbol từ hover text (`extractSymbolFromHoverText` trong `graph-node-id.ts`)
+- God node, community, impact BFS (`graph-impact.ts`)
+- Hashline anchor section (`hashline/lsp-hover-anchor.ts` khi `anchorOnLspHover`)
 
-`LspNavigationService` lazy-init — server chỉ được start khi tool lần đầu được gọi.
+**Client chưa expose ra tool:** `documentSymbol`, `workspaceSymbol`, `implementation`, diagnostics — xem LSP adoption plan Phase C/D.
 
 ### 10.2 Tình trạng kích hoạt
 
-✅ **Đầy đủ.** Tất cả 3 tools được register qua `registerLspTools(pi)`.
-
-**Graph enrichment của `lsp_hover`** đặc biệt quan trọng — đây là nơi graph analysis được surface trực tiếp đến agent.
+| Thành phần | Trạng thái |
+|------------|------------|
+| 3 navigation tools | ✅ |
+| Graph-enhanced hover | ✅ |
+| Symbol parse từ hover body | ✅ (không còn filename-stem-only) |
+| Hashline anchor on hover | ✅ |
+| Same-turn dep-context từ LSP paths | ❌ (turn N+1 qua FileDetector) |
+| `slim.lsp` config / metrics | ❌ |
+| `LspSteerPlugin` | ❌ |
+| `lsp_workspace_symbol` / outline tools | ❌ |
 
 ### 10.3 Nhận xét sử dụng
 
-🟡 **Phần lớn đúng cách, nhưng có điểm yếu:**
+🟡 **Hạ tầng tốt, adoption chưa đủ:**
 
-**Symbol extraction trong hover**: `symbolFromPosition()` hiện tại chỉ lấy **filename stem** làm symbol name:
-```typescript
-function symbolFromPosition(fp: string, _line: number, _column: number): string {
-  return fp.split('/').pop()?.replace(/\.[^.]+$/, '') ?? ''
-}
-```
-→ `lsp_hover` trên `auth.ts` line 42 sẽ match graph với symbol "auth" (filename), không phải symbol thực tế ở dòng 42. Graph enrichment sẽ hiển thị thông tin của file-level node, không phải function-level node.
+- Intelligence engine **gợi ý** LSP theo mode navigation/editing (`context/intelligence-engine.ts`).
+- Agent vẫn có xu hướng `read`/`grep` vì không bị steer và không thấy file đích **cùng turn** sau goto-def.
+- Graph lookup dùng symbol name đã parse từ hover, nhưng graph node thực tế dạng `file:relative/path.ts:Symbol` — có thể **miss hoặc trùng tên** giữa các file (xem LSP plan Phase B).
 
-**Hậu quả**: Nếu hover trên function `authenticate` trong `auth.ts`, enrichment sẽ show info của "auth.ts" god node, không phải "authenticate" function. Đây là **mismatch về granularity**.
+### 10.4 Cơ hội cải thiện (theo `LSP_ADOPTION_PLAN_VI.md`)
 
-### 10.4 Cơ hội cải thiện
-
-- **Fix symbolFromPosition**: LSP hover response thường chứa symbol name trong format `(method) authenticate(token: string): boolean`. Parse response text để extract actual symbol name trước khi graph lookup.
-- **`lsp_hover` → dependency chain**: Khi hover một symbol, hiển thị thêm "Imported by N files" với top 3 importers.
-- **Goto-definition batch**: Khi có nhiều symbols trong một query, có thể resolve tất cả song song thay vì sequential.
+| Ưu tiên | Hạng mục |
+|---------|-----------|
+| 🔴 | Same-turn inject path từ kết quả LSP; `resolveGraphNodeId(relPath, symbol)` |
+| 🔴 | `LspSteerPlugin`; metrics `/scope`; config `slim.lsp` |
+| 🟡 | Tool `lsp_workspace_symbol`, `lsp_document_symbol`; reverse deps trên hover |
+| 🟢 | Diagnostics bridge; batch goto-def; server health probe |
 
 ---
 
@@ -671,7 +676,7 @@ Config: `slim.metrics` (`enabled`, `notifyOnShutdown`, `notifyQualityOnStart`, `
 ### 15.2 Điểm yếu hệ thống
 
 1. ~~**Intelligence Engine chạy double per turn**~~: ✅ Đã cache qua `getIntelligenceSnapshot()`.
-2. **Symbol granularity mismatch**: LSP hover dùng filename stem thay vì actual symbol — làm giảm accuracy của graph enrichment.
+2. **LSP adoption gap**: Tools có nhưng agent chưa được steer/inject cùng turn; graph lookup chưa ưu tiên `file:path:Symbol` — xem `LSP_ADOPTION_PLAN_VI.md`.
 3. **God node boost có bug**: `retrieveTopK()` match god node với filename stem, nhưng nodeId format là `file:relative/path/to/file.ts` → match không xảy ra.
 4. ~~**Community keywords hardcoded**~~: ✅ Graph communities khi có analysis; legacy keywords chỉ fallback.
 5. ~~**Metrics không visible**~~: ✅ `/scope`, status bar, shutdown/startup notify.
@@ -703,7 +708,8 @@ Xếp theo độ ưu tiên (impact × effort):
 | # | Vấn đề | File | Fix |
 |---|--------|------|-----|
 | 1 | ~~God node boost không match đúng~~ | `context/dep-context.ts` | ✅ `godNodeMatchesFilePath` |
-| 2 | ~~`lsp_hover` dùng filename thay vì symbol~~ | `tools/lsp-navigation.ts` | ✅ `extractSymbolFromHoverText` |
+| 2 | ~~`lsp_hover` dùng filename thay vì symbol~~ | `context/graph-node-id.ts` | ✅ `extractSymbolFromHoverText` |
+| 2b | LSP adoption (inject, steer, metrics) | `docs/LSP_ADOPTION_PLAN_VI.md` | 📋 Kế hoạch Phase A–D |
 | 3 | ~~Intelligence snapshot double compute~~ | `manager.ts` | ✅ `getIntelligenceSnapshot` cache theo fingerprint |
 | 4 | ~~Community detection hardcoded keywords~~ | `context/intelligence-engine.ts` | ✅ `detectMentionedGraphCommunities()` |
 
