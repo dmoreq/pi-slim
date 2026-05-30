@@ -52,12 +52,13 @@ import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { setHashlineMismatchReporter } from './metrics/hashline-reporter.js'
 import { collectLspPathsFromMessages } from './tools/lsp-result-paths.js'
-import { probeLspServers } from './lsp/health.js'
+import { resolveLspSession } from './lsp/availability.js'
 import { setGraphImpactAnalysis } from './tools/graph-impact-tool.js'
 import {
   setHashlineLspHoverEnabled,
   setLspGraphAnalysis,
   setLspRepoIndex,
+  setLspSessionEnabled,
   setLspToolOptions,
 } from './tools/lsp-navigation.js'
 
@@ -196,8 +197,16 @@ export class SessionManager {
   /** Project-relative paths resolved from LSP tools this context turn. */
   lspResolvedPathsThisTurn = new Set<string>()
   private hashlineDryRunSeenForPath = new Set<string>()
-  /** Populated when `lsp.probeServersOnStart` is enabled. */
-  lspServerHealth: Array<{ id: string; command: string; available: boolean }> = []
+  /** PATH probe results from session start (includes install commands per server). */
+  lspServerHealth: Array<{
+    id: string
+    command: string
+    available: boolean
+    installCommand: string
+    label: string
+  }> = []
+  /** Set when LSP was auto-disabled; shown in `/scope` and LSP tool errors. */
+  lspInstallSuggestion: string | undefined = undefined
 
   /** Per-turn cache so before_agent_start + context share one intelligence snapshot. */
   private intelligenceSnapshotCache: {
@@ -405,7 +414,7 @@ export class SessionManager {
     this.telemetry.register()
     this.telemetry.onSessionStart()
 
-    const config: SlimConfig = loadConfig(projectRoot, {
+    let config: SlimConfig = loadConfig(projectRoot, {
       'scope.enabled': getFlag('scope.enabled'),
       'scope.maxRepoMapTokens': getFlag('scope.maxRepoMapTokens'),
       'scope.maxInjectionTokens': getFlag('scope.maxInjectionTokens'),
@@ -425,14 +434,23 @@ export class SessionManager {
       this.state?.stats.recordHashlineMismatch()
     })
 
-    if (config.lsp.enabled) {
+    const lspSession = resolveLspSession(config.lsp.enabled)
+    this.lspServerHealth = lspSession.health
+    this.lspInstallSuggestion = lspSession.installSuggestion
+    if (lspSession.installSuggestion) {
+      console.warn(`[pi-scope] ${lspSession.installSuggestion.replace(/\n/g, ' ')}`)
+      ctx.ui.notify(lspSession.installSuggestion, 'warning')
+    }
+    if (!lspSession.active) {
+      setLspSessionEnabled(false, lspSession.installSuggestion)
+      config = { ...config, lsp: { ...config.lsp, enabled: false } }
+    } else {
+      this.lspInstallSuggestion = undefined
+      setLspSessionEnabled(true)
       setLspToolOptions({
         enrichHoverWithGraph: config.lsp.enrichHoverWithGraph,
         hoverMaxReferencesListed: config.lsp.hoverMaxReferencesListed,
       })
-      if (config.lsp.probeServersOnStart) {
-        this.lspServerHealth = probeLspServers()
-      }
     }
 
     const stats = new SessionStats(ctx.sessionManager.getSessionId())
@@ -749,11 +767,14 @@ export class SessionManager {
     this.updateStatusBar(ctx)
 
     const depDepth = s.config.dependencyDepth ?? 1
+    const lspToolsLines = s.config.lsp.enabled
+      ? '- `lsp_hover`: Type info + graph impact (dependents, god nodes, communities).\n' +
+        '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_diagnostics`, `lsp_signature_help`: Code navigation via LSP.\n'
+      : ''
     const toolsBlock =
       '\n\n## pi-scope Tools\n' +
       '- `hashline_edit`: Edit with hash anchors (`dry_run: true` validates + shows diff without writing).\n' +
-      '- `lsp_hover`: Type info + graph impact (dependents, god nodes, communities).\n' +
-      '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_diagnostics`, `lsp_signature_help`: Code navigation via LSP.\n' +
+      lspToolsLines +
       '- `hashline_read`: Read a file with hash anchors (use `start_line` / `end_line` for ranges).\n' +
       '- `/hashline-read <file>`: Same as hashline_read via slash command.\n' +
       `- Config: \`slim.dependencyDepth\` = ${depDepth} (transitive dep skeleton depth 0–3).\n` +

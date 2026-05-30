@@ -41,6 +41,14 @@ export function setHashlineLspHoverEnabled(enabled: boolean): void {
 }
 
 let service: LspNavigationService | null = null
+let lspSessionEnabled = true
+let lspSessionInstallSuggestion: string | undefined
+
+/** Set by SessionManager when no LSP servers are on PATH (auto-disable). */
+export function setLspSessionEnabled(enabled: boolean, installSuggestion?: string): void {
+  lspSessionEnabled = enabled
+  lspSessionInstallSuggestion = enabled ? undefined : installSuggestion
+}
 
 function getService(): LspNavigationService {
   if (!service) service = new LspNavigationService()
@@ -78,6 +86,20 @@ function toolError(message: string) {
   }
 }
 
+function lspDisabledForSessionResult() {
+  const hint =
+    lspSessionInstallSuggestion ??
+    'No language servers on PATH. Install optional servers (see README) and restart pi.'
+  return toolError(hint)
+}
+
+function guardLspSession():
+  | { content: Array<{ type: 'text'; text: string }>; details: { ok: boolean; paths: string[] } }
+  | undefined {
+  if (!lspSessionEnabled) return lspDisabledForSessionResult()
+  return undefined
+}
+
 function reverseDepsForFileAbs(projectRoot: string, relPath: string): string[] {
   if (!currentIndex) return []
   const abs = resolve(projectRoot, relPath)
@@ -99,6 +121,8 @@ function resolveHoverLookupKey(fp: string, hoverText: string, cwd: string): stri
 async function runLocationTool(
   fn: () => Promise<{ text: string; paths: string[] }>
 ): Promise<{ content: Array<{ type: 'text'; text: string }>; details: { ok: boolean; paths: string[] } }> {
+  const disabled = guardLspSession()
+  if (disabled) return disabled
   try {
     const { text, paths } = await fn()
     return toolResult(text, paths)
@@ -141,6 +165,8 @@ const hoverTool = defineTool({
     'Get type information at a cursor position using LSP, enriched with graph metrics and hashline anchor when available. 0-based line/column.',
   parameters: fpParams,
   async execute(_tid, p: { path: string; line: number; column: number }, _sig, _upd, ctx) {
+    const disabled = guardLspSession()
+    if (disabled) return disabled
     try {
       const cwd = ctxDir(ctx)
       const fp = resolve(cwd, p.path)
@@ -234,6 +260,9 @@ const batchGotoTool = defineTool({
     const cwd = ctxDir(ctx)
     const allPaths = new Set<string>()
     const sections: string[] = []
+
+    const disabled = guardLspSession()
+    if (disabled) return disabled
 
     try {
       for (const pos of p.positions) {

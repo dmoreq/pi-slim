@@ -134,9 +134,14 @@ export function formatScopeDashboard(manager: SessionManager): string {
   const lspHealth = manager.lspServerHealth
   if (lspHealth && lspHealth.length > 0) {
     const available = lspHealth.filter(h => h.available).map(h => h.id).join(', ')
-    const missing = lspHealth.filter(h => !h.available).map(h => h.id).join(', ')
+    const missing = lspHealth.filter(h => !h.available)
+    if (!available && missing.length > 0) {
+      lines.push(padLine('  status           : disabled (install a server, restart pi)'))
+    }
     if (available) lines.push(padLine(`  servers (ok)     : ${available}`))
-    if (missing) lines.push(padLine(`  servers (miss)   : ${missing}`))
+    for (const h of missing) {
+      lines.push(padLine(`  install ${h.id.padEnd(11)}: ${h.installCommand}`))
+    }
   }
 
   if (stats.hashlineEdits > 0 || stats.hashlineAnchorInjectTurns > 0 || stats.builtinEditSteered > 0) {

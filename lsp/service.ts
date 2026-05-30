@@ -8,6 +8,7 @@ import { relative, resolve } from 'node:path'
 import { formatDiagnosticsForFile, formatSignatureHelp } from './diagnostic-format.js'
 import { type LSPClientInfo, createLSPClient } from '../lsp/client.js'
 import type { LSPLocation, LSPSymbol } from '../lsp/client.js'
+import { formatMissingLspServerMessage, isLspServerAvailable } from '../lsp/health.js'
 import { getLanguageId } from '../lsp/language.js'
 import { killLSPProcess, launchLSP } from '../lsp/launch.js'
 import type { LSPProcess } from '../lsp/launch.js'
@@ -104,6 +105,10 @@ export class LspNavigationService {
 
     const serverDef = SERVERS[serverKey]
     if (!serverDef) throw new Error(`No language server defined for ${serverKey}`)
+
+    if (!isLspServerAvailable(serverKey)) {
+      throw new Error(formatMissingLspServerMessage(serverKey))
+    }
 
     const proc = await launchLSP(serverDef.command, serverDef.args, { cwd: projectRoot })
     this.processes.set(serverKey, proc)

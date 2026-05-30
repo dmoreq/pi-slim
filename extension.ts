@@ -27,7 +27,7 @@ import { formatScopeCommand } from './commands/scope-dashboard.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
 import { registerHashlineReadTool } from './tools/hashline-read-tool.js'
 import { registerGraphImpactTool } from './tools/graph-impact-tool.js'
-import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
+import { registerLspTools, setLspSessionEnabled, shutdownLsp } from './tools/lsp-navigation.js'
 
 export type { ExtensionContext }
 
@@ -155,6 +155,7 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   pi.on('session_shutdown', (async (_event: unknown, ctx: PiExtensionContext) => {
     try {
       await shutdownLsp()
+      setLspSessionEnabled(true)
     } catch (error) {
       console.error('pi-scope: LSP shutdown failed:', error)
     }

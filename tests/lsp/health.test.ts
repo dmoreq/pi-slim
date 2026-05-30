@@ -9,6 +9,8 @@ describe('probeLspServers', () => {
     for (const entry of health) {
       expect(typeof entry.available).toBe('boolean')
       expect(entry.command.length).toBeGreaterThan(0)
+      expect(entry.installCommand.length).toBeGreaterThan(0)
+      expect(entry.label.length).toBeGreaterThan(0)
     }
   })
 })
