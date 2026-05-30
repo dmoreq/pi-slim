@@ -66,6 +66,10 @@ export interface SessionRecord {
   lspBatchGotoDef?: number
   lspErrors?: number
   lspLastError?: string
+  graphPulseTokens?: number
+  graphSteerCount?: number
+  graphBoostedRetrievalCount?: number
+  activeCommunityId?: string
 }
 
 // ── Live tracker ──────────────────────────────────────────────────────────
@@ -123,6 +127,10 @@ export class SessionStats {
   lspBatchGotoDef = 0
   lspErrors = 0
   lspLastError: string | undefined
+  graphPulseTokens = 0
+  graphSteerCount = 0
+  graphBoostedRetrievalCount = 0
+  activeCommunityId: string | undefined
 
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
@@ -202,6 +210,22 @@ export class SessionStats {
 
   recordHashlineMismatch(): void {
     this.hashlineMismatches++
+  }
+
+  recordGraphPulseInjection(tokens: number): void {
+    this.graphPulseTokens += tokens
+  }
+
+  recordGraphSteer(): void {
+    this.graphSteerCount++
+  }
+
+  recordGraphBoostedRetrieval(count = 1): void {
+    this.graphBoostedRetrievalCount += count
+  }
+
+  setActiveCommunityId(id: string | null | undefined): void {
+    this.activeCommunityId = id ?? undefined
   }
 
   recordLspTool(tool: string, ok: boolean, errorMessage?: string): void {
@@ -394,6 +418,11 @@ export class SessionStats {
       lspBatchGotoDef: this.lspBatchGotoDef > 0 ? this.lspBatchGotoDef : undefined,
       lspErrors: this.lspErrors > 0 ? this.lspErrors : undefined,
       lspLastError: this.lspLastError,
+      graphPulseTokens: this.graphPulseTokens > 0 ? this.graphPulseTokens : undefined,
+      graphSteerCount: this.graphSteerCount > 0 ? this.graphSteerCount : undefined,
+      graphBoostedRetrievalCount:
+        this.graphBoostedRetrievalCount > 0 ? this.graphBoostedRetrievalCount : undefined,
+      activeCommunityId: this.activeCommunityId,
     }
   }
 

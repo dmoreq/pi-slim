@@ -101,6 +101,22 @@ export interface SlimConfig {
     injectDryRunFollowUp: boolean
   }
 
+  /** Code-graph enrichment (insights, pulse, retrieval boost, steer). */
+  graph: {
+    enabled: boolean
+    compactPulseEachTurn: boolean
+    repeatFullInsights: boolean
+    dedupeGodNodesAcrossSources: boolean
+    boostRetrievalWithGodNodes: boolean
+    boostRetrievalWithActiveCommunity: boolean
+    surfaceAnomaliesInInsights: boolean
+    surfaceSurprisesMax: number
+    warnWhenEditingCycleParticipant: boolean
+    communityPruningEnabled: boolean
+    steerOnCriticalGodNode: boolean
+    strictGraphImpact: boolean
+  }
+
   /** LSP code navigation tools and graph-enriched hover. */
   lsp: {
     enabled: boolean

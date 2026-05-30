@@ -53,6 +53,21 @@ const HashlineSchema = z.object({
   injectDryRunFollowUp: z.boolean().default(true),
 })
 
+const GraphSchema = z.object({
+  enabled: z.boolean().default(true),
+  compactPulseEachTurn: z.boolean().default(true),
+  repeatFullInsights: z.boolean().default(false),
+  dedupeGodNodesAcrossSources: z.boolean().default(true),
+  boostRetrievalWithGodNodes: z.boolean().default(true),
+  boostRetrievalWithActiveCommunity: z.boolean().default(true),
+  surfaceAnomaliesInInsights: z.boolean().default(true),
+  surfaceSurprisesMax: z.number().int().min(0).default(5),
+  warnWhenEditingCycleParticipant: z.boolean().default(true),
+  communityPruningEnabled: z.boolean().default(true),
+  steerOnCriticalGodNode: z.boolean().default(true),
+  strictGraphImpact: z.boolean().default(false),
+})
+
 const LspSchema = z.object({
   enabled: z.boolean().default(true),
   enrichHoverWithGraph: z.boolean().default(true),
@@ -80,6 +95,7 @@ export const SlimConfigSchema = z
     intelligence: IntelligenceSchema.default({}),
     metrics: MetricsSchema.default({}),
     hashline: HashlineSchema.default({}),
+    graph: GraphSchema.default({}),
     lsp: LspSchema.default({}),
   })
   .default({})
