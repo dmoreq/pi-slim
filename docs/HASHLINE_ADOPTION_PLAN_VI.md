@@ -342,15 +342,16 @@ flowchart TB
 
 ### Phase C — Độ tin cậy state & LSP (2 ngày)
 
-#### C.1 Unify hash trong `AnchorStateManager`
+#### C.1 Unify hash trong `AnchorStateManager` ✅
 
 - `record()` / reconcile dùng cùng pipeline `computeLineHash` (hoặc document rõ reconcile chỉ map line shift).
 - Test: shift ±3 dòng, content giữ → rebase thành công.
 
-#### C.2 LSP + anchor
+#### C.2 LSP + anchor ✅
 
-- `lsp_hover` response thêm: `hashline anchor at line N: \`42nd\`` khi có file content.
-- Gợi ý: “edit with hashline_edit using anchor `42nd`”.
+- `lsp_hover` response thêm section **Hashline anchor** (`hashline/lsp-hover-anchor.ts`).
+- Gợi ý `hashline_edit` + `hashline_read` quanh dòng hover; config `anchorOnLspHover`.
+- `hashline_edit` bắt `HashlineMismatchError` → `displayMessage` + `hashlineMismatches` trên `/scope`.
 
 ---
 

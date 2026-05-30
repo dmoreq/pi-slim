@@ -496,6 +496,9 @@ function symbolFromPosition(fp: string, _line: number, _column: number): string 
 | `contextualStrictMode` | ✅ |
 | Metrics `/scope` | ✅ |
 | `HashlineValidatePlugin` | ✅ |
+| `AnchorStateManager` + `computeLineHash` (Phase C) | ✅ |
+| LSP hover hashline anchor (Phase C) | ✅ |
+| `hashlineMismatches` metric | ✅ |
 
 ### 11.3 Nhận xét sử dụng
 
@@ -505,9 +508,7 @@ function symbolFromPosition(fp: string, _line: number, _column: number): string 
 
 ### 11.4 Cơ hội cải thiện (v2 còn lại)
 
-- Contextual strict + metrics (Phase B)
-- LSP hover kèm anchor (Phase C)
-- Align `AnchorStateManager` hash với `computeLineHash`
+- Chunk stream + post dry_run inject (Phase D, tùy chọn)
 
 ---
 

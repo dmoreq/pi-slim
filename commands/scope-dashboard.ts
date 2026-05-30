@@ -102,6 +102,9 @@ export function formatScopeDashboard(manager: SessionManager): string {
     lines.push(padLine(`  apply (no dry)   : ${stats.hashlineApplyEdits}`))
     lines.push(padLine(`  anchor turns     : ${stats.hashlineAnchorInjectTurns}`))
     lines.push(padLine(`  builtin steered  : ${stats.builtinEditSteered}`))
+    if (stats.hashlineMismatches > 0) {
+      lines.push(padLine(`  mismatches       : ${stats.hashlineMismatches}`))
+    }
   }
 
   lines.push(padLine('💰 TOKEN SAVINGS'))

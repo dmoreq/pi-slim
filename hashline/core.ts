@@ -162,7 +162,7 @@ export class HashlineMismatchError extends Error {
     const w = sorted.reduce((mw, n) => Math.max(mw, String(n).length), 0)
     const out: string[] = [
       `Edit rejected: ${mismatches.length} line${mismatches.length > 1 ? 's have' : ' has'} changed since the last read (marked *).`,
-      'The edit was NOT applied, please use the updated file content shown below, and issue another edit tool-call.',
+      'The edit was NOT applied. Re-read with `hashline_read` (or `/hashline-read <path>`), then retry `hashline_edit` using the anchors below.',
       '',
     ]
     let prev = -1

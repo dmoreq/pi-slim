@@ -95,6 +95,7 @@ export interface SlimConfig {
     strictMode: boolean
     contextualStrictMode: boolean
     recordOnRead: boolean
+    anchorOnLspHover: boolean
   }
 }
 

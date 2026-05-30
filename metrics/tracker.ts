@@ -56,6 +56,7 @@ export interface SessionRecord {
   hashlineApplyEdits?: number
   builtinEditSteered?: number
   hashlineAnchorInjectTurns?: number
+  hashlineMismatches?: number
 }
 
 // ── Live tracker ──────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ export class SessionStats {
   hashlineApplyEdits = 0
   builtinEditSteered = 0
   hashlineAnchorInjectTurns = 0
+  hashlineMismatches = 0
 
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
@@ -178,6 +180,10 @@ export class SessionStats {
 
   recordHashlineAnchorInjectTurn(): void {
     this.hashlineAnchorInjectTurns++
+  }
+
+  recordHashlineMismatch(): void {
+    this.hashlineMismatches++
   }
 
   get uniqueFilesInjected(): number {
@@ -327,6 +333,7 @@ export class SessionStats {
       builtinEditSteered: this.builtinEditSteered > 0 ? this.builtinEditSteered : undefined,
       hashlineAnchorInjectTurns:
         this.hashlineAnchorInjectTurns > 0 ? this.hashlineAnchorInjectTurns : undefined,
+      hashlineMismatches: this.hashlineMismatches > 0 ? this.hashlineMismatches : undefined,
     }
   }
 

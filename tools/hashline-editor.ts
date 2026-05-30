@@ -13,8 +13,9 @@ import { dirname, resolve } from 'node:path'
 import { Type } from '@mariozechner/pi-ai'
 import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
 
-import { applyHashlineEdits, hashlineParseText, parseTag } from '../hashline/core.js'
+import { applyHashlineEdits, HashlineMismatchError, hashlineParseText, parseTag } from '../hashline/core.js'
 import type { HashlineEdit } from '../hashline/core.js'
+import { reportHashlineMismatch } from '../metrics/hashline-reporter.js'
 import { buildCompactHashlineDiffPreview } from '../hashline/diff-preview.js'
 import { generateDiffString } from '../hashline/diff.js'
 import { initHash } from '../hashline/line-hash.js'
@@ -189,7 +190,18 @@ const hashlineTool = defineTool({
     _ctx: unknown
   ) {
     const cwd = (_ctx as { cwd?: string })?.cwd ?? process.cwd()
-    return makeEdit(!!params.dry_run, params.path, params.edits, cwd)
+    try {
+      return await makeEdit(!!params.dry_run, params.path, params.edits, cwd)
+    } catch (err) {
+      if (err instanceof HashlineMismatchError) {
+        reportHashlineMismatch()
+        return {
+          content: [{ type: 'text' as const, text: err.displayMessage }],
+          details: { path: params.path, addedLines: 0, removedLines: 0, firstChangedLine: undefined },
+        }
+      }
+      throw err
+    }
   },
 })
 

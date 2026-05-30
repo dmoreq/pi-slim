@@ -47,6 +47,7 @@ const HashlineSchema = z.object({
   strictMode: z.boolean().default(false),
   contextualStrictMode: z.boolean().default(false),
   recordOnRead: z.boolean().default(true),
+  anchorOnLspHover: z.boolean().default(true),
 })
 
 // ── Root schema ───────────────────────────────────────────────────────────

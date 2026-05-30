@@ -40,7 +40,8 @@ import { extractInjectedFilePaths, extractText } from './shared/message.js'
 import { scopeDir } from './shared/paths.js'
 import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import type { RepoIndex, SlimConfig } from './shared/types.js'
-import { setLspGraphAnalysis } from './tools/lsp-navigation.js'
+import { setHashlineMismatchReporter } from './metrics/hashline-reporter.js'
+import { setHashlineLspHoverEnabled, setLspGraphAnalysis } from './tools/lsp-navigation.js'
 import { type StatusBarState, clearStatusBar, info as nInfo, success as nSuccess, updateStatusBar, warn as nWarn } from './ui/notifications.js'
 import { isValidCodebase } from './shared/utils/path-utils.js'
 
@@ -421,6 +422,10 @@ export class SessionManager {
         console.warn('[pi-scope] hashline initHash failed:', err)
       })
     }
+    setHashlineLspHoverEnabled(config.hashline.enabled && config.hashline.anchorOnLspHover)
+    setHashlineMismatchReporter(() => {
+      this.state?.stats.recordHashlineMismatch()
+    })
 
     const stats = new SessionStats(ctx.sessionManager.getSessionId())
     const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
@@ -509,7 +514,9 @@ export class SessionManager {
   private async loadGraph(projectRoot: string, session: SessionState): Promise<void> {
     const cacheDir = scopeDir(projectRoot)
     const stats = session.stats
-    setLspGraphAnalysis(null) // clear stale analysis
+    setLspGraphAnalysis(null)
+    setHashlineLspHoverEnabled(false)
+    setHashlineMismatchReporter(null)
 
     const index = this.indexService.index
     if (!index || index.skeletons.size === 0) {

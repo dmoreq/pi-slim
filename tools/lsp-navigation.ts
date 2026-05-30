@@ -13,6 +13,7 @@ import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
 import { extractSymbolFromHoverText, resolveGraphLookupKey } from '../context/graph-node-id.js'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../context/graph-lsp-hover.js'
 import type { GraphAnalysis } from '../context/graph-types.js'
+import { appendHashlineHoverSection, setHashlineHoverEnabled } from '../hashline/lsp-hover-anchor.js'
 import { LspNavigationService } from '../lsp/service.js'
 
 // Module-level cache of current graph analysis, set by SessionManager.
@@ -24,6 +25,11 @@ let currentAnalysis: GraphAnalysis | null = null
  */
 export function setLspGraphAnalysis(a: GraphAnalysis | null): void {
   currentAnalysis = a
+}
+
+/** Enable hashline anchor appendix on `lsp_hover` (SessionManager sets from config). */
+export function setHashlineLspHoverEnabled(enabled: boolean): void {
+  setHashlineHoverEnabled(enabled)
 }
 
 let service: LspNavigationService | null = null
@@ -135,17 +141,19 @@ const hoverTool = defineTool({
       const fp = resolve(ctxDir(ctx), p.path)
       const result = await getService().hoverInfo(fp, p.line, p.column, ctxDir(ctx))
 
-      // Enrich with graph metrics if analysis data is available
+      const cwd = ctxDir(ctx)
+      let text = result
+
       if (currentAnalysis && result && !result.startsWith('No hover info')) {
-        const cwd = ctxDir(ctx)
         const rel = relative(cwd, fp).replace(/\\/g, '/')
         const symbol = resolveHoverLookupKey(fp, result, cwd)
         const enhanced = enhanceHoverWithGraphMetrics(symbol, result, currentAnalysis, rel)
-        const markdown = formatHoverAsMarkdown(enhanced)
-        return { content: [{ type: 'text' as const, text: markdown }], details: { ok: true } }
+        text = formatHoverAsMarkdown(enhanced)
       }
 
-      return { content: [{ type: 'text' as const, text: result }], details: { ok: true } }
+      text = await appendHashlineHoverSection(fp, p.line, cwd, text)
+
+      return { content: [{ type: 'text' as const, text }], details: { ok: true } }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       return {

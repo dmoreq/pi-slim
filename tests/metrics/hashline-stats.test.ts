@@ -16,4 +16,11 @@ describe('SessionStats hashline metrics', () => {
     expect(record.builtinEditSteered).toBe(1)
     expect(record.hashlineAnchorInjectTurns).toBe(1)
   })
+
+  it('records hashline mismatch count', () => {
+    const stats = new SessionStats('s2')
+    stats.recordHashlineMismatch()
+    stats.recordHashlineMismatch()
+    expect(stats.toRecord().hashlineMismatches).toBe(2)
+  })
 })
