@@ -1,4 +1,4 @@
-# graphify Integration — Implementation Progress
+# Code-Graph Integration — Implementation Progress
 
 > Last updated: 2025-05-30  
 > All 609 tests passing across 51 test files.
@@ -7,7 +7,7 @@
 
 ## Summary
 
-The graphify integration is **complete**. All six planned deliverables have been
+The code-graph integration is **complete**. All six planned deliverables have been
 implemented, tested, and committed.
 
 | # | Deliverable | Status | Commit |
@@ -15,7 +15,7 @@ implemented, tested, and committed.
 | 1 | `persistence/graph-cache.ts` | ✅ Complete (pre-existing) | `ab4234f` |
 | 2 | `metrics/graph-metrics.ts` | ✅ Complete | `1af694f` |
 | 3 | `plugins/community-pruning-plugin.ts` | ✅ Complete | `ed12a91` |
-| 4 | `manager.ts` graphify integration | ✅ Complete | `29b2d3a` |
+| 4 | `manager.ts` code-graph integration | ✅ Complete | `29b2d3a` |
 | 5 | Integration test (end-to-end) | ✅ Complete | `71df9c6` |
 | 6 | This document | ✅ Complete | — |
 
@@ -87,7 +87,7 @@ this.pluginManager.register(new CommunityPruningPlugin(this.graphService))
 
 ---
 
-### 4. `manager.ts` graphify integration
+### 4. `manager.ts` code-graph integration
 
 Four targeted changes across four files:
 
@@ -118,7 +118,7 @@ Four targeted changes across four files:
 
 ---
 
-### 5. `tests/integration/graphify-integration.test.ts`
+### 5. `tests/integration/code-graph-integration.test.ts`
 
 End-to-end integration test using a real 5-file TypeScript fixture
 (`db.ts → logger.ts → auth.ts → user.ts → api.ts`).
@@ -141,7 +141,7 @@ Total: **11 tests**.
 | Persistence (graph-cache) | `tests/integration/graph.test.ts` Phase 5 | 3 |
 | Graph metrics | `tests/metrics/graph-metrics.test.ts` | 18 |
 | Community pruning plugin | `tests/plugins/community-pruning-plugin.test.ts` | 13 |
-| Graphify E2E | `tests/integration/graphify-integration.test.ts` | 11 |
+| Code-graph E2E | `tests/integration/code-graph-integration.test.ts` | 11 |
 | **Total new** | | **45** |
 | **Full suite** | 51 files | **609** |
 
