@@ -6,8 +6,6 @@
  * OCP: Adding new telemetry events only requires adding a method here.
  *
  * Uses the actual pi-telemetry API:
- *   register({ name, version, tools, ... })
- *   heartbeat(name, opts?)
  *   recordError(pkgName, type, message)
  *   recordToolInvocation(pkgName, tool)
  *   recordToolResult(pkgName, tool, duration, isError)
@@ -25,38 +23,26 @@ let _registered = false
 
 export class TelemetryService {
   /**
-   * Register the extension once per process.
+   * Keep pi-scope out of pi-telemetry's footer widget.
+   *
+   * Notifications and aggregate records still work through pi-telemetry, but
+   * package registration/heartbeats create the visible "📊 ... pi-scope" footer
+   * entry. Deregister defensively in case an older build registered earlier in
+   * the process.
    */
   register(): void {
     if (_registered) return
     _registered = true
     try {
-      getTelemetry()?.register({
-        name: PKG,
-        version: '0.7.0',
-        description: 'AST-powered context + pruning + LSP navigation for pi',
-        tools: ['hashline_edit', 'lsp_go_to_definition', 'lsp_find_references', 'lsp_hover'],
-        events: [
-          'session_start',
-          'session_shutdown',
-          'index_cache_hit',
-          'index_fresh_build',
-          'graph_loaded',
-          'graph_no_data',
-          'context_inject',
-          'pruning_run',
-          'error',
-        ],
-      })
+      getTelemetry()?.deregister(PKG)
     } catch {
       // pi-telemetry may not be available
     }
   }
 
   heartbeat(status: 'healthy' | 'degraded' | 'error' | 'stale' = 'healthy', error?: string): void {
-    try {
-      getTelemetry()?.heartbeat(PKG, error ? { status, error } : { status })
-    } catch {}
+    void status
+    void error
   }
 
   notify(message: string, opts?: NotifyOptions): void {
@@ -115,7 +101,6 @@ export class TelemetryService {
   onError(type: string, err: unknown): void {
     const msg = err instanceof Error ? err.message : String(err)
     this.recordError(type, msg)
-    this.heartbeat('error', msg)
     this.notify(`Error: ${msg}`, {
       severity: 'error' as any,
       badge: { text: 'error', variant: 'error' as any },
