@@ -1272,12 +1272,15 @@ export class SessionManager {
     }
 
     const metrics = s.config.metrics
-    if (metrics.enabled && metrics.notifyOnShutdown && s.stats.totalTokensSaved > 0) {
-      const pct = Math.round(s.stats.savingsRatio * 100)
-      this._notify(
-        nSuccess(`Saved ~${s.stats.totalTokensSaved}t (${pct}% vs full reads) · ${s.stats.uniqueFilesInjected} files · ${s.stats.depContextTriggers} dep-context`),
-        'success'
-      )
+    if (metrics.enabled && metrics.notifyOnShutdown) {
+      const files = s.stats.uniqueFilesInjected
+      const inj = s.stats.depContextTriggers
+      const injLabel = `${files} file${files !== 1 ? 's' : ''} · ${inj} injection${inj !== 1 ? 's' : ''}`
+      const savingsLabel =
+        s.stats.totalTokensSaved > 0
+          ? ` · ~${s.stats.totalTokensSaved}t saved (${Math.round(s.stats.savingsRatio * 100)}%)`
+          : ''
+      this._notify(nSuccess(`Session complete · ${injLabel}${savingsLabel}`), 'success')
     }
 
     if (ctx.hasUI) clearStatusBar(ctx.ui.setStatus)
