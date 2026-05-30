@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { AnchorStateManager } from '../hashline/state-manager.js'
 import { formatHashLines, initHash } from '../hashline/line-hash.js'
+import { streamHashLinesFromLines } from '../hashline/streaming.js'
 
 export interface HashlineReadOptions {
   recordOnRead?: boolean
@@ -14,6 +15,38 @@ export interface HashlineReadOptions {
   startLine?: number
   /** 1-based inclusive end line */
   endLine?: number
+  /** Use chunked streaming when slice length >= this (default 500). */
+  streamAnnotateThresholdLines?: number
+  streamChunkLines?: number
+}
+
+async function formatAnnotatedSlice(
+  lines: string[],
+  startLine: number,
+  options: HashlineReadOptions
+): Promise<{ body: string; chunked: boolean; chunkCount: number }> {
+  const threshold = options.streamAnnotateThresholdLines ?? 500
+  if (lines.length < threshold) {
+    return {
+      body: formatHashLines(lines.join('\n'), startLine),
+      chunked: false,
+      chunkCount: 1,
+    }
+  }
+
+  const chunks: string[] = []
+  for await (const chunk of streamHashLinesFromLines(lines, {
+    startLine,
+    maxChunkLines: options.streamChunkLines ?? 200,
+  })) {
+    chunks.push(chunk)
+  }
+
+  return {
+    body: chunks.join('\n'),
+    chunked: true,
+    chunkCount: chunks.length,
+  }
 }
 
 function resolveSliceBounds(
@@ -70,17 +103,20 @@ export async function formatHashlineRead(
   const lines = raw.split('\n')
   const { start, end, label } = resolveSliceBounds(lines.length, options)
   const slice = lines.slice(start - 1, end)
-  const annotated = formatHashLines(slice.join('\n'), start)
+  const { body: annotated, chunked, chunkCount } = await formatAnnotatedSlice(slice, start, options)
 
   const header = [
     `## Hashline read: ${trimmed}`,
     `${lines.length} line(s) — showing ${label}.`,
+    chunked
+      ? `Large slice (${slice.length} lines) — streamed in ${chunkCount} anchor chunk(s).`
+      : null,
     'Edit with `hashline_edit` using anchors like `42nd` (line + bigram). Use `dry_run: true` to preview.',
     '',
     '```',
     annotated,
     '```',
-  ]
+  ].filter((line): line is string => line != null)
 
   if (end < lines.length) {
     header.push(
@@ -106,7 +142,12 @@ export function parseHashlineReadArgs(args: string): HashlineReadOptions & { pat
   }
 }
 
-export function formatHashlineReadFromArgs(projectRoot: string, args: string, recordOnRead: boolean): Promise<string> {
+export function formatHashlineReadFromArgs(
+  projectRoot: string,
+  args: string,
+  recordOnRead: boolean,
+  streamOptions?: Pick<HashlineReadOptions, 'streamAnnotateThresholdLines' | 'streamChunkLines'>
+): Promise<string> {
   const parsed = parseHashlineReadArgs(args)
   if (!parsed.path) {
     return Promise.resolve('Usage: /hashline-read <path> [startLine] [endLine]\nExample: /hashline-read src/auth.ts 40 60')
@@ -115,5 +156,6 @@ export function formatHashlineReadFromArgs(projectRoot: string, args: string, re
     startLine: parsed.startLine,
     endLine: parsed.endLine,
     recordOnRead,
+    ...streamOptions,
   })
 }

@@ -96,6 +96,9 @@ export interface SlimConfig {
     contextualStrictMode: boolean
     recordOnRead: boolean
     anchorOnLspHover: boolean
+    streamAnnotateThresholdLines: number
+    streamChunkLines: number
+    injectDryRunFollowUp: boolean
   }
 }
 

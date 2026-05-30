@@ -115,7 +115,10 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     handler: async (args?: string) => {
       const s = manager.state
       if (!s) return 'pi-scope session is not active. Open a codebase project first.'
-      return formatHashlineReadFromArgs(s.projectRoot, args ?? '', s.config.hashline.recordOnRead)
+      return formatHashlineReadFromArgs(s.projectRoot, args ?? '', s.config.hashline.recordOnRead, {
+        streamAnnotateThresholdLines: s.config.hashline.streamAnnotateThresholdLines,
+        streamChunkLines: s.config.hashline.streamChunkLines,
+      })
     },
   })
 

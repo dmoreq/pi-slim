@@ -4,6 +4,7 @@
 
 import { Type } from '@mariozechner/pi-ai'
 import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
+import { produceDefaults } from '../context/schema.js'
 import { formatHashlineRead } from '../commands/hashline-read.js'
 
 const hashlineReadTool = defineTool({
@@ -38,11 +39,14 @@ const hashlineReadTool = defineTool({
     ctx: unknown
   ) {
     const cwd = (ctx as { cwd?: string })?.cwd ?? process.cwd()
+    const hl = produceDefaults().hashline
     const text = await formatHashlineRead(cwd, params.path, {
       recordOnRead: true,
       startLine: params.start_line,
       endLine: params.end_line,
       maxLines: params.max_lines,
+      streamAnnotateThresholdLines: hl.streamAnnotateThresholdLines,
+      streamChunkLines: hl.streamChunkLines,
     })
     return {
       content: [{ type: 'text' as const, text }],

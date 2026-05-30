@@ -45,4 +45,20 @@ describe('formatHashlineRead', () => {
     const out = await formatHashlineRead(root, 'missing.ts')
     expect(out).toContain('Could not read file')
   })
+
+  it('streams anchors when slice exceeds threshold', async () => {
+    const bigPath = join(root, 'src', 'big.ts')
+    const lines = Array.from({ length: 120 }, (_, i) => `export const v${i} = ${i}`)
+    await writeFile(bigPath, lines.join('\n') + '\n')
+
+    const out = await formatHashlineRead(root, 'src/big.ts', {
+      recordOnRead: false,
+      streamAnnotateThresholdLines: 100,
+      streamChunkLines: 40,
+    })
+    expect(out).toContain('streamed in')
+    expect(out).toMatch(/\d+[a-z]{2}\|/)
+    expect(out).toContain('export const v0')
+    expect(out).toContain('export const v119')
+  })
 })

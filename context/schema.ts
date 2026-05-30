@@ -48,6 +48,9 @@ const HashlineSchema = z.object({
   contextualStrictMode: z.boolean().default(false),
   recordOnRead: z.boolean().default(true),
   anchorOnLspHover: z.boolean().default(true),
+  streamAnnotateThresholdLines: z.number().int().positive().default(500),
+  streamChunkLines: z.number().int().positive().default(200),
+  injectDryRunFollowUp: z.boolean().default(true),
 })
 
 // ── Root schema ───────────────────────────────────────────────────────────
