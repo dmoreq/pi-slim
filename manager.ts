@@ -30,6 +30,7 @@ import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
 import { HashlineSteerPlugin } from './plugins/hashline-steer-plugin.js'
 import { HashlineValidatePlugin } from './plugins/hashline-validate-plugin.js'
+import { LspSteerPlugin } from './plugins/lsp-steer-plugin.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { GraphService } from './services/graph-service.js'
 import { IndexService } from './services/index-service.js'
@@ -42,7 +43,12 @@ import { scopeDir } from './shared/paths.js'
 import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { setHashlineMismatchReporter } from './metrics/hashline-reporter.js'
-import { setHashlineLspHoverEnabled, setLspGraphAnalysis } from './tools/lsp-navigation.js'
+import { collectLspPathsFromMessages } from './tools/lsp-result-paths.js'
+import {
+  setHashlineLspHoverEnabled,
+  setLspGraphAnalysis,
+  setLspRepoIndex,
+} from './tools/lsp-navigation.js'
 import { type StatusBarState, clearStatusBar, info as nInfo, success as nSuccess, updateStatusBar, warn as nWarn } from './ui/notifications.js'
 import { isValidCodebase } from './shared/utils/path-utils.js'
 
@@ -246,6 +252,7 @@ export class SessionManager {
     this.pluginManager.register(
       new HashlineValidatePlugin(() => this.state, () => this.hashlineAnchorPathsThisTurn)
     )
+    this.pluginManager.register(new LspSteerPlugin(() => this.state))
   }
 
   /**
@@ -520,6 +527,7 @@ export class SessionManager {
     const cacheDir = scopeDir(projectRoot)
     const stats = session.stats
     setLspGraphAnalysis(null)
+    setLspRepoIndex(null)
     setHashlineLspHoverEnabled(false)
     setHashlineMismatchReporter(null)
 
@@ -527,6 +535,7 @@ export class SessionManager {
     if (!index || index.skeletons.size === 0) {
       this.telemetry.onGraphNoData()
       setLspGraphAnalysis(null)
+      setLspRepoIndex(null)
       session.graphMetrics = undefined
       return
     }
@@ -545,6 +554,7 @@ export class SessionManager {
 
     this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount, this._graphCommunityCount)
     setLspGraphAnalysis(nativeResult.analysis)
+    setLspRepoIndex(index)
 
     const graphSummary = buildGraphMetricsSummary(nativeResult.analysis, analysisMs, nativeResult.cacheHit)
     session.graphMetrics = graphSummary
@@ -807,6 +817,23 @@ export class SessionManager {
       })
     }
 
+    if (result.reason && s?.config.lsp.steerFromManualSearch) {
+      this.telemetry.notify(result.reason, {
+        severity: 'info' as const,
+        badge: { text: 'lsp', variant: 'info' as const },
+      })
+    }
+
+    if (s?.config.lsp.enabled) {
+      const tool = event.toolName.toLowerCase()
+      if (tool.startsWith('lsp_') && s.config.lsp.injectPathsSameTurn) {
+        const path = extractToolPath(event.input)
+        if (path) {
+          this.lspResolvedPathsThisTurn.add(resolveProjectPath(s.projectRoot, path))
+        }
+      }
+    }
+
     return undefined
   }
 
@@ -831,6 +858,7 @@ export class SessionManager {
     }
 
     this.hashlineAnchorPathsThisTurn.clear()
+    this.lspResolvedPathsThisTurn.clear()
     await this.pluginManager.runHook('onContext', event.messages ?? [])
 
     const snapshot = await this.getIntelligenceSnapshot()
@@ -890,6 +918,33 @@ export class SessionManager {
           })) {
             extraPaths.add(r.path)
             lineRefs.push(r)
+          }
+        }
+      }
+
+      if (s.config.lsp.enabled && s.config.lsp.injectPathsSameTurn) {
+        const lspRelPaths = collectLspPathsFromMessages(
+          (event.messages ?? []) as Record<string, unknown>[],
+          s.projectRoot
+        )
+        for (const rel of lspRelPaths) {
+          const abs = resolveProjectPath(s.projectRoot, rel)
+          this.lspResolvedPathsThisTurn.add(abs)
+          extraPaths.add(abs)
+        }
+      }
+
+      if (s.config.lsp.enabled && s.config.lsp.recordToolMetrics) {
+        for (const msg of event.messages ?? []) {
+          const rec = msg as Record<string, unknown>
+          const tn = rec.toolName
+          if (typeof tn !== 'string' || !tn.startsWith('lsp_')) continue
+          if (rec.role !== 'toolResult' && rec.role !== 'tool') continue
+          const details = rec.details as { ok?: boolean } | undefined
+          const text = extractText(rec.content)
+          const ok = details?.ok ?? (!text.startsWith('LSP error:') && text.length > 0)
+          if (rec.role === 'toolResult') {
+            s.stats.recordLspTool(tn, ok, ok ? undefined : text)
           }
         }
       }
