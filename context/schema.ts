@@ -34,6 +34,8 @@ const MetricsSchema = z.object({
   notifyGraphProgress: z.boolean().default(true),
   notifyWelcome: z.boolean().default(true),
   notifyGodNodeProtection: z.boolean().default(true),
+  notifyMilestones: z.boolean().default(true),
+  notifyPeriodic: z.boolean().default(false),
   warnQualityBelow: z.number().int().min(0).max(100).default(60),
   warnCyclesAbove: z.number().int().min(0).default(5),
   historyLimit: z.number().int().positive().default(5),

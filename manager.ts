@@ -459,6 +459,7 @@ export class SessionManager {
     }
 
     const stats = new SessionStats(ctx.sessionManager.getSessionId())
+    this._wireStatsCallbacks(stats, config)
     const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
 
     // Run plugin hooks
@@ -657,6 +658,16 @@ export class SessionManager {
         this._notify(nWarn(line), 'warning')
       } else if (quality.score >= 80) {
         this._notify(nInfo(line), 'info')
+      }
+    }
+  }
+
+  private _wireStatsCallbacks(stats: SessionStats, config: SlimConfig): void {
+    if (config.metrics.notifyMilestones) {
+      stats.onMilestone = (tokens) => {
+        const k =
+          tokens >= 1000 ? `${(tokens / 1000).toFixed(tokens >= 10_000 ? 0 : 1)}k` : String(tokens)
+        this._notify(nSuccess(`${k} tokens saved this session 🎉`), 'success')
       }
     }
   }

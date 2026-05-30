@@ -90,6 +90,18 @@ describe('SessionStats – guidance token tracking', () => {
     expect(record.sessionDurationMs).toBeGreaterThanOrEqual(0)
   })
 
+  it('fires onMilestone exactly once per threshold', () => {
+    const stats = new SessionStats('test-session')
+    const fired: number[] = []
+    stats.onMilestone = (t) => fired.push(t)
+    stats.recordDepContextInjection(['/a.ts'], 100, 700)
+    expect(fired).toEqual([500])
+    stats.recordDepContextInjection(['/b.ts'], 50, 350)
+    expect(fired).toEqual([500])
+    stats.recordDepContextInjection(['/c.ts'], 50, 1200)
+    expect(fired).toEqual([500, 2_000])
+  })
+
   it('getTopFiles returns sorted mention counts', () => {
     const stats = new SessionStats('test-session')
     stats.recordDepContextInjection(['/a.ts'], 10, 100)

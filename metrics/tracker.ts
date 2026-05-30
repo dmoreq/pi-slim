@@ -132,6 +132,11 @@ export class SessionStats {
   graphBoostedRetrievalCount = 0
   activeCommunityId: string | undefined
 
+  /** Callback invoked when a savings milestone is first crossed. */
+  onMilestone?: (tokens: number) => void
+  private readonly _milestonesHit = new Set<number>()
+  private static readonly MILESTONES = [500, 2_000, 5_000, 10_000, 25_000, 50_000]
+
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
 
@@ -157,6 +162,17 @@ export class SessionStats {
       if (!this.injectedFiles.has(f) || f.startsWith('/')) {
         this.injectedFiles.add(f)
         this.mentionCounts.set(f, (this.mentionCounts.get(f) ?? 0) + 1)
+      }
+    }
+    this._checkMilestones()
+  }
+
+  private _checkMilestones(): void {
+    if (!this.onMilestone) return
+    for (const m of SessionStats.MILESTONES) {
+      if (this.totalTokensSaved >= m && !this._milestonesHit.has(m)) {
+        this._milestonesHit.add(m)
+        this.onMilestone(m)
       }
     }
   }
