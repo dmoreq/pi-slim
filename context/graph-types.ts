@@ -2,11 +2,11 @@
  * Code-Graph Integration Types
  *
  * Core type definitions for loading and analyzing codebase graphs.
- * These types represent both the input from graphify (CodeGraph) and the
+ * These types represent the CodeGraph built by the native graph engine and the
  * computed analysis output (GraphAnalysis).
  */
 
-// ── Input: Graphify Graph Structure ────────────────────────────────────────
+// ── CodeGraph Structure ──────────────────────────────────────────
 
 /**
  * A node in the knowledge graph.

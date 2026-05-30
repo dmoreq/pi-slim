@@ -2,7 +2,7 @@
  * Graph Cache — persistent caching of graph analysis results.
  *
  * Avoids recomputing graph analysis on every session startup.
- * Caches GraphifyAnalysis in the .pi/pi-scope/ store alongside the index.
+ * Caches GraphAnalysis in the .pi/pi-scope/ store alongside the index.
  * On cache hit, deserializes and reconstructs the analysis from stored data.
  *
  * Cache invalidation:

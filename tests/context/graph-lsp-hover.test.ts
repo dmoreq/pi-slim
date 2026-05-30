@@ -66,7 +66,7 @@ const createMockAnalysis = (godNodes: any[] = [], communities: any[] = [], surpr
   }
 }
 
-describe('GraphifyLSPHover', () => {
+describe('Graph LSP Hover', () => {
   // ── Basic Hover Enhancement ────────────────────────────────────────
 
   describe('enhanceHoverWithGraphMetrics', () => {
