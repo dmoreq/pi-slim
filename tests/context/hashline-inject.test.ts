@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { buildHashlineAnchorBlock } from '../../context/hashline-inject.js'
+import { buildHashlineAnchorBlock, contentHasHashlineAnchors } from '../../context/hashline-inject.js'
 import { initHash } from '../../hashline/line-hash.js'
 
 describe('buildHashlineAnchorBlock', () => {
@@ -38,7 +38,12 @@ describe('buildHashlineAnchorBlock', () => {
     })
     expect(block).not.toBeNull()
     expect(block).toContain('Hashline anchors')
-    expect(block).toContain('/hashline-read foo.ts')
+    expect(block).toContain('hashline_read')
     expect(block).toMatch(/\d+[a-z]{2}\|/)
+  })
+
+  it('contentHasHashlineAnchors detects anchor lines', () => {
+    expect(contentHasHashlineAnchors('1tz|import x')).toBe(true)
+    expect(contentHasHashlineAnchors('plain text')).toBe(false)
   })
 })

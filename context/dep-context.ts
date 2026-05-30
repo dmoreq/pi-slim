@@ -25,6 +25,9 @@ export class ContextInjector {
   /** Last explanation for /scope explain */
   lastExplanation: ScoredFile[] = []
 
+  /** Paths that received hashline anchor blocks in the last buildInjection call. */
+  lastInjectedHashlinePaths = new Set<string>()
+
   constructor(projectRoot: string, maxTokens: number, scanLastN: number) {
     this.projectRoot = projectRoot
     this.maxTokens = maxTokens
@@ -40,6 +43,7 @@ export class ContextInjector {
     graphAnalysis?: GraphAnalysis | null,
     hashline?: HashlineInjectOptions
   ): string {
+    this.lastInjectedHashlinePaths.clear()
     const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval, graphAnalysis)
 
     // Broad codebase overview: inject top files by centrality when the query
@@ -76,6 +80,7 @@ export class ContextInjector {
         const annotated = appendHashlineToEntry(entry, absPath, this.projectRoot, hashline, tokenBudget)
         entry = annotated.entry
         cost = annotated.cost
+        if (annotated.hasAnchors) this.lastInjectedHashlinePaths.add(absPath)
       }
       if (cost > tokenBudget) continue
       activeLines.push(entry)
@@ -121,6 +126,7 @@ export class ContextInjector {
           const annotated = appendHashlineToEntry(entry, dep, this.projectRoot, hashline, tokenBudget)
           entry = annotated.entry
           cost = annotated.cost
+          if (annotated.hasAnchors) this.lastInjectedHashlinePaths.add(dep)
         }
         if (cost > tokenBudget) continue
         depLines.push(entry)

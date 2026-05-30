@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SessionManager } from '../../manager.js'
 
 vi.mock('../../tools/hashline-editor.js', () => ({ registerHashlineTool: vi.fn() }))
+vi.mock('../../tools/hashline-read-tool.js', () => ({ registerHashlineReadTool: vi.fn() }))
 vi.mock('../../tools/lsp-navigation.js', () => ({
   registerLspTools: vi.fn(),
   shutdownLsp: vi.fn().mockResolvedValue(undefined),

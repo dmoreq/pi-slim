@@ -6,16 +6,60 @@ import { readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { AnchorStateManager } from '../hashline/state-manager.js'
 import { formatHashLines } from '../hashline/line-hash.js'
+import { applyLinePadding, type LineRegionHint } from './hashline-region.js'
 import { estimateTokens } from '../shared/token.js'
 
 export interface HashlineInjectOptions {
   enabled: boolean
   maxLinesPerFile: number
   recordOnRead: boolean
+  annotateBySymbolRange?: boolean
+  annotateRangePaddingLines?: number
+  /** absPath → region from citations / tool refs */
+  regionHints?: Map<string, LineRegionHint>
+}
+
+export const HASHLINE_ANCHOR_LINE_RE = /\b\d+[a-z]{2}\|/
+
+export function contentHasHashlineAnchors(text: string): boolean {
+  return HASHLINE_ANCHOR_LINE_RE.test(text)
+}
+
+function resolveAnnotateBounds(
+  lineCount: number,
+  opts: HashlineInjectOptions,
+  region?: LineRegionHint
+): { start: number; end: number; label: string } {
+  const padding = opts.annotateRangePaddingLines ?? 15
+
+  if (opts.annotateBySymbolRange !== false && region) {
+    const padded = applyLinePadding(region, lineCount, padding)
+    let end = padded.endLine
+    const span = end - padded.startLine + 1
+    if (span > opts.maxLinesPerFile) {
+      const center = Math.floor((padded.startLine + padded.endLine) / 2)
+      const half = Math.floor(opts.maxLinesPerFile / 2)
+      const start = Math.max(1, center - half)
+      end = Math.min(lineCount, start + opts.maxLinesPerFile - 1)
+      return {
+        start,
+        end,
+        label: `lines ${start}–${end} (around citation ${region.startLine})`,
+      }
+    }
+    return {
+      start: padded.startLine,
+      end,
+      label: `lines ${padded.startLine}–${end} (around citation)`,
+    }
+  }
+
+  const end = Math.min(opts.maxLinesPerFile, lineCount)
+  return { start: 1, end, label: `lines 1–${end}` }
 }
 
 /**
- * Build a fenced hashline block for the first N lines of a file (sync; requires initHash at session start).
+ * Build a fenced hashline block (sync; requires initHash at session start).
  */
 export function buildHashlineAnchorBlock(
   absPath: string,
@@ -31,15 +75,18 @@ export function buildHashlineAnchorBlock(
     }
 
     const lines = raw.split('\n')
-    const lineCount = Math.min(opts.maxLinesPerFile, lines.length)
-    if (lineCount === 0) return null
+    if (lines.length === 0) return null
 
-    const annotated = formatHashLines(lines.slice(0, lineCount).join('\n'))
+    const region = opts.regionHints?.get(absPath)
+    const { start, end, label } = resolveAnnotateBounds(lines.length, opts, region)
+    if (end < start) return null
+
+    const annotated = formatHashLines(lines.slice(start - 1, end).join('\n'), start)
     const rel = relative(projectRoot, absPath)
     return (
-      `#### Hashline anchors (lines 1–${lineCount})\n` +
+      `#### Hashline anchors (${label})\n` +
       `Use \`LINE+bigram\` refs with \`hashline_edit\` (\`dry_run: true\` first). ` +
-      `Full file: \`/hashline-read ${rel}\`.\n` +
+      `Full file or range: \`hashline_read\` or \`/hashline-read ${rel}\`.\n` +
       '```\n' +
       `${annotated}\n` +
       '```'

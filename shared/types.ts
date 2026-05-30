@@ -88,9 +88,12 @@ export interface SlimConfig {
     enabled: boolean
     annotateDepContext: boolean
     annotateMaxLinesPerFile: number
+    annotateBySymbolRange: boolean
+    annotateRangePaddingLines: number
     preferDryRun: boolean
     steerFromBuiltinEdit: boolean
     strictMode: boolean
+    contextualStrictMode: boolean
     recordOnRead: boolean
   }
 }

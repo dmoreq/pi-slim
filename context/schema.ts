@@ -40,9 +40,12 @@ const HashlineSchema = z.object({
   enabled: z.boolean().default(true),
   annotateDepContext: z.boolean().default(true),
   annotateMaxLinesPerFile: z.number().int().positive().default(80),
+  annotateBySymbolRange: z.boolean().default(true),
+  annotateRangePaddingLines: z.number().int().min(0).default(15),
   preferDryRun: z.boolean().default(true),
   steerFromBuiltinEdit: z.boolean().default(true),
   strictMode: z.boolean().default(false),
+  contextualStrictMode: z.boolean().default(false),
   recordOnRead: z.boolean().default(true),
 })
 

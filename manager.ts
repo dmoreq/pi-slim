@@ -1,5 +1,6 @@
 import { formatScopeCommand, formatScopeDashboard } from './commands/scope-dashboard.js'
 import { extractToolPath, resolveProjectPath } from './context/hashline-inject.js'
+import { collectLineRegionHints } from './context/hashline-region.js'
 import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
 import { watch, type FSWatcher } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -31,7 +32,7 @@ import { GraphService } from './services/graph-service.js'
 import { IndexService } from './services/index-service.js'
 import { TelemetryService } from './services/telemetry-service.js'
 import type { AgentMessage } from './shared/agent-message.js'
-import { detectPathsInOutput, detectPathsInToolCall } from './shared/file-detector.js'
+import { detectPathsInOutput, detectPathsInToolCall, type FileReference } from './shared/file-detector.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
 import { extractInjectedFilePaths, extractText } from './shared/message.js'
 import { scopeDir } from './shared/paths.js'
@@ -825,6 +826,7 @@ export class SessionManager {
     let depContextContent: string | null = null
     if (triggersDepContext) {
       const extraPaths = new Set<string>()
+      const lineRefs: FileReference[] = []
       const messagesPlain = (event.messages ?? []).map(m => ({
         role: m.role ?? 'user',
         content: extractText(m.content),
@@ -835,6 +837,7 @@ export class SessionManager {
           const input = (msg as Record<string, unknown>).input as Record<string, unknown> | undefined
           for (const r of detectPathsInToolCall(tn, input, { projectRoot: s.projectRoot, validateExistence: true })) {
             extraPaths.add(r.path)
+            lineRefs.push(r)
           }
         }
         if ((msg as Record<string, unknown>).role === 'toolResult') {
@@ -842,16 +845,22 @@ export class SessionManager {
             projectRoot: s.projectRoot,
           })) {
             extraPaths.add(r.path)
+            lineRefs.push(r)
           }
         }
       }
+
+      const regionHints = collectLineRegionHints(s.projectRoot, messagesPlain, lineRefs)
 
       const hashlineOpts =
         s.config.hashline.enabled && s.config.hashline.annotateDepContext
           ? {
               enabled: true,
               maxLinesPerFile: s.config.hashline.annotateMaxLinesPerFile,
+              annotateBySymbolRange: s.config.hashline.annotateBySymbolRange,
+              annotateRangePaddingLines: s.config.hashline.annotateRangePaddingLines,
               recordOnRead: s.config.hashline.recordOnRead,
+              regionHints,
             }
           : undefined
 
