@@ -419,21 +419,27 @@ onSessionShutdown?()
 
 ### 10.1 Cách hoạt động
 
-Ba tools LLM (`tools/lsp-navigation.ts`), server lazy-start per language (`lsp/service.ts`: TS, Python, Go, Rust):
+Tools LLM (`tools/lsp-navigation.ts`), server lazy-start per language (`lsp/service.ts`: TS, Python, Go, Rust):
 
 | Tool | LSP method | Vai trò |
 |------|------------|---------|
 | `lsp_go_to_definition` | `textDocument/definition` | Tìm khai báo canonical |
 | `lsp_find_references` | `textDocument/references` | Blast radius trước khi sửa |
 | `lsp_hover` | `textDocument/hover` | Type/docs + graph + hashline anchor |
+| `lsp_implementation` | `textDocument/implementation` | Interface → impl |
+| `lsp_document_symbol` | `textDocument/documentSymbol` | Outline file |
+| `lsp_workspace_symbol` | `workspace/symbol` | Tìm symbol theo tên |
+| `lsp_go_to_definition_batch` | (batch) | Nhiều vị trí một lần |
+| `lsp_diagnostics` | `publishDiagnostics` | Lỗi server trên file |
+| `lsp_signature_help` | `textDocument/signatureHelp` | Gợi ý tham số tại call site |
 
 **`lsp_hover` enrichment** (`context/graph-lsp-hover.ts`):
 
-- Parse symbol từ hover text (`extractSymbolFromHoverText` trong `graph-node-id.ts`)
-- God node, community, impact BFS (`graph-impact.ts`)
+- Lookup graph `file:rel/path:Symbol` (`context/graph-lsp-resolve.ts`)
+- God node, community, impact BFS; reverse deps từ index
 - Hashline anchor section (`hashline/lsp-hover-anchor.ts` khi `anchorOnLspHover`)
 
-**Client chưa expose ra tool:** `documentSymbol`, `workspaceSymbol`, `implementation`, diagnostics — xem LSP adoption plan Phase C/D.
+**Compiler bridge:** parse `file.ts(12,5)` từ bash/tsc output → intelligence gợi ý `lsp_hover` + inject path (`context/compiler-error-bridge.ts`).
 
 ### 10.2 Tình trạng kích hoạt
 
