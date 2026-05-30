@@ -96,6 +96,37 @@ export function formatScopeDashboard(manager: SessionManager): string {
     lines.push(padLine(`  Community prune : ${pruneStats.pruneCount} msgs (${pruneStats.activeCommunityId ?? 'n/a'})`))
   }
 
+  const lspTotal =
+    stats.lspGoToDef +
+    stats.lspFindRefs +
+    stats.lspHover +
+    stats.lspWorkspaceSymbol +
+    stats.lspDocumentSymbol +
+    stats.lspImplementation +
+    stats.lspBatchGotoDef
+  if (lspTotal > 0 || stats.lspErrors > 0) {
+    lines.push(padLine('🧭 LSP'))
+    if (stats.lspGoToDef > 0) lines.push(padLine(`  go_to_definition : ${stats.lspGoToDef}`))
+    if (stats.lspFindRefs > 0) lines.push(padLine(`  find_references  : ${stats.lspFindRefs}`))
+    if (stats.lspHover > 0) lines.push(padLine(`  hover            : ${stats.lspHover}`))
+    if (stats.lspWorkspaceSymbol > 0) lines.push(padLine(`  workspace_symbol : ${stats.lspWorkspaceSymbol}`))
+    if (stats.lspDocumentSymbol > 0) lines.push(padLine(`  document_symbol  : ${stats.lspDocumentSymbol}`))
+    if (stats.lspImplementation > 0) lines.push(padLine(`  implementation   : ${stats.lspImplementation}`))
+    if (stats.lspBatchGotoDef > 0) lines.push(padLine(`  batch goto-def   : ${stats.lspBatchGotoDef}`))
+    if (stats.lspErrors > 0) {
+      lines.push(padLine(`  errors           : ${stats.lspErrors}`))
+      if (stats.lspLastError) lines.push(padLine(`  last error       : ${stats.lspLastError}`))
+    }
+  }
+
+  const lspHealth = manager.lspServerHealth
+  if (lspHealth && lspHealth.length > 0) {
+    const available = lspHealth.filter(h => h.available).map(h => h.id).join(', ')
+    const missing = lspHealth.filter(h => !h.available).map(h => h.id).join(', ')
+    if (available) lines.push(padLine(`  servers (ok)     : ${available}`))
+    if (missing) lines.push(padLine(`  servers (miss)   : ${missing}`))
+  }
+
   if (stats.hashlineEdits > 0 || stats.hashlineAnchorInjectTurns > 0 || stats.builtinEditSteered > 0) {
     lines.push(padLine('🔗 HASHLINE'))
     lines.push(padLine(`  hashline_edit    : ${stats.hashlineEdits} (${stats.hashlineDryRuns} dry_run)`))

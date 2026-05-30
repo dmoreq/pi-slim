@@ -57,6 +57,15 @@ export interface SessionRecord {
   builtinEditSteered?: number
   hashlineAnchorInjectTurns?: number
   hashlineMismatches?: number
+  lspGoToDef?: number
+  lspFindRefs?: number
+  lspHover?: number
+  lspWorkspaceSymbol?: number
+  lspDocumentSymbol?: number
+  lspImplementation?: number
+  lspBatchGotoDef?: number
+  lspErrors?: number
+  lspLastError?: string
 }
 
 // ── Live tracker ──────────────────────────────────────────────────────────
@@ -105,6 +114,15 @@ export class SessionStats {
   builtinEditSteered = 0
   hashlineAnchorInjectTurns = 0
   hashlineMismatches = 0
+  lspGoToDef = 0
+  lspFindRefs = 0
+  lspHover = 0
+  lspWorkspaceSymbol = 0
+  lspDocumentSymbol = 0
+  lspImplementation = 0
+  lspBatchGotoDef = 0
+  lspErrors = 0
+  lspLastError: string | undefined
 
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
@@ -184,6 +202,39 @@ export class SessionStats {
 
   recordHashlineMismatch(): void {
     this.hashlineMismatches++
+  }
+
+  recordLspTool(tool: string, ok: boolean, errorMessage?: string): void {
+    if (!ok) {
+      this.lspErrors++
+      if (errorMessage) this.lspLastError = errorMessage.slice(0, 200)
+      return
+    }
+    switch (tool) {
+      case 'lsp_go_to_definition':
+        this.lspGoToDef++
+        break
+      case 'lsp_find_references':
+        this.lspFindRefs++
+        break
+      case 'lsp_hover':
+        this.lspHover++
+        break
+      case 'lsp_workspace_symbol':
+        this.lspWorkspaceSymbol++
+        break
+      case 'lsp_document_symbol':
+        this.lspDocumentSymbol++
+        break
+      case 'lsp_implementation':
+        this.lspImplementation++
+        break
+      case 'lsp_go_to_definition_batch':
+        this.lspBatchGotoDef++
+        break
+      default:
+        break
+    }
   }
 
   get uniqueFilesInjected(): number {
@@ -334,6 +385,15 @@ export class SessionStats {
       hashlineAnchorInjectTurns:
         this.hashlineAnchorInjectTurns > 0 ? this.hashlineAnchorInjectTurns : undefined,
       hashlineMismatches: this.hashlineMismatches > 0 ? this.hashlineMismatches : undefined,
+      lspGoToDef: this.lspGoToDef > 0 ? this.lspGoToDef : undefined,
+      lspFindRefs: this.lspFindRefs > 0 ? this.lspFindRefs : undefined,
+      lspHover: this.lspHover > 0 ? this.lspHover : undefined,
+      lspWorkspaceSymbol: this.lspWorkspaceSymbol > 0 ? this.lspWorkspaceSymbol : undefined,
+      lspDocumentSymbol: this.lspDocumentSymbol > 0 ? this.lspDocumentSymbol : undefined,
+      lspImplementation: this.lspImplementation > 0 ? this.lspImplementation : undefined,
+      lspBatchGotoDef: this.lspBatchGotoDef > 0 ? this.lspBatchGotoDef : undefined,
+      lspErrors: this.lspErrors > 0 ? this.lspErrors : undefined,
+      lspLastError: this.lspLastError,
     }
   }
 

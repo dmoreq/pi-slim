@@ -223,7 +223,11 @@ export class SessionManager {
 
   /** Paths with hashline anchors injected or read during the current context turn. */
   hashlineAnchorPathsThisTurn = new Set<string>()
+  /** Project-relative paths resolved from LSP tools this context turn. */
+  lspResolvedPathsThisTurn = new Set<string>()
   private hashlineDryRunSeenForPath = new Set<string>()
+  /** Populated when `lsp.probeServersOnStart` is enabled. */
+  lspServerHealth: Array<{ id: string; command: string; available: boolean }> = []
 
   /** Per-turn cache so before_agent_start + context share one intelligence snapshot. */
   private intelligenceSnapshotCache: {
