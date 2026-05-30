@@ -478,7 +478,19 @@ export class SessionManager {
         stats.recordIndexAge(ageHours, ageHours > 24)
       }
 
-      this._notify(nSuccess(`Loaded ${idx.skeletons.size} files from cache`), 'success')
+      {
+        const meta = this.indexService.metadata
+        const langs = meta?.languages?.slice(0, 3).join(', ') ?? ''
+        const syms = meta?.symbolCount ? ` · ${meta.symbolCount.toLocaleString()} symbols` : ''
+        const age = meta?.builtAt
+          ? (() => {
+              const h = Math.round((Date.now() - new Date(meta.builtAt).getTime()) / 3_600_000)
+              return h > 0 ? ` (built ${h}h ago)` : ' (built just now)'
+            })()
+          : ''
+        const langLabel = langs ? ` · ${langs}` : ''
+        this._notify(nSuccess(`Loaded ${idx.skeletons.size} files from cache${langLabel}${syms}${age}`), 'success')
+      }
 
       const retrieval = new RetrievalEngine(idx)
       this.intelligenceEngine.setProjectRoot(projectRoot)
@@ -528,7 +540,17 @@ export class SessionManager {
       stats.recordIndexLoaded(result.metadata as any)
       stats.recordIndexAge(0, false)
 
-      this._notify(nSuccess(`Indexed ${result.fileCount} files in ${(result.buildTimeMs / 1000).toFixed(1)}s`), 'success')
+      {
+        const langs = result.metadata?.languages?.slice(0, 3).join(', ') ?? ''
+        const syms = result.metadata?.symbolCount
+          ? ` · ${result.metadata.symbolCount.toLocaleString()} symbols`
+          : ''
+        const langLabel = langs ? ` · ${langs}` : ''
+        this._notify(
+          nSuccess(`Indexed ${result.fileCount} files in ${(result.buildTimeMs / 1000).toFixed(1)}s${langLabel}${syms}`),
+          'success'
+        )
+      }
 
       const contextFiles = config.contextFiles.enabled
         ? loadContextFiles(projectRoot, { filenames: config.contextFiles.filenames })

@@ -86,6 +86,15 @@ describe('SessionManager startup notifications', () => {
     expect(notifications.some(m => /Graph: \d+ nodes.*(\d+ms|from cache)/.test(m))).toBe(true)
   })
 
+  it('includes language in fresh-build success message', async () => {
+    const manager = new SessionManager()
+    await manager.start(tmpDir, configFlag, makeCtx())
+
+    const indexedMsg = notifications.find(m => m.includes('Indexed') || m.includes('Loaded'))
+    expect(indexedMsg).toBeDefined()
+    expect(indexedMsg).toMatch(/typescript/i)
+  })
+
   it('emits a welcome message with version, file count, and language', async () => {
     const manager = new SessionManager()
     await manager.start(tmpDir, configFlag, makeCtx())
