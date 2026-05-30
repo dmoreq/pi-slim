@@ -958,6 +958,26 @@ export class SessionManager {
       }
     }
 
+    if (
+      s?.config.graph.warnOnNewImports &&
+      ['write', 'hashline_edit', 'edit', 'str_replace'].includes(event.toolName.toLowerCase())
+    ) {
+      const content = String(event.input?.content ?? event.input?.new_string ?? '')
+      const graph = this.graphService.analysis
+      if (graph && graph.metrics.cycleCount > 0 && content.includes('import')) {
+        const path = extractToolPath(event.input)
+        if (path) {
+          this._notify(
+            nWarn(
+              `New import in \`${path}\` may extend an existing cycle ` +
+                `(${graph.metrics.cycleCount} cycles tracked) — verify with lsp_find_references`
+            ),
+            'warning'
+          )
+        }
+      }
+    }
+
     return undefined
   }
 
@@ -1415,6 +1435,7 @@ export class SessionManager {
     this.autoReindexInFlight = (async () => {
       try {
         ctx.ui.notify(nInfo('Reindexing after code changes...'), 'info')
+        const prevCount = currentState.stats.indexedFiles
         const result = await this.indexService.buildFresh(currentState.projectRoot, currentState.config)
         const contextFiles = currentState.config.contextFiles.enabled
           ? loadContextFiles(currentState.projectRoot, { filenames: currentState.config.contextFiles.filenames })
@@ -1441,7 +1462,12 @@ export class SessionManager {
         })
         this.state.retrieval = new RetrievalEngine(result.index)
         this.updateStatusBar(ctx)
-        ctx.ui.notify(nSuccess(`Reindexed ${result.fileCount} files`), 'info')
+        const delta = result.fileCount - prevCount
+        const deltaLabel =
+          delta !== 0
+            ? ` (${delta > 0 ? `+${delta} new` : `${Math.abs(delta)} removed`})`
+            : ' (no file count change)'
+        ctx.ui.notify(nSuccess(`Reindexed ${result.fileCount} files${deltaLabel}`), 'info')
       } catch (error) {
         console.warn('pi-scope: auto-reindex failed:', error)
         ctx.ui.notify(nWarn('Auto-reindex failed; continuing with previous index'), 'warning')
