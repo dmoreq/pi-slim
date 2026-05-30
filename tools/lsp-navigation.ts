@@ -7,9 +7,10 @@
  * @module
  */
 
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import { Type } from '@mariozechner/pi-ai'
 import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
+import { extractSymbolFromHoverText, resolveGraphLookupKey } from '../context/graph-node-id.js'
 import { enhanceHoverWithGraphMetrics, formatHoverAsMarkdown } from '../context/graph-lsp-hover.js'
 import type { GraphAnalysis } from '../context/graph-types.js'
 import { LspNavigationService } from '../lsp/service.js'
@@ -109,15 +110,12 @@ const findRefsTool = defineTool({
 
 // ── Tool: hoverInfo ──────────────────────────────────────────────────────
 
-/** Extract a symbol name from file path + line/column — crude but sufficient for graph matching. */
-function symbolFromPosition(fp: string, _line: number, _column: number): string {
-  // Use the filename stem as the symbol hint (LSP hover text has the actual symbol name)
-  const name =
-    fp
-      .split('/')
-      .pop()
-      ?.replace(/\.[^.]+$/, '') ?? ''
-  return name
+/** Resolve graph lookup key from LSP hover body and file path. */
+function resolveHoverLookupKey(fp: string, hoverText: string, cwd: string): string {
+  const rel = relative(cwd, fp).replace(/\\/g, '/')
+  const fromLsp = extractSymbolFromHoverText(hoverText)
+  const stem = rel.split('/').pop()?.replace(/\.[^.]+$/, '') ?? ''
+  return resolveGraphLookupKey(fromLsp ?? stem, rel)
 }
 
 const hoverTool = defineTool({
@@ -139,8 +137,10 @@ const hoverTool = defineTool({
 
       // Enrich with graph metrics if analysis data is available
       if (currentAnalysis && result && !result.startsWith('No hover info')) {
-        const symbol = symbolFromPosition(fp, p.line, p.column)
-        const enhanced = enhanceHoverWithGraphMetrics(symbol, result, currentAnalysis)
+        const cwd = ctxDir(ctx)
+        const rel = relative(cwd, fp).replace(/\\/g, '/')
+        const symbol = resolveHoverLookupKey(fp, result, cwd)
+        const enhanced = enhanceHoverWithGraphMetrics(symbol, result, currentAnalysis, rel)
         const markdown = formatHoverAsMarkdown(enhanced)
         return { content: [{ type: 'text' as const, text: markdown }], details: { ok: true } }
       }

@@ -3,6 +3,7 @@ import { extractText } from '../shared/message.js'
 import { isBroadCodebaseQuery } from '../shared/query-intent.js'
 import { estimateTokens } from '../shared/token.js'
 import type { RepoIndex } from '../shared/types.js'
+import { godNodeMatchesFilePath, parseGraphNodeId } from './graph-node-id.js'
 import type { GraphAnalysis } from './graph-types.js'
 import { RetrievalEngine, type ScoredFile } from './retrieval.js'
 
@@ -44,7 +45,7 @@ export class ContextInjector {
     const query = messages.length > 0 ? extractText(messages[messages.length - 1].content) : ''
     let isBroadOverview = false
     if (inFocus.size === 0 && isBroadCodebaseQuery(query)) {
-      const overviewFiles = getBroadOverviewFiles(index, 5)
+      const overviewFiles = getBroadOverviewFiles(index, graphAnalysis, 5)
       for (const f of overviewFiles) inFocus.add(f)
       isBroadOverview = true
     }
@@ -56,7 +57,8 @@ export class ContextInjector {
 
     if (isBroadOverview) {
       sections.push(`## Codebase Overview (${index.skeletons.size} files, ${index.symbolIndex.size} symbols)`)
-      // Add module structure listing
+      const communityOverview = buildBroadCommunityOverview(graphAnalysis)
+      if (communityOverview) sections.push(communityOverview)
       const moduleListing = buildModuleStructureListing(index, this.projectRoot)
       if (moduleListing) sections.push(moduleListing)
     }
@@ -147,18 +149,13 @@ export class ContextInjector {
       const query = recent.map(m => extractText(m.content)).join(' ')
       let scored = retrieval.retrieveTopK(query, 20)
 
-      // Graph-aware boost: promote files that match god nodes
+      // Graph-aware boost: promote files that match god nodes (file:path ids, not stems only)
       if (graphAnalysis?.godNodes?.length) {
-        const godNodeNames = new Set(graphAnalysis.godNodes.map(g => g.nodeId.toLowerCase()))
         scored = scored
           .map(f => {
-            const stem =
-              f.file
-                .split('/')
-                .pop()
-                ?.replace(/\.[^.]+$/, '')
-                .toLowerCase() ?? ''
-            if (godNodeNames.has(stem)) {
+            const rel = relative(this.projectRoot, f.file)
+            const matchesGod = graphAnalysis.godNodes.some(gn => godNodeMatchesFilePath(rel, gn))
+            if (matchesGod) {
               return { ...f, score: f.score + Math.max(f.score, 1) }
             }
             return f
@@ -213,7 +210,7 @@ const ENTRY_POINT_NAMES = new Set([
  * Get the top-N most important files for understanding the codebase.
  * Uses reverse-dependency centrality (most depended-on) and entry-point detection.
  */
-function getBroadOverviewFiles(index: RepoIndex, k = 5): Set<string> {
+function getBroadOverviewFiles(index: RepoIndex, graphAnalysis?: GraphAnalysis | null, k = 5): Set<string> {
   const files = new Set<string>()
 
   // 1. Entry points
@@ -224,7 +221,23 @@ function getBroadOverviewFiles(index: RepoIndex, k = 5): Set<string> {
     }
   }
 
-  // 2. Top-N by reverse dependency count
+  // 2. One representative file per graph community (when available)
+  if (graphAnalysis && graphAnalysis.communities.length > 1) {
+    for (const comm of graphAnalysis.communities) {
+      const fileNode = comm.nodes.find(n => n.startsWith('file:') && !parseGraphNodeId(n).symbolPart)
+      if (fileNode) {
+        const pathPart = parseGraphNodeId(fileNode).pathPart
+        for (const absPath of index.skeletons.keys()) {
+          if (absPath.endsWith(pathPart)) {
+            files.add(absPath)
+            break
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Top-N by reverse dependency count
   const byDepCount = new Map<string, number>()
   for (const [path, rdeps] of index.reverseDeps) {
     byDepCount.set(path, rdeps.size)
@@ -233,6 +246,18 @@ function getBroadOverviewFiles(index: RepoIndex, k = 5): Set<string> {
   for (const [path] of top) files.add(path)
 
   return files
+}
+
+function buildBroadCommunityOverview(graphAnalysis?: GraphAnalysis | null): string {
+  if (!graphAnalysis || graphAnalysis.communities.length < 2) return ''
+  const lines = ['## Communities (graph)']
+  for (const c of graphAnalysis.communities.slice(0, 8)) {
+    lines.push(`- **${c.label}**: ${c.nodes.length} nodes`)
+  }
+  if (graphAnalysis.communities.length > 8) {
+    lines.push(`- ... and ${graphAnalysis.communities.length - 8} more`)
+  }
+  return lines.join('\n')
 }
 
 /**

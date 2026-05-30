@@ -17,8 +17,9 @@ const createMockAnalysis = (godNodes: any[] = [], communities: any[] = [], surpr
         { id: 'cache', type: 'module', label: 'Cache' },
       ],
       edges: [
-        { source: 'authenticate', target: 'validateToken', type: 'calls' },
-        { source: 'authenticate', target: 'getUserProfile', type: 'calls' },
+        { source: 'validateToken', target: 'authenticate', type: 'calls' },
+        { source: 'getUserProfile', target: 'authenticate', type: 'calls' },
+        { source: 'authenticate', target: 'database', type: 'calls' },
         { source: 'validateToken', target: 'database', type: 'calls' },
         { source: 'getUserProfile', target: 'cache', type: 'calls' },
         { source: 'cache', target: 'database', type: 'calls' },

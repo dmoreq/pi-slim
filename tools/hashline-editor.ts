@@ -147,12 +147,18 @@ const hashlineTool = defineTool({
   label: 'Hashline Edit',
   description:
     "Edit files using hashline anchors (LINE+bigram references like '42nd'). " +
+    'Set dry_run: true to validate anchors and preview the diff without writing. ' +
     'Read the file first via the read tool to see anchor-annotated content, then ' +
     'reference specific lines by their LINE+BIGRAM anchor. No file re-read needed. ' +
     'Supports replace_line, replace_range, append_at, prepend_at, append_file, prepend_file.',
 
   parameters: Type.Object({
     path: Type.String({ description: 'File path to edit (relative to cwd or absolute)' }),
+    dry_run: Type.Optional(
+      Type.Boolean({
+        description: 'When true, validate anchors and return a diff preview without writing the file',
+      })
+    ),
     edits: Type.Array(
       Type.Object({
         loc: Type.Optional(

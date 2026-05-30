@@ -9,6 +9,8 @@
  * - Impact on dependent code
  */
 
+import { computeDependentFanout } from './graph-impact.js'
+import { normalizeNodeIdForMatch } from './graph-node-id.js'
 import type { GodNode, GraphAnalysis, CodeGraph, SurprisingConnection, GraphNode, GraphEdge } from './graph-types.js'
 
 /**
@@ -86,7 +88,8 @@ interface ImpactAnalysis {
 export function enhanceHoverWithGraphMetrics(
   symbol: string,
   baseInfo: string,
-  analysis: GraphAnalysis | null
+  analysis: GraphAnalysis | null,
+  relativeFilePath?: string
 ): EnhancedHoverInfo {
   const hoverInfo: EnhancedHoverInfo = {
     symbol,
@@ -98,8 +101,8 @@ export function enhanceHoverWithGraphMetrics(
     return hoverInfo
   }
 
-  // Extract node ID from symbol
-  const nodeId = normalizeNodeId(symbol)
+  const nodeId = normalizeNodeIdForMatch(symbol)
+  void relativeFilePath
 
   // Compute graph metrics
   hoverInfo.graphMetrics = computeGraphMetrics(nodeId, analysis)
@@ -204,15 +207,9 @@ export function formatHoverAsMarkdown(hover: EnhancedHoverInfo): string {
   return lines.join('\n')
 }
 
-/**
- * Normalize symbol name to node ID.
- *
- * @param symbol Symbol name
- * @returns Normalized node ID
- */
+/** @deprecated Use normalizeNodeIdForMatch from graph-node-id */
 function normalizeNodeId(symbol: string): string {
-  // Remove namespaces, dots, etc.
-  return symbol.toLowerCase().replace(/[^a-z0-9_]/g, '')
+  return normalizeNodeIdForMatch(symbol)
 }
 
 /**
@@ -365,27 +362,13 @@ function createCommunityInfo(community: GraphAnalysis['communities'][0], nodeId:
  * @returns Impact analysis
  */
 function analyzeImpact(nodeId: string, analysis: GraphAnalysis): ImpactAnalysis {
-  const g = (analysis as any).graph as CodeGraph | undefined
-  const edges = g?.edges ?? []
-  // Find all dependents (nodes that depend on this one)
-  const dependents = edges.filter(e => normalizeNodeId(e.source) === nodeId)
-  const dependentCount = new Set(dependents.map(e => e.target)).size
+  const { dependentCount, affectedCommunities } = computeDependentFanout(nodeId, analysis)
 
-  // Find affected communities
-  const affectedCommunities = new Set<string>()
-  for (const dependent of dependents) {
-    const community = analysis.communities.find(c => c.nodes.some(n => normalizeNodeId(n) === dependent.target))
-    if (community) {
-      affectedCommunities.add(community.id)
-    }
-  }
-
-  // Determine criticality
-  const godNode = analysis.godNodes.find(gn => normalizeNodeId(gn.nodeId) === nodeId)
+  const godNode = analysis.godNodes.find(gn => normalizeNodeIdForMatch(gn.nodeId) === nodeId)
   const criticality: GodNode['criticality'] | 'LOW' = godNode ? godNode.criticality : 'LOW'
 
   const recommendations: Record<string, string> = {
-    CRITICAL: `Changes here will impact ${dependentCount} dependents across ${affectedCommunities.size} communities. Schedule mandatory code review.`,
+    CRITICAL: `Changes here will impact ${dependentCount} dependents across ${affectedCommunities} communities. Schedule mandatory code review.`,
     HIGH: `Changes will affect ${dependentCount} dependents. Request code review.`,
     MEDIUM: `Changes may affect ${dependentCount} dependents. Standard review applies.`,
     LOW: 'Changes have limited impact. Normal review process.',
@@ -393,10 +376,10 @@ function analyzeImpact(nodeId: string, analysis: GraphAnalysis): ImpactAnalysis 
 
   return {
     dependentCount,
-    affectedCommunities: affectedCommunities.size,
+    affectedCommunities,
     criticalityLevel: criticality,
     recommendation: recommendations[criticality],
-    example: dependentCount > 0 ? `e.g., ${dependents[0]?.target}` : undefined,
+    example: undefined,
   }
 }
 
