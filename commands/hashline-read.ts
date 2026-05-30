@@ -1,5 +1,5 @@
 /**
- * `/hashline-read` — read a file with hashline LINE+BIGRAM anchors.
+ * `/hashline-read` and shared formatter for `hashline_read` tool.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -10,6 +10,36 @@ import { formatHashLines, initHash } from '../hashline/line-hash.js'
 export interface HashlineReadOptions {
   recordOnRead?: boolean
   maxLines?: number
+  /** 1-based inclusive start line */
+  startLine?: number
+  /** 1-based inclusive end line */
+  endLine?: number
+}
+
+function resolveSliceBounds(
+  totalLines: number,
+  options: HashlineReadOptions
+): { start: number; end: number; label: string } {
+  const start1 = options.startLine != null ? Math.max(1, Math.min(options.startLine, totalLines)) : 1
+  let end1 =
+    options.endLine != null
+      ? Math.max(start1, Math.min(options.endLine, totalLines))
+      : options.maxLines != null
+        ? Math.min(totalLines, start1 + options.maxLines - 1)
+        : totalLines
+
+  if (options.startLine == null && options.endLine == null && options.maxLines != null) {
+    end1 = Math.min(totalLines, options.maxLines)
+  }
+
+  return {
+    start: start1,
+    end: end1,
+    label:
+      start1 === 1 && end1 === totalLines
+        ? `lines 1–${totalLines}`
+        : `lines ${start1}–${end1} of ${totalLines}`,
+  }
 }
 
 export async function formatHashlineRead(
@@ -19,7 +49,7 @@ export async function formatHashlineRead(
 ): Promise<string> {
   const trimmed = fileArg.trim()
   if (!trimmed) {
-    return 'Usage: /hashline-read <path>\nExample: /hashline-read src/auth.ts'
+    return 'Usage: /hashline-read <path> [start] [end]\nExample: /hashline-read src/auth.ts 40 60'
   }
 
   await initHash()
@@ -38,14 +68,13 @@ export async function formatHashlineRead(
   }
 
   const lines = raw.split('\n')
-  const maxLines = options.maxLines
-  const truncated = maxLines != null && lines.length > maxLines
-  const slice = maxLines != null ? lines.slice(0, maxLines) : lines
-  const annotated = formatHashLines(slice.join('\n'))
+  const { start, end, label } = resolveSliceBounds(lines.length, options)
+  const slice = lines.slice(start - 1, end)
+  const annotated = formatHashLines(slice.join('\n'), start)
 
   const header = [
     `## Hashline read: ${trimmed}`,
-    `${lines.length} line(s)${truncated ? ` (showing first ${maxLines})` : ''}.`,
+    `${lines.length} line(s) — showing ${label}.`,
     'Edit with `hashline_edit` using anchors like `42nd` (line + bigram). Use `dry_run: true` to preview.',
     '',
     '```',
@@ -53,9 +82,38 @@ export async function formatHashlineRead(
     '```',
   ]
 
-  if (truncated) {
-    header.push('', `_(Truncated — file has ${lines.length} lines. Increase limit or read in sections.)_`)
+  if (end < lines.length) {
+    header.push(
+      '',
+      `_(File continues to line ${lines.length}. Use \`hashline_read\` with start_line/end_line or \`/hashline-read ${trimmed} <start> <end>\`.)_`
+    )
   }
 
   return header.join('\n')
+}
+
+/** Parse `/hashline-read path [start] [end]` command args. */
+export function parseHashlineReadArgs(args: string): HashlineReadOptions & { path: string } {
+  const parts = args.trim().split(/\s+/).filter(Boolean)
+  const path = parts[0] ?? ''
+  const startLine = parts[1] ? Number.parseInt(parts[1], 10) : undefined
+  const endLine = parts[2] ? Number.parseInt(parts[2], 10) : undefined
+  return {
+    path,
+    startLine: Number.isFinite(startLine) && startLine! > 0 ? startLine : undefined,
+    endLine: Number.isFinite(endLine) && endLine! > 0 ? endLine : undefined,
+    recordOnRead: true,
+  }
+}
+
+export function formatHashlineReadFromArgs(projectRoot: string, args: string, recordOnRead: boolean): Promise<string> {
+  const parsed = parseHashlineReadArgs(args)
+  if (!parsed.path) {
+    return Promise.resolve('Usage: /hashline-read <path> [startLine] [endLine]\nExample: /hashline-read src/auth.ts 40 60')
+  }
+  return formatHashlineRead(projectRoot, parsed.path, {
+    startLine: parsed.startLine,
+    endLine: parsed.endLine,
+    recordOnRead,
+  })
 }

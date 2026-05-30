@@ -31,6 +31,16 @@ describe('formatHashlineRead', () => {
     expect(out).toMatch(/\d+[a-z]{2}\|/)
   })
 
+  it('formats line range when startLine and endLine set', async () => {
+    const out = await formatHashlineRead(root, 'src/sample.ts', {
+      startLine: 1,
+      endLine: 1,
+      recordOnRead: false,
+    })
+    expect(out).toMatch(/lines 1–1 of \d+/)
+    expect(out).toContain('const x = 1')
+  })
+
   it('reports missing file', async () => {
     const out = await formatHashlineRead(root, 'missing.ts')
     expect(out).toContain('Could not read file')

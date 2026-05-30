@@ -22,9 +22,10 @@ import type {
 import telemetry from 'pi-telemetry'
 import { produceDefaults } from './context/schema.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
-import { formatHashlineRead } from './commands/hashline-read.js'
+import { formatHashlineReadFromArgs } from './commands/hashline-read.js'
 import { formatScopeCommand } from './commands/scope-dashboard.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
+import { registerHashlineReadTool } from './tools/hashline-read-tool.js'
 import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
 
 export type { ExtensionContext }
@@ -97,6 +98,7 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   }
 
   registerHashlineTool(pi)
+  registerHashlineReadTool(pi)
   registerLspTools(pi)
 
   const manager = new SessionManager()
@@ -113,9 +115,7 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     handler: async (args?: string) => {
       const s = manager.state
       if (!s) return 'pi-scope session is not active. Open a codebase project first.'
-      return formatHashlineRead(s.projectRoot, args ?? '', {
-        recordOnRead: s.config.hashline.recordOnRead,
-      })
+      return formatHashlineReadFromArgs(s.projectRoot, args ?? '', s.config.hashline.recordOnRead)
     },
   })
 
