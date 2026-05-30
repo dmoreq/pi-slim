@@ -50,8 +50,22 @@ export async function launchLSP(
   const cwd = options.cwd ?? process.cwd()
   const mergedEnv = { ...process.env, ...options.env }
 
-  // Resolve bare command to full path
-  const resolvedCommand = path.isAbsolute(command) ? command : (which(command) ?? command)
+  // Resolve bare command to full path — throw early if binary not found on PATH.
+  // This converts an async ENOENT 'error' event (which would cause uncaughtException)
+  // into a synchronous throw that callers can catch normally.
+  let resolvedCommand: string
+  if (path.isAbsolute(command)) {
+    resolvedCommand = command
+  } else {
+    const found = which(command)
+    if (!found) {
+      throw new Error(
+        `Language server '${command}' not found on PATH. ` +
+          `Install it to enable LSP features (e.g. \`npm install -g ${command}\`).`
+      )
+    }
+    resolvedCommand = found
+  }
 
   // Determine if we need shell (Windows .cmd/.bat scripts)
   const needsShell =
@@ -83,15 +97,30 @@ export async function launchLSP(
       windowsHide: isWindows,
     })
   }
-
   if (!proc.stdin || !proc.stdout || !proc.stderr) {
     throw new Error(`Failed to spawn LSP server: ${command}`)
   }
 
-  // Check immediate exit
-  if (proc.exitCode !== null || proc.killed) {
-    throw new Error(`LSP server ${command} exited immediately (code: ${proc.exitCode})`)
-  }
+  // Wait for the process to either start successfully ('spawn' event) or fail
+  // immediately ('error' event). This converts the asynchronous ENOENT — which
+  // would otherwise become an uncaughtException — into a proper rejected Promise.
+  await new Promise<void>((resolve, reject) => {
+    const onSpawn = () => {
+      proc.off('error', onError)
+      resolve()
+    }
+    const onError = (err: Error) => {
+      proc.off('spawn', onSpawn)
+      reject(err)
+    }
+    proc.once('spawn', onSpawn)
+    proc.once('error', onError)
+  })
+
+  // Keep a fallback error listener for future runtime errors (e.g. unexpected
+  // process crash after successful launch). Without this Node would emit
+  // uncaughtException; errors surface via RPC timeouts / tool catch instead.
+  proc.on('error', () => { /* handled by RPC layer */ })
 
   return {
     process: proc,
