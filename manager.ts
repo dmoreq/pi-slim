@@ -1,6 +1,7 @@
 import { formatScopeCommand, formatScopeDashboard } from './commands/scope-dashboard.js'
 import { extractToolPath, resolveProjectPath } from './context/hashline-inject.js'
 import { collectLineRegionHints } from './context/hashline-region.js'
+import { formatHashlineTurnWorkflowBlock, mergeHashlineInjectionInsights } from './context/hashline-signals.js'
 import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
 import { watch, type FSWatcher } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -216,6 +217,9 @@ export class SessionManager {
    * (oldest removed first).
    */
   private conversationMessages: AgentMessage[] = []
+
+  /** Paths with hashline anchors injected or read during the current context turn. */
+  hashlineAnchorPathsThisTurn = new Set<string>()
 
   /** Per-turn cache so before_agent_start + context share one intelligence snapshot. */
   private intelligenceSnapshotCache: {
@@ -741,13 +745,16 @@ export class SessionManager {
       return { block: true, reason: result.reason ?? 'Tool call blocked by pi-scope plugin.' }
     }
 
-    if (s?.config.hashline.enabled && s.config.hashline.recordOnRead) {
+    if (s?.config.hashline.enabled) {
       const tool = event.toolName.toLowerCase()
-      if (tool === 'read') {
-        const path = extractToolPath(event.input)
-        if (path) {
+      const path = extractToolPath(event.input)
+      if (path) {
+        const abs = resolveProjectPath(s.projectRoot, path)
+        if (tool === 'hashline_read') {
+          this.hashlineAnchorPathsThisTurn.add(abs)
+        }
+        if (s.config.hashline.recordOnRead && tool === 'read') {
           try {
-            const abs = resolveProjectPath(s.projectRoot, path)
             const raw = await readFile(abs, 'utf-8')
             AnchorStateManager.record(abs, raw)
           } catch {
@@ -787,6 +794,7 @@ export class SessionManager {
       return { messages: [], content: '' }
     }
 
+    this.hashlineAnchorPathsThisTurn.clear()
     await this.pluginManager.runHook('onContext', event.messages ?? [])
 
     const snapshot = await this.getIntelligenceSnapshot()
@@ -875,18 +883,37 @@ export class SessionManager {
       )
     }
 
+    this.hashlineAnchorPathsThisTurn = new Set(s.injector.lastInjectedHashlinePaths)
+    const turnInsights = mergeHashlineInjectionInsights(
+      snapshot.insights,
+      this.hashlineAnchorPathsThisTurn,
+      depContextContent
+    )
+
     // Assemble all context through the pipeline
     const pipeline = new InjectionPipeline()
     const budget = s.config.maxInjectionTokens
 
+    if (
+      s.config.hashline.enabled &&
+      turnInsights.editingIntent.hasHashAnnotations &&
+      (turnInsights.editingIntent.detected || triggersDepContext)
+    ) {
+      pipeline.register({
+        name: 'hashline-turn-workflow',
+        priority: 3.5,
+        produce: () => formatHashlineTurnWorkflowBlock(),
+      })
+    }
+
     if (s.config.intelligence.enabled) {
-      const intelOpts = this.intelligenceGuidanceOptions(s, snapshot.insights, hasCodebaseQuery)
+      const intelOpts = this.intelligenceGuidanceOptions(s, turnInsights, hasCodebaseQuery)
       pipeline.register({
         name: 'context-intelligence',
         priority: 4,
         produce: () => {
           const g = this.intelligenceEngine.generateActionableGuidance(
-            snapshot.insights,
+            turnInsights,
             graph,
             this.graphService.graph,
             intelOpts
