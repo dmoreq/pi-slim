@@ -136,6 +136,14 @@ describe('detectPathsInOutput', () => {
     expect(results[0].path).toContain('main.ts')
   })
 
+  it('extracts column from tsc compiler output', () => {
+    const text = 'src/main.ts(25,8): error TS2304: Cannot find name'
+    const results = detectPathsInOutput('bash', text, { validateExistence: false })
+    expect(results.some(r => r.path.includes('main.ts') && r.startLine === 25 && r.startColumn === 7)).toBe(
+      true
+    )
+  })
+
   it('detects paths from array content', () => {
     const results = detectPathsInOutput('bash', [{ type: 'text', text: 'Error in src/foo.ts' }], {
       validateExistence: false,

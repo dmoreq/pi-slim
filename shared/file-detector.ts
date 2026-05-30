@@ -11,6 +11,7 @@
 
 import { statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
+import { detectCompilerErrorLocations } from './compiler-error-locations.js'
 import { PathUtils } from './utils/path-utils.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -19,6 +20,8 @@ export interface FileReference {
   path: string
   startLine?: number
   endLine?: number
+  /** 0-based column (e.g. from compiler error output) */
+  startColumn?: number
 }
 
 export interface DetectorOptions {
@@ -29,7 +32,20 @@ export interface DetectorOptions {
 
 // ── Defaults ──────────────────────────────────────────────────────────────
 
-const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.py', '.rs', '.js', '.jsx', '.go', '.java', '.c', '.cpp', '.h', '.hpp']
+export const DEFAULT_EXTENSIONS = [
+  '.ts',
+  '.tsx',
+  '.py',
+  '.rs',
+  '.js',
+  '.jsx',
+  '.go',
+  '.java',
+  '.c',
+  '.cpp',
+  '.h',
+  '.hpp',
+]
 
 // ── Path helpers ──────────────────────────────────────────────────────────
 
@@ -120,6 +136,18 @@ export function detectPathsInText(text: string, options: DetectorOptions = {}): 
     seen.add(raw)
     if (validate && !pathExists(raw, projectRoot)) continue
     results.push({ path: resolvePath(raw, projectRoot) })
+  }
+
+  for (const err of detectCompilerErrorLocations(text, options)) {
+    const key = `${err.path}:${err.startLine}:${err.startColumn}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    results.push({
+      path: err.path,
+      startLine: err.startLine,
+      endLine: err.startLine,
+      startColumn: err.startColumn,
+    })
   }
 
   return results
