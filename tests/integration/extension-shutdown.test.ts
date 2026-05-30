@@ -22,6 +22,7 @@ describe('extension.ts lifecycle', () => {
     const handlers = new Map<string, (...args: unknown[]) => unknown>()
     const pi = {
       registerFlag: vi.fn(),
+      registerCommand: vi.fn(),
       getFlag: vi.fn().mockReturnValue(true),
       on: vi.fn((event: string, fn: (...args: unknown[]) => unknown) => {
         handlers.set(event, fn)

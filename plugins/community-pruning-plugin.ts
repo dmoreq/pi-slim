@@ -16,6 +16,7 @@
  *                                                            the live conversation history
  */
 
+import { getTelemetry } from 'pi-telemetry'
 import type { CommunityAnalysis, GraphAnalysis } from '../context/graph-types.js'
 import type { GraphService } from '../services/graph-service.js'
 import type { Plugin } from './plugin.js'
@@ -89,6 +90,8 @@ export class CommunityPruningPlugin implements Plugin {
       }
     }
 
+    let prunedThisTurn = 0
+
     // Walk forward and prune developer messages with no community-relevant content
     for (let i = 0; i < messages.length; i++) {
       if (messages[i].role !== 'developer') continue
@@ -103,6 +106,21 @@ export class CommunityPruningPlugin implements Plugin {
         // Shift the preserved-index down by one since we removed a prior element
         if (lastDevIdx > i) lastDevIdx--
         this._pruneCount++
+        prunedThisTurn++
+      }
+    }
+
+    if (prunedThisTurn > 0) {
+      try {
+        getTelemetry()?.notify(
+          `Community pruning: removed ${prunedThisTurn} off-community injection(s) (active: ${activeCommunity.label})`,
+          {
+            severity: 'info' as any,
+            badge: { text: 'comm prune', variant: 'info' as any },
+          }
+        )
+      } catch {
+        // pi-telemetry optional
       }
     }
   }

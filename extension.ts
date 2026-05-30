@@ -5,7 +5,7 @@
  *   - Auto-indexes on first codebase-relevant query
  *   - Native graph analysis runs automatically on the computed code index
  *   - All lifecycle events reported via pi-telemetry
- *   - 4 LLM tools: hashline_edit, lsp_go_to_definition, lsp_find_references, lsp_hover
+ *   - 4 LLM tools + `/scope` dashboard command
  *
  * Trigger: before_agent_start checks if query is codebase-related (contains
  * file paths, symbol names, or code keywords). Skips if not.
@@ -22,6 +22,7 @@ import type {
 import telemetry from 'pi-telemetry'
 import { produceDefaults } from './context/schema.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
+import { formatScopeDashboard } from './commands/scope-dashboard.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
 import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
 
@@ -94,11 +95,17 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     // pi-telemetry may not be available at extension load time
   }
 
-  // Register LLM tools only (no user commands)
   registerHashlineTool(pi)
   registerLspTools(pi)
 
   const manager = new SessionManager()
+
+  pi.registerCommand('scope', {
+    description: 'Show pi-scope session dashboard (index, graph, injections, savings)',
+    handler: async () => {
+      return formatScopeDashboard(manager)
+    },
+  })
 
   pi.on('session_start', ((_event: unknown, ctx: PiExtensionContext) => {
     void manager.start(ctx.cwd, (name: string) => pi.getFlag(name) as unknown, ctx as unknown as ExtensionContext)

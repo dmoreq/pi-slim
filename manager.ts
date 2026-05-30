@@ -1,3 +1,4 @@
+import { formatScopeDashboard } from './commands/scope-dashboard.js'
 import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
 import { watch, type FSWatcher } from 'node:fs'
 import { ContextInjector } from './context/dep-context.js'
@@ -132,6 +133,17 @@ export function formatGraphInsightsSection(a: GraphAnalysis): string {
     }
     lines.push('')
   }
+  if (a.bottlenecks.length > 0) {
+    lines.push('**Bottlenecks (high betweenness):**')
+    for (const b of a.bottlenecks.slice(0, 5)) {
+      const label = b.nodeId.includes(':') ? b.nodeId.split(':').pop() : b.nodeId
+      lines.push(`  - \`${label}\` (${b.impact.dependentCount} dependents, ${b.betweenness.toFixed(2)} betweenness)`)
+    }
+    if (a.bottlenecks.length > 5) {
+      lines.push(`  - ... and ${a.bottlenecks.length - 5} more`)
+    }
+    lines.push('')
+  }
   if (a.surprises.length > 0) {
     lines.push('**Notable connections:**')
     for (const s of a.surprises.slice(0, 3)) {
@@ -192,6 +204,13 @@ export class SessionManager {
    */
   private conversationMessages: AgentMessage[] = []
 
+  /** Per-turn cache so before_agent_start + context share one intelligence snapshot. */
+  private intelligenceSnapshotCache: {
+    fingerprint: string
+    insights: ContextInsights
+    graph: GraphAnalysis | null
+  } | null = null
+
   constructor(_projectRoot?: string) {
     this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
@@ -203,6 +222,7 @@ export class SessionManager {
    * Oldest rows are dropped when length exceeds {@link SessionManager.MAX_CONVERSATION_MESSAGES}.
    */
   addMessages(messages: AgentMessage[]): void {
+    this.invalidateIntelligenceSnapshotCache()
     for (const m of messages) {
       this.conversationMessages.push({
         ...m,
@@ -214,13 +234,18 @@ export class SessionManager {
 
   /** Run pattern + graph-aware analysis over the current conversation buffer. */
   async analyzeCurrentContext(): Promise<ContextInsights> {
-    return (await this.buildIntelligenceSnapshot()).insights
+    return (await this.getIntelligenceSnapshot()).insights
   }
 
   /** Natural-language steering block for agents (graph when available, otherwise basic tips). */
   async generateIntelligentGuidance(): Promise<string> {
-    const { insights, graph } = await this.buildIntelligenceSnapshot()
+    const { insights, graph } = await this.getIntelligenceSnapshot()
     return this.intelligenceEngine.generateActionableGuidance(insights, graph, this.graphService.graph)
+  }
+
+  /** In-session dashboard text for `/scope`. */
+  scopeDashboard(): string {
+    return formatScopeDashboard(this)
   }
 
   /** Same guidance string suitable for injecting alongside dep-context or tool hints. */
@@ -232,6 +257,31 @@ export class SessionManager {
    * Computes insights and the graph correlation used together in {@link generateActionableGuidance}.
    * On resolver or analyzer failure, repeats analysis **without** graph so callers always get usable output.
    */
+  private conversationFingerprint(): string {
+    const last = this.conversationMessages[this.conversationMessages.length - 1]
+    return `${this.conversationMessages.length}:${extractText(last?.content ?? '').length}`
+  }
+
+  private invalidateIntelligenceSnapshotCache(): void {
+    this.intelligenceSnapshotCache = null
+  }
+
+  private async getIntelligenceSnapshot(): Promise<{
+    insights: ContextInsights
+    graph: GraphAnalysis | null
+  }> {
+    const fingerprint = this.conversationFingerprint()
+    if (this.intelligenceSnapshotCache?.fingerprint === fingerprint) {
+      return {
+        insights: this.intelligenceSnapshotCache.insights,
+        graph: this.intelligenceSnapshotCache.graph,
+      }
+    }
+    const snapshot = await this.buildIntelligenceSnapshot()
+    this.intelligenceSnapshotCache = { fingerprint, ...snapshot }
+    return snapshot
+  }
+
   private async buildIntelligenceSnapshot(): Promise<{
     insights: ContextInsights
     graph: GraphAnalysis | null
@@ -256,6 +306,7 @@ export class SessionManager {
    * Always trim after replace — pi may send arbitrarily long payloads.
    */
   private syncConversationMessages(messages: AgentMessage[]): void {
+    this.invalidateIntelligenceSnapshotCache()
     this.conversationMessages = messages.map(m => ({
       ...m,
       content: extractText(m.content),
@@ -499,7 +550,7 @@ export class SessionManager {
     )
       return undefined
 
-    const snapshot = await this.buildIntelligenceSnapshot()
+    const snapshot = await this.getIntelligenceSnapshot()
     const graph = snapshot.graph ?? this.graphService.analysis ?? null
 
     const pipeline = new InjectionPipeline()
@@ -520,6 +571,11 @@ export class SessionManager {
             const files = loadProviderGuidance(s.projectRoot, provider, modelId)
             if (files.length > 0) {
               s.providerGuidanceFiles = files
+              const names = files.map(f => f.path.split('/').pop() ?? f.path).join(', ')
+              this.telemetry.notify(`Provider guidance: ${names}`, {
+                severity: 'info' as any,
+                badge: { text: 'guidance', variant: 'info' as any },
+              })
               return formatProviderGuidanceSection(files)
             }
             return null
@@ -587,11 +643,15 @@ export class SessionManager {
 
     this.updateStatusBar(ctx)
 
+    const depDepth = s.config.dependencyDepth ?? 1
     const toolsBlock =
       '\n\n## pi-scope Tools\n' +
-      '- `hashline_edit`: Edit files using hash anchors (shown in skeleton output). No re-read needed.\n' +
-      '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_hover`: Code navigation via LSP.\n' +
+      '- `hashline_edit`: Edit with hash anchors (`dry_run: true` validates + shows diff without writing).\n' +
+      '- `lsp_hover`: Type info + graph impact (dependents, god nodes, communities).\n' +
+      '- `lsp_go_to_definition`, `lsp_find_references`: Code navigation via LSP.\n' +
       '- `/hashline-read <file>`: Read a file with hash anchors for editing.\n' +
+      `- Config: \`slim.dependencyDepth\` = ${depDepth} (transitive dep skeleton depth 0–3).\n` +
+      '- `/scope`: Session dashboard (index, graph, injection stats).\n' +
       '\n**Priority model:** pi-scope handles codebase intelligence (symbols, structure, context).\n' +
       'Use pi-sherlock tools (`search`, `fuzzy_find`, `find_files`, etc.) for ad-hoc or external searches.\n' +
       'After search tools return results, pi-scope automatically injects AST skeletons for the matched files.\n'
@@ -635,7 +695,7 @@ export class SessionManager {
 
     await this.pluginManager.runHook('onContext', event.messages ?? [])
 
-    const snapshot = await this.buildIntelligenceSnapshot()
+    const snapshot = await this.getIntelligenceSnapshot()
     const graph = snapshot.graph ?? this.graphService.analysis ?? null
 
     // Dep-context gates (unchanged)

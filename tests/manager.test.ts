@@ -268,6 +268,22 @@ describe('formatGraphInsightsSection', () => {
     expect(result).toContain('MyService')
     expect(result).toContain('12 in')
   })
+
+  it('includes bottlenecks when present', () => {
+    const result = formatGraphInsightsSection(
+      makeAnalysis({
+        bottlenecks: [
+          {
+            nodeId: 'file:src/hub.ts',
+            betweenness: 0.9,
+            impact: { ifRemoved: [], pathsThrough: 4, dependentCount: 7 },
+          },
+        ],
+      })
+    )
+    expect(result).toContain('Bottlenecks')
+    expect(result).toContain('7 dependents')
+  })
 })
 
 afterEach(() => {
