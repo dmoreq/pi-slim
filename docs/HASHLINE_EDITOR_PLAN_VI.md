@@ -1,7 +1,10 @@
-# Kế hoạch kích hoạt đầy đủ Nhóm 10: Hashline Editor
+# Kế hoạch kích hoạt đầy đủ Nhóm 10: Hashline Editor (v1 — lịch sử)
+
+> **Đã supersede bởi:** [`docs/HASHLINE_ADOPTION_PLAN_VI.md`](./HASHLINE_ADOPTION_PLAN_VI.md) (v2 — adoption, khai thác tiềm năng, sau commit `67fab18`).  
+> Tài liệu này giữ lại để tham chiếu phase 0–5 đã triển khai.
 
 > Dựa trên `docs/FEATURE_ANALYSIS_VI.md` §11, khảo sát codebase (2026-05-30), sau commit metrics (`feat: expose session metrics…`).  
-> **Phát hiện quan trọng:** `/hashline-read` được document nhưng **chưa được implement** trong `extension.ts`; dep-context **không** inject anchor — skill/README nói có nhưng code chưa wire `formatHashLines`.
+> **Trạng thái v1 (đã xong 2026-05-30):** `/hashline-read`, dep-context anchors (đầu file), preamble, `HashlineSteerPlugin`, `recordOnRead` — xem commit `67fab18`.
 
 ---
 

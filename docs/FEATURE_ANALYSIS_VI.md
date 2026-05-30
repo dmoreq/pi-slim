@@ -493,8 +493,9 @@ function symbolFromPosition(fp: string, _line: number, _column: number): string 
 | Preamble + per-turn hashline workflow block | ✅ |
 | `hasHashAnnotations` từ inject thực tế | ✅ |
 | `HashlineSteerPlugin` (notify / `strictMode`) | ✅ |
-| `contextualStrictMode` | 🔜 Phase B |
-| Metrics `/scope` | 🔜 Phase B |
+| `contextualStrictMode` | ✅ |
+| Metrics `/scope` | ✅ |
+| `HashlineValidatePlugin` | ✅ |
 
 ### 11.3 Nhận xét sử dụng
 
