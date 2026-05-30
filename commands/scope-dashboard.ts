@@ -33,8 +33,56 @@ export function formatScopeDashboard(manager: SessionManager): string {
   )
   const pruneStats = commPlugin?.getStats()
 
+  function buildHealthSection(): string[] {
+    const lspActive = (manager.lspServerHealth ?? []).some(h => h.available)
+    const q = gm?.quality
+    const hasGraph = !!graph
+    const status =
+      !hasGraph || !lspActive
+        ? '✗ Limited'
+        : q && (q.score < 70 || q.cycleCount > 0)
+          ? '⚠ Degraded'
+          : '✓ Healthy'
+
+    const indexAge =
+      stats.indexAge != null
+        ? stats.indexAge < 1
+          ? 'built just now'
+          : `built ${Math.round(stats.indexAge)}h ago`
+        : stats.indexSource === 'cache'
+          ? 'cached'
+          : 'just built'
+    const indexLine = `${stats.indexSource === 'cache' ? 'Cached' : 'Fresh'} (${indexAge} · ${stats.indexedFiles} files)`
+
+    const graphLine =
+      hasGraph && q
+        ? `Q${q.score}/100 · ${q.communityCount} communities · ${q.cycleCount} cycle${q.cycleCount !== 1 ? 's' : ''}`
+        : '(not loaded)'
+
+    const lspLine = lspActive
+      ? `✓ ${(manager.lspServerHealth ?? [])
+          .filter(h => h.available)
+          .map(h => h.id)
+          .join(', ')}`
+      : '✗ not available'
+
+    const savingsRaw = stats.savingsRatio * 100
+    const savingsQuality = savingsRaw >= 50 ? '(excellent)' : savingsRaw >= 25 ? '(good)' : '(accumulating)'
+    const savingsLine = stats.totalTokensSaved > 0 ? `${Math.round(savingsRaw)}% ${savingsQuality}` : '—'
+
+    return [
+      padLine('🏥 HEALTH'),
+      padLine(`  Status          : ${status}`),
+      padLine(`  Index           : ${indexLine}`),
+      padLine(`  Graph           : ${graphLine}`),
+      padLine(`  LSP             : ${lspLine}`),
+      padLine(`  Token savings   : ${savingsLine}`),
+    ]
+  }
+
   const lines: string[] = [
     '┌──── pi-scope Session Dashboard ────────────────────────────┐',
+    ...buildHealthSection(),
     padLine('📇 INDEX'),
     padLine(`  Source          : ${stats.indexSource === 'cache' ? 'Cached' : 'Fresh build'}`),
     padLine(`  Files           : ${String(stats.indexedFiles).padStart(6)}`),
