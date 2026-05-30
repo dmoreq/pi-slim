@@ -239,6 +239,11 @@ export class SessionManager {
             ...ins.editingIntent.targetSymbols,
             ...ins.editingIntent.affectedGodNodes,
           ]
+        },
+        (msg) => {
+          if (this.state?.config.metrics.notifyGodNodeProtection) {
+            this._notify(msg, 'info')
+          }
         }
       )
     )

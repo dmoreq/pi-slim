@@ -71,6 +71,20 @@ describe('GraphSteerPlugin', () => {
     expect(result?.allowed).toBe(true)
   })
 
+  it('fires onUserNotify with symbol name when god-node edit is intercepted', async () => {
+    const state = makeState()
+    const userMessages: string[] = []
+    const plugin = new GraphSteerPlugin(
+      () => state,
+      () => graph,
+      () => ['Hub'],
+      (msg) => userMessages.push(msg)
+    )
+    await plugin.onToolCall!({ toolName: 'edit', input: { path: 'src/hub.ts' } })
+    expect(userMessages.length).toBeGreaterThan(0)
+    expect(userMessages[0]).toMatch(/CRITICAL.*Hub|Hub.*CRITICAL/)
+  })
+
   it('does not steer when LSP impact tool was used recently', async () => {
     const state = makeState()
     state.recentToolNames = ['lsp_hover']

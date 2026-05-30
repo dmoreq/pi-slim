@@ -32,7 +32,8 @@ export class GraphSteerPlugin implements Plugin {
   constructor(
     private readonly getState: () => SessionState | null,
     private readonly getGraph: () => GraphAnalysis | null,
-    private readonly getAffectedSymbols: () => string[]
+    private readonly getAffectedSymbols: () => string[],
+    private readonly onUserNotify?: (msg: string) => void
   ) {}
 
   async onToolCall(event: {
@@ -56,6 +57,16 @@ export class GraphSteerPlugin implements Plugin {
       'Target symbol is a CRITICAL god node — run `lsp_find_references` and `lsp_hover` (or `graph_symbol_impact`) before editing.'
 
     state.stats.recordGraphSteer()
+
+    const symbolNames = symbols.slice(0, 2).join(', ')
+    const godNode = graph.godNodes.find(
+      gn => gn.criticality === 'CRITICAL' && symbols.some(sym => godNodeMatchesSymbol(gn, sym))
+    )
+    const depLabel = godNode ? ` (${godNode.inDegree} dependents)` : ''
+    this.onUserNotify?.(
+      `🛡 Guiding AI to check impact before editing CRITICAL symbol \`${symbolNames}\`${depLabel}`
+    )
+
     if (state.config.graph.strictGraphImpact) {
       return { allowed: false, reason }
     }
