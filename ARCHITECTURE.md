@@ -62,7 +62,7 @@ Builds and maintains the symbol index.
 1. On session start, check `.pi/pi-scope/index.json.gz` for freshness
 2. If stale or missing, run `IndexEngine` to walk/parse/extract
 3. Save to cache, build dependency graph
-4. If `graphify-out/graph.json` exists, load and analyze
+4. Run native code-graph analysis from the RepoIndex
 
 **Key Data Structures:**
 - `FileIndex` — Per-file: path, skeleton, imports, exports, contentHash
@@ -100,11 +100,11 @@ score = 3×symbolMatch + 2×filenameMatch + 1×depProximity
 Analyzes codebase structure and detects patterns.
 
 **Components:**
-- `graph-loader.ts` — Loads graphify output
+- `graph/bridge.ts` — Converts RepoIndex → CodeGraph
 - `graph-bridge.ts` — Converts to internal format
 - `graph-schema.ts` — Validates graph structure
 - `analyzers/graph-analyzer.ts` — Computes metrics
-- `analyzers/compute-graphify-analysis.ts` — Analysis pipeline
+- `graph/analyzers/` — Algorithm pipeline (centrality, PageRank, communities, cycles, surprises)
 - `cache/analysis-cache.ts` — Caches results
 
 **Algorithms:**
@@ -231,9 +231,9 @@ User-facing feedback.
    ├─ Build RepositoryIndex + dependency graph
    └─ Save to cache
 
-3. Auto-load graphify-out/graph.json if exists
-   ├─ Validate schema
-   ├─ Run 5 graph algorithms
+3. Run native code-graph analysis (no external tools required)
+   ├─ Bridge RepoIndex → CodeGraph via graph/bridge.ts
+   ├─ Run 5 graph algorithms via graph/analyzers/
    ├─ Cache results
    └─ Notify user of analysis completion
 
@@ -277,7 +277,7 @@ User-facing feedback.
 Features are layered with clear dependencies:
 - `SmartRepoMap` enhances `RepoMap`
 - `IntelligenceEngine` uses `PatternDetector`
-- `ComputeGraphifyAnalysis` orchestrates `GraphAnalyzer`
+- `GraphAnalyzer` runs 5 algorithm modules: centrality, PageRank, Louvain communities, DFS cycles, surprise detection
 
 ### 2. Pipeline Pattern
 Stages feed into each other:
@@ -347,12 +347,12 @@ Pi-scope registers:
 - **Before-agent hooks:** `before_agent_start` for context injection
 - **Telemetry:** `pi-telemetry` for notifications
 
-### With Graphify
+### Native Code-Graph
 
-Optional integration:
-- Auto-detects `graphify-out/graph.json`
-- Runs full analysis pipeline if present
-- All core features work without graphify
+Native code-graph analysis:
+- Runs automatically from RepoIndex (no external tools needed)
+- Produces god nodes, communities, cycles, and cross-community edges
+- All core features work with native analysis
 
 ### With Project
 
