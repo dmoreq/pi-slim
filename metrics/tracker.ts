@@ -51,6 +51,11 @@ export interface SessionRecord {
   sessionDurationMs?: number
   totalInjectionTokens?: number
   communityPruneCount?: number
+  hashlineEdits?: number
+  hashlineDryRuns?: number
+  hashlineApplyEdits?: number
+  builtinEditSteered?: number
+  hashlineAnchorInjectTurns?: number
 }
 
 // ── Live tracker ──────────────────────────────────────────────────────────
@@ -93,6 +98,11 @@ export class SessionStats {
   graphCacheHit?: boolean
   graphEstimatedSavings?: number
   communityPruneCount = 0
+  hashlineEdits = 0
+  hashlineDryRuns = 0
+  hashlineApplyEdits = 0
+  builtinEditSteered = 0
+  hashlineAnchorInjectTurns = 0
 
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
@@ -154,6 +164,20 @@ export class SessionStats {
 
   recordCommunityPrune(count: number): void {
     this.communityPruneCount = count
+  }
+
+  recordHashlineEdit(dryRun: boolean): void {
+    this.hashlineEdits++
+    if (dryRun) this.hashlineDryRuns++
+    else this.hashlineApplyEdits++
+  }
+
+  recordBuiltinEditSteered(): void {
+    this.builtinEditSteered++
+  }
+
+  recordHashlineAnchorInjectTurn(): void {
+    this.hashlineAnchorInjectTurns++
   }
 
   get uniqueFilesInjected(): number {
@@ -297,6 +321,12 @@ export class SessionStats {
       sessionDurationMs: this.sessionDurationMs(),
       totalInjectionTokens: this.totalInjectionTokens(),
       communityPruneCount: this.communityPruneCount > 0 ? this.communityPruneCount : undefined,
+      hashlineEdits: this.hashlineEdits > 0 ? this.hashlineEdits : undefined,
+      hashlineDryRuns: this.hashlineDryRuns > 0 ? this.hashlineDryRuns : undefined,
+      hashlineApplyEdits: this.hashlineApplyEdits > 0 ? this.hashlineApplyEdits : undefined,
+      builtinEditSteered: this.builtinEditSteered > 0 ? this.builtinEditSteered : undefined,
+      hashlineAnchorInjectTurns:
+        this.hashlineAnchorInjectTurns > 0 ? this.hashlineAnchorInjectTurns : undefined,
     }
   }
 

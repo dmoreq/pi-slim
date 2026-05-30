@@ -28,6 +28,7 @@ import { AnchorStateManager } from './hashline/state-manager.js'
 import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
 import { HashlineSteerPlugin } from './plugins/hashline-steer-plugin.js'
+import { HashlineValidatePlugin } from './plugins/hashline-validate-plugin.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { GraphService } from './services/graph-service.js'
 import { IndexService } from './services/index-service.js'
@@ -220,6 +221,7 @@ export class SessionManager {
 
   /** Paths with hashline anchors injected or read during the current context turn. */
   hashlineAnchorPathsThisTurn = new Set<string>()
+  private hashlineDryRunSeenForPath = new Set<string>()
 
   /** Per-turn cache so before_agent_start + context share one intelligence snapshot. */
   private intelligenceSnapshotCache: {
@@ -234,6 +236,9 @@ export class SessionManager {
     this.pluginManager.register(new CommunityPruningPlugin(this.graphService))
     this.pluginManager.register(
       new HashlineSteerPlugin(() => this.state, () => this.hashlineAnchorPathsThisTurn)
+    )
+    this.pluginManager.register(
+      new HashlineValidatePlugin(() => this.state, () => this.hashlineAnchorPathsThisTurn)
     )
   }
 
@@ -756,6 +761,21 @@ export class SessionManager {
         if (tool === 'hashline_read') {
           this.hashlineAnchorPathsThisTurn.add(abs)
         }
+        if (tool === 'hashline_edit') {
+          const dryRun = Boolean(event.input?.dry_run)
+          s.stats.recordHashlineEdit(dryRun)
+          if (dryRun) {
+            this.hashlineDryRunSeenForPath.add(abs)
+          } else if (s.config.hashline.preferDryRun && !this.hashlineDryRunSeenForPath.has(abs)) {
+            this.telemetry.notify(
+              `First hashline_edit on \`${path}\` should use dry_run: true to preview the diff.`,
+              {
+                severity: 'info' as const,
+                badge: { text: 'hashline', variant: 'info' as const },
+              }
+            )
+          }
+        }
         if (s.config.hashline.recordOnRead && tool === 'read') {
           try {
             const raw = await readFile(abs, 'utf-8')
@@ -768,6 +788,7 @@ export class SessionManager {
     }
 
     if (result.reason && s?.config.hashline.steerFromBuiltinEdit) {
+      s.stats.recordBuiltinEditSteered()
       this.telemetry.notify(result.reason, {
         severity: 'info' as const,
         badge: { text: 'hashline', variant: 'info' as const },
@@ -887,6 +908,9 @@ export class SessionManager {
     }
 
     this.hashlineAnchorPathsThisTurn = new Set(s.injector.lastInjectedHashlinePaths)
+    if (this.hashlineAnchorPathsThisTurn.size > 0) {
+      s.stats.recordHashlineAnchorInjectTurn()
+    }
     const turnInsights = mergeHashlineInjectionInsights(
       snapshot.insights,
       this.hashlineAnchorPathsThisTurn,

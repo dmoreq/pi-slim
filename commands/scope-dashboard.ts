@@ -96,6 +96,14 @@ export function formatScopeDashboard(manager: SessionManager): string {
     lines.push(padLine(`  Community prune : ${pruneStats.pruneCount} msgs (${pruneStats.activeCommunityId ?? 'n/a'})`))
   }
 
+  if (stats.hashlineEdits > 0 || stats.hashlineAnchorInjectTurns > 0 || stats.builtinEditSteered > 0) {
+    lines.push(padLine('🔗 HASHLINE'))
+    lines.push(padLine(`  hashline_edit    : ${stats.hashlineEdits} (${stats.hashlineDryRuns} dry_run)`))
+    lines.push(padLine(`  apply (no dry)   : ${stats.hashlineApplyEdits}`))
+    lines.push(padLine(`  anchor turns     : ${stats.hashlineAnchorInjectTurns}`))
+    lines.push(padLine(`  builtin steered  : ${stats.builtinEditSteered}`))
+  }
+
   lines.push(padLine('💰 TOKEN SAVINGS'))
   if (stats.totalTokensSaved > 0) {
     lines.push(

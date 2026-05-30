@@ -12,6 +12,10 @@ export class AnchorStateManager {
   /**
    * Record the state of a file (typically on read or after a successful write).
    */
+  public static has(filePath: string): boolean {
+    return this.storage.has(filePath)
+  }
+
   public static record(filePath: string, content: string): void {
     const lines = content.split('\n')
     const hashes = new Uint32Array(lines.length)
