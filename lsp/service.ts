@@ -2,8 +2,10 @@
  * LSP Navigation Service — wraps LSP client into a simple tool-callable API.
  */
 
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { relative, resolve } from 'node:path'
+import { formatDiagnosticsForFile, formatSignatureHelp } from './diagnostic-format.js'
 import { type LSPClientInfo, createLSPClient } from '../lsp/client.js'
 import type { LSPLocation, LSPSymbol } from '../lsp/client.js'
 import { getLanguageId } from '../lsp/language.js'
@@ -82,6 +84,15 @@ export interface LspTextResult {
 export class LspNavigationService {
   private clients = new Map<string, LSPClientInfo>()
   private processes = new Map<string, LSPProcess>()
+  private openedDocs = new Set<string>()
+
+  private async ensureDocumentOpen(absPath: string, client: LSPClientInfo): Promise<void> {
+    if (this.openedDocs.has(absPath)) return
+    const content = await readFile(absPath, 'utf-8')
+    const languageId = getLanguageId(absPath)
+    await client.notify.open(absPath, content, languageId)
+    this.openedDocs.add(absPath)
+  }
 
   async ensureServer(filePath: string, projectRoot: string): Promise<LSPClientInfo> {
     const languageId = getLanguageId(filePath)
@@ -124,8 +135,10 @@ export class LspNavigationService {
     column: number,
     projectRoot: string
   ): Promise<LspTextResult> {
+    const abs = resolve(projectRoot, filePath)
     const client = await this.ensureServer(filePath, projectRoot)
-    const result = await client.definition(filePath, line, column)
+    await this.ensureDocumentOpen(abs, client)
+    const result = await client.definition(abs, line, column)
     return this.formatLocations('Definition', result ?? [], projectRoot)
   }
 
@@ -136,8 +149,10 @@ export class LspNavigationService {
     projectRoot: string,
     maxListed = 50
   ): Promise<LspTextResult> {
+    const abs = resolve(projectRoot, filePath)
     const client = await this.ensureServer(filePath, projectRoot)
-    const result = await client.references(filePath, line, column, false)
+    await this.ensureDocumentOpen(abs, client)
+    const result = await client.references(abs, line, column, false)
     const all = result ?? []
     const listed = all.slice(0, maxListed)
     const formatted = this.formatLocations('Reference', listed, projectRoot)
@@ -149,8 +164,10 @@ export class LspNavigationService {
   }
 
   async hoverInfo(filePath: string, line: number, column: number, projectRoot: string): Promise<string> {
+    const abs = resolve(projectRoot, filePath)
     const client = await this.ensureServer(filePath, projectRoot)
-    const hover = await client.hover(filePath, line, column)
+    await this.ensureDocumentOpen(abs, client)
+    const hover = await client.hover(abs, line, column)
     if (!hover) return 'No hover info available.'
     const parts: string[] = []
     const c = hover.contents
@@ -167,8 +184,10 @@ export class LspNavigationService {
     column: number,
     projectRoot: string
   ): Promise<LspTextResult> {
+    const abs = resolve(projectRoot, filePath)
     const client = await this.ensureServer(filePath, projectRoot)
-    const result = await client.implementation(filePath, line, column)
+    await this.ensureDocumentOpen(abs, client)
+    const result = await client.implementation(abs, line, column)
     return this.formatLocations('Implementation', result ?? [], projectRoot)
   }
 
@@ -186,6 +205,40 @@ export class LspNavigationService {
         `Document outline for ${rel} (${symbols.length} top-level symbols).\n` +
         'Use 0-based line/col with `lsp_hover` or `lsp_go_to_definition`.\n\n' +
         lines.join('\n'),
+      paths: [rel],
+    }
+  }
+
+  async fileDiagnostics(
+    filePath: string,
+    projectRoot: string,
+    waitMs = 2500
+  ): Promise<LspTextResult> {
+    const abs = resolve(projectRoot, filePath)
+    const rel = relative(projectRoot, abs).replace(/\\/g, '/')
+    const client = await this.ensureServer(filePath, projectRoot)
+    await this.ensureDocumentOpen(abs, client)
+    await client.waitForDiagnostics(abs, waitMs)
+    const diags = client.getDiagnostics(abs)
+    return {
+      text: formatDiagnosticsForFile(rel, diags),
+      paths: [rel],
+    }
+  }
+
+  async signatureHelp(
+    filePath: string,
+    line: number,
+    column: number,
+    projectRoot: string
+  ): Promise<LspTextResult> {
+    const abs = resolve(projectRoot, filePath)
+    const rel = relative(projectRoot, abs).replace(/\\/g, '/')
+    const client = await this.ensureServer(filePath, projectRoot)
+    await this.ensureDocumentOpen(abs, client)
+    const help = await client.signatureHelp(abs, line, column)
+    return {
+      text: formatSignatureHelp(help),
       paths: [rel],
     }
   }
@@ -230,6 +283,7 @@ export class LspNavigationService {
     await Promise.all([...this.processes].map(([, p]) => killLSPProcess(p).catch(() => {})))
     this.clients.clear()
     this.processes.clear()
+    this.openedDocs.clear()
   }
 }
 

@@ -254,6 +254,39 @@ const batchGotoTool = defineTool({
   },
 })
 
+const diagnosticsTool = defineTool({
+  name: 'lsp_diagnostics',
+  label: 'LSP Diagnostics',
+  description:
+    'List language-server diagnostics for a file after opening it. Use after build failures to compare with compiler output. 0-based positions in other LSP tools.',
+  parameters: Type.Object({
+    path: Type.String({ description: 'File path relative to project root or absolute' }),
+    wait_ms: Type.Optional(
+      Type.Integer({ minimum: 0, description: 'Ms to wait for diagnostics (default 2500)' })
+    ),
+  }),
+  async execute(_tid, p: { path: string; wait_ms?: number }, _sig, _upd, ctx) {
+    const cwd = ctxDir(ctx)
+    return runLocationTool(() =>
+      getService().fileDiagnostics(resolve(cwd, p.path), cwd, p.wait_ms ?? 2500)
+    )
+  },
+})
+
+const signatureHelpTool = defineTool({
+  name: 'lsp_signature_help',
+  label: 'LSP Signature Help',
+  description:
+    'Get function/method signature and parameter info at a call site. Uses 0-based line and column.',
+  parameters: fpParams,
+  async execute(_tid, p: { path: string; line: number; column: number }, _sig, _upd, ctx) {
+    const cwd = ctxDir(ctx)
+    return runLocationTool(() =>
+      getService().signatureHelp(resolve(cwd, p.path), p.line, p.column, cwd)
+    )
+  },
+})
+
 export function registerLspTools(pi: ExtensionAPI): void {
   // @ts-expect-error - Tool registration type mismatch
   pi.registerTool(goToDefTool)
@@ -269,6 +302,10 @@ export function registerLspTools(pi: ExtensionAPI): void {
   pi.registerTool(workspaceSymbolTool)
   // @ts-expect-error - Tool registration type mismatch
   pi.registerTool(batchGotoTool)
+  // @ts-expect-error - Tool registration type mismatch
+  pi.registerTool(diagnosticsTool)
+  // @ts-expect-error - Tool registration type mismatch
+  pi.registerTool(signatureHelpTool)
 }
 
 export default registerLspTools

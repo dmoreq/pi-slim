@@ -11,6 +11,8 @@ description: Use when navigating code with pi-scope LSP tools, installing langua
 - Assess blast radius before edits → `lsp_find_references`
 - Type info + graph impact + hashline anchor → `lsp_hover`
 - Search symbol by name → `lsp_workspace_symbol`
+- Compare server errors after build → `lsp_diagnostics`
+- Parameter hints at call sites → `lsp_signature_help`
 
 ## Line and column
 
@@ -23,7 +25,8 @@ From citation `src/auth.ts:42` use `line: 41`, `column: 0` unless you know the e
 1. `lsp_go_to_definition` or `lsp_workspace_symbol` to find the symbol
 2. `lsp_find_references` before changing shared APIs
 3. `lsp_hover` for type, graph impact, and hashline anchor at cursor
-4. `hashline_edit` with `dry_run: true` then apply
+4. After `tsc`/test failures: `lsp_diagnostics` on error files, then `lsp_hover` at each error line (0-based)
+5. `hashline_edit` with `dry_run: true` then apply
 
 ## Language servers (install on PATH)
 

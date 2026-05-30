@@ -305,11 +305,11 @@ flowchart TB
 
 | Task | Mô tả |
 |------|--------|
-| LSP diagnostics surface | Subscribe diagnostics từ client; map file:line vào intelligence “compiler errors” |
-| Bash/tsc output bridge | `FileDetector` + parse error `file.ts(12,5)` → gợi ý `lsp_hover` tại line |
+| LSP diagnostics surface ✅ | Tool `lsp_diagnostics` — mở file, chờ publishDiagnostics, format lỗi |
+| Bash/tsc output bridge ✅ | Parse `file.ts(12,5)` → intelligence + inject path + gợi ý `lsp_hover` |
 | Server health probe ✅ | Session start: `probeLspServers()`; hiện trong `/scope` |
 | Parallel batch ✅ | `lsp_go_to_definition_batch` khi message cite nhiều `file:line` |
-| `signatureHelp` tool | Chỉ khi có nhu cầu API completion |
+| `signatureHelp` tool ✅ | Tool `lsp_signature_help` tại call site |
 
 ---
 

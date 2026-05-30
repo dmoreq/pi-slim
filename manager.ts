@@ -759,7 +759,7 @@ export class SessionManager {
       '\n\n## pi-scope Tools\n' +
       '- `hashline_edit`: Edit with hash anchors (`dry_run: true` validates + shows diff without writing).\n' +
       '- `lsp_hover`: Type info + graph impact (dependents, god nodes, communities).\n' +
-      '- `lsp_go_to_definition`, `lsp_find_references`: Code navigation via LSP.\n' +
+      '- `lsp_go_to_definition`, `lsp_find_references`, `lsp_diagnostics`, `lsp_signature_help`: Code navigation via LSP.\n' +
       '- `hashline_read`: Read a file with hash anchors (use `start_line` / `end_line` for ranges).\n' +
       '- `/hashline-read <file>`: Same as hashline_read via slash command.\n' +
       `- Config: \`slim.dependencyDepth\` = ${depDepth} (transitive dep skeleton depth 0–3).\n` +
