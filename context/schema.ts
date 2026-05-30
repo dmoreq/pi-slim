@@ -68,6 +68,7 @@ const GraphSchema = z.object({
   surfaceAnomaliesInInsights: z.boolean().default(true),
   surfaceSurprisesMax: z.number().int().min(0).default(5),
   warnWhenEditingCycleParticipant: z.boolean().default(true),
+  warnOnNewImports: z.boolean().default(false),
   communityPruningEnabled: z.boolean().default(true),
   steerOnCriticalGodNode: z.boolean().default(true),
   strictGraphImpact: z.boolean().default(false),
