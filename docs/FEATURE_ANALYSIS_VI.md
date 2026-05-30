@@ -1,9 +1,9 @@
 # Báo Cáo Phân Tích Tính Năng Pi-Scope Extension
 
 > Tác giả: Claude Code  
-> Ngày: 2025-05-30  
+> Ngày: 2026-05-30  
 > Phiên bản: pi-scope v0.7.0  
-> Số tests: 617/617 pass  
+> Số tests: 660/660 pass  
 
 ---
 
@@ -72,7 +72,7 @@ Mỗi lượt LLM call
 | Context Files | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Plugin System | ✅ Đầy đủ | ✅ Tốt | 🔴 Cao |
 | LSP Integration | ✅ Đầy đủ | 🟡 Một phần | 🔴 Cao |
-| Hashline Editor | ✅ Đầy đủ | 🟡 Một phần | 🔴 Cao |
+| Hashline Editor | ✅ Đầy đủ (adoption v2) | 🟢 Tốt (có enforcement) | 🟡 Trung bình |
 | File Detector | ✅ Đầy đủ | ✅ Tốt | 🟢 Thấp |
 | Query Intent | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Metrics & Tracking | ✅ Đầy đủ | ✅ Tốt (đã kích hoạt) | 🟡 Trung bình |
@@ -466,49 +466,83 @@ function symbolFromPosition(fp: string, _line: number, _column: number): string 
 
 ### 11.1 Cách hoạt động
 
-`hashline_edit` tool cho phép edit file bằng **line anchors** thay vì content matching.
+`hashline_edit` cho phép edit file bằng **line anchors** (`LINE+BIGRAM`, ví dụ `42nd` = dòng 42 + bigram hash nội dung dòng đó), thay vì khớp chuỗi mù như `edit` / `search_replace`.
 
-**Anchor format**: `LINE+BIGRAM` — ví dụ `"42nd"` = dòng 42, bigram hash của content ở dòng đó là "nd".
+**Workflow chuẩn (adoption v2)** — chi tiết: `docs/HASHLINE_ADOPTION_PLAN_VI.md`, skill `skills/pi-scope-hashline/SKILL.md`:
 
-**Flow**:
-1. Agent đọc file qua `/hashline-read <file>` → nhận skeleton với anchors annotated
-2. Agent gọi `hashline_edit` với các `{loc, content}` operations
-3. Tool validate hash tại vị trí → apply edits → write atomically
+```
+dep-context anchors / hashline_read  →  hashline_edit (dry_run: true)
+       →  review diff  →  hashline_edit (dry_run: false)
+```
 
-**Operations**: `replace_line`, `replace_range`, `append_at`, `prepend_at`, `append_file`, `prepend_file`
+| Bước | Cơ chế |
+|------|--------|
+| Đọc anchor | `hashline_read` tool, `/hashline-read`, hoặc block anchor trong dep-context (đầu file + vùng quanh `file:line` citation) |
+| Validate + preview | `dry_run: true` — không ghi disk; diff compact trong tool result |
+| Apply | `dry_run: false` — ghi file; `AnchorStateManager` reconcile shift qua Myers diff trên `computeLineHash` |
+| Lỗi anchor cũ | `HashlineMismatchError` — không apply; gợi ý `hashline_read` kèm `start_line` / `end_line` ±3 dòng |
 
-**Rebase**: Hash chịu được shift ±5 dòng — nếu code đã thêm/bớt vài dòng trước edit, anchor vẫn valid trong range cho phép.
+**Operations**: `replace_line`, `replace_range`, `append_at`, `prepend_at`, `append_file`, `prepend_file`.
 
-**Dry-run mode**: `dry_run: true` validate mà không write — phù hợp để kiểm tra trước khi commit changes.
+**Enforcement** (tùy config):
+
+- `HashlineSteerPlugin` — notify hoặc block `edit` / `search_replace` khi file đã có anchor (`strictMode`, `contextualStrictMode`).
+- `HashlineValidatePlugin` — nhắc `hashline_read` trước apply nếu file chưa được đọc trong session.
+- `preferDryRun` — telemetry khi apply mà chưa dry_run trên path đó.
+
+**Phase D (file lớn & UX)**:
+
+- Slice ≥ `streamAnnotateThresholdLines` (mặc định 500) → annotate theo chunk qua `hashline/streaming.ts`.
+- Sau dry_run thành công → turn kế inject block preview (pipeline priority 8, `injectDryRunFollowUp`).
+- `lsp_hover` kèm section Hashline anchor khi `anchorOnLspHover` bật.
 
 ### 11.2 Tình trạng kích hoạt
 
-✅ **Adoption v2 (đang triển khai)** — xem `docs/HASHLINE_ADOPTION_PLAN_VI.md`:
+✅ **Adoption v2 hoàn tất** (Phases A–D):
 
-| Thành phần | Trạng thái |
-|------------|------------|
-| `hashline_edit` + `/hashline-read` | ✅ |
-| `hashline_read` tool | ✅ |
-| Anchors dep-context (đầu file + vùng `file:line`) | ✅ |
-| Preamble + per-turn hashline workflow block | ✅ |
-| `hasHashAnnotations` từ inject thực tế | ✅ |
-| `HashlineSteerPlugin` (notify / `strictMode`) | ✅ |
-| `contextualStrictMode` | ✅ |
-| Metrics `/scope` | ✅ |
-| `HashlineValidatePlugin` | ✅ |
-| `AnchorStateManager` + `computeLineHash` (Phase C) | ✅ |
-| LSP hover hashline anchor (Phase C) | ✅ |
-| `hashlineMismatches` metric | ✅ |
+| Phase | Thành phần | Trạng thái |
+|-------|------------|------------|
+| A | `hashline_read`, `/hashline-read`, anchor theo region/citation, per-turn workflow block | ✅ |
+| B | `contextualStrictMode`, metrics `/scope`, `HashlineValidatePlugin`, `preferDryRun` | ✅ |
+| C | `AnchorStateManager` + `computeLineHash`, LSP hover anchor, `hashlineMismatches` | ✅ |
+| D | Stream read lớn, dry-run follow-up inject, mismatch recovery hints | ✅ |
+
+**Config `hashline` gợi ý (cân bằng)**:
+
+```jsonc
+"hashline": {
+  "enabled": true,
+  "annotateDepContext": true,
+  "annotateMaxLinesPerFile": 120,
+  "annotateBySymbolRange": true,
+  "annotateRangePaddingLines": 15,
+  "preferDryRun": true,
+  "steerFromBuiltinEdit": true,
+  "contextualStrictMode": true,
+  "strictMode": false,
+  "recordOnRead": true,
+  "anchorOnLspHover": true,
+  "streamAnnotateThresholdLines": 500,
+  "streamChunkLines": 200,
+  "injectDryRunFollowUp": true
+}
+```
 
 ### 11.3 Nhận xét sử dụng
 
-🟢 **Workflow rõ hơn:** agent có `hashline_read`, anchor theo citation, block hướng dẫn mỗi turn khi có anchor.
+🟢 **Đúng cách khi agent tuân workflow:** có nhiều điểm chạm (inject, tool, LSP, steer) để dẫn tới `hashline_edit` + dry_run trước apply.
 
-🟡 **Còn phụ thuộc agent** trừ khi bật `strictMode` hoặc `contextualStrictMode`.
+🟡 **Vẫn phụ thuộc agent** nếu tắt `contextualStrictMode` / `strictMode` — built-in `edit` vẫn khả dụng.
 
-### 11.4 Cơ hội cải thiện (v2 còn lại)
+🔴 **Rủi ro còn lại:** file đổi ngoài session (user/editor khác) → mismatch; cần `hashline_read` lại. File cực lớn: stream giúp đọc nhưng dep-context vẫn bị cap token.
 
-- Phase D (stream read, dry-run follow-up inject, mismatch recovery) — ✅ hoàn tất
+### 11.4 Cơ hội cải thiện (backlog)
+
+| Ý tưởng | Ghi chú |
+|---------|---------|
+| `coerceDryRun: true` | Tự ép dry_run lần đầu thay vì chỉ notify |
+| Incremental anchor inject | Chỉ inject vùng symbol đang focus, giảm token |
+| Metrics trend | `hashlineEdits` / mismatch rate theo session trong `/scope history` |
 
 ---
 
@@ -632,7 +666,7 @@ Config: `slim.metrics` (`enabled`, `notifyOnShutdown`, `notifyQualityOnStart`, `
 2. **Zero-friction activation**: User không cần config gì — tất cả tính năng bật mặc định.
 3. **Graceful degradation**: Khi graph không load, system tiếp tục hoạt động với basic context. Khi LSP không start được, tools log warning nhưng không crash.
 4. **Native graph analysis**: Không phụ thuộc external tools. Hoạt động offline hoàn toàn.
-5. **Test coverage solid**: 607 tests, integration tests cover full flow.
+5. **Test coverage solid**: 660 tests, integration tests cover full flow (gồm hashline adoption v2).
 
 ### 15.2 Điểm yếu hệ thống
 
@@ -649,7 +683,9 @@ Config: `slim.metrics` (`enabled`, `notifyOnShutdown`, `notifyQualityOnStart`, `
 | Graph impact BFS trong `lsp_hover` | ✅ Kích hoạt | Parse symbol từ LSP hover + BFS dependents (`graph-impact.ts`); prompt nhắc `lsp_hover` |
 | CommunityPruningPlugin | ✅ Kích hoạt | Tự chạy khi ≥2 communities; telemetry `comm prune` mỗi lượt prune |
 | Broad query + community overview | ✅ Kích hoạt | `isBroadCodebaseQuery` + overview communities trong dep-context |
-| `dry_run` trên `hashline_edit` | ✅ Kích hoạt | Khai báo trong tool schema + mô tả tool + prompt |
+| `dry_run` + follow-up inject | ✅ Kích hoạt | dry_run trong schema; preview inject turn sau (`injectDryRunFollowUp`) |
+| `hashline_read` + stream lớn | ✅ Kích hoạt | Tool + `/hashline-read`; chunk khi slice ≥ 500 dòng |
+| Hashline steer / validate | ✅ Kích hoạt | `HashlineSteerPlugin`, `HashlineValidatePlugin`, metrics trên `/scope` |
 | Provider guidance (`agent-guidance.json`) | ✅ Kích hoạt | Telemetry khi load file; hiện trong `/scope` dashboard |
 | `dependencyDepth` (0–3) | ✅ Kích hoạt | README/skills + dòng trong tools block + `/scope` |
 | Surprise connections | ✅ Kích hoạt (một phần) | Session-start graph insights + hover khi symbol khớp |
@@ -679,7 +715,7 @@ Xếp theo độ ưu tiên (impact × effort):
 | 6 | ~~Log graph quality score khi startup~~ | ✅ Done (`onGraphQuality`) |
 | 7 | ~~Token savings notification khi shutdown~~ | ✅ Done (`onSessionShutdown`) |
 | 8 | Broad query → community overview thay vì entry points | Trung bình |
-| 9 | Auto-inject line anchors vào dep-context skeletons | Trung bình |
+| 9 | ~~Auto-inject line anchors vào dep-context~~ | ✅ Done (hashline adoption A–D) |
 | 10 | ~~`/scope` dashboard trong-session~~ | ✅ Done (`/scope`) |
 
 ### 🟢 Ưu tiên dài hạn — New capabilities
@@ -695,4 +731,4 @@ Xếp theo độ ưu tiên (impact × effort):
 
 ---
 
-*Báo cáo gốc dựa trên phân tích pi-scope v0.7.0. Phần hidden-gem activation đã được triển khai trong session 2025-05-30 (617 tests pass).*
+*Báo cáo gốc dựa trên phân tích pi-scope v0.7.0. Cập nhật 2026-05-30: hashline adoption v2 (Phases A–D) hoàn tất — 660 tests pass. Kế hoạch: `docs/HASHLINE_ADOPTION_PLAN_VI.md`.*
