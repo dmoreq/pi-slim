@@ -492,6 +492,20 @@ export class SessionManager {
       await this.loadGraph(projectRoot, this.state)
       this.startAutoReindexWatcher(ctx)
       this.updateStatusBar(ctx)
+      if (config.metrics.notifyWelcome) {
+        this._notify(
+          nSuccess(
+            this._buildWelcomeMessage(
+              idx.skeletons.size,
+              'cache',
+              this.state.stats.indexBuildTime,
+              this.state.stats.languages,
+              this.state.graphMetrics?.quality.score
+            )
+          ),
+          'success'
+        )
+      }
       return
     }
 
@@ -532,6 +546,20 @@ export class SessionManager {
       await this.loadGraph(projectRoot, this.state)
       this.startAutoReindexWatcher(ctx)
       this.updateStatusBar(ctx)
+      if (config.metrics.notifyWelcome) {
+        this._notify(
+          nSuccess(
+            this._buildWelcomeMessage(
+              result.fileCount,
+              'fresh',
+              result.buildTimeMs,
+              this.state.stats.languages,
+              this.state.graphMetrics?.quality.score
+            )
+          ),
+          'success'
+        )
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       this._notify(nError(`Error: ${msg}`), 'error')
@@ -604,6 +632,22 @@ export class SessionManager {
         this._notify(nInfo(line), 'info')
       }
     }
+  }
+
+  private _buildWelcomeMessage(
+    fileCount: number,
+    source: 'cache' | 'fresh',
+    buildTimeMs: number | undefined,
+    languages: string[],
+    graphScore: number | undefined
+  ): string {
+    const sourceLabel =
+      source === 'cache'
+        ? '(cache)'
+        : `(${buildTimeMs != null ? (buildTimeMs / 1000).toFixed(1) + 's' : 'fresh'})`
+    const langLabel = languages.slice(0, 3).join(', ') || 'code'
+    const qualLabel = graphScore != null ? ` · Q${graphScore}` : ''
+    return `pi-scope v${this.version} active · ${fileCount} files ${sourceLabel} · ${langLabel}${qualLabel}`
   }
 
   private initState(opts: {

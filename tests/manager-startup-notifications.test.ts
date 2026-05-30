@@ -85,4 +85,13 @@ describe('SessionManager startup notifications', () => {
     expect(notifications.some(m => m.includes('Analyzing codebase graph'))).toBe(true)
     expect(notifications.some(m => /Graph: \d+ nodes.*(\d+ms|from cache)/.test(m))).toBe(true)
   })
+
+  it('emits a welcome message with version, file count, and language', async () => {
+    const manager = new SessionManager()
+    await manager.start(tmpDir, configFlag, makeCtx())
+
+    const welcome = notifications.find(m => m.includes('pi-scope v') && m.includes('active'))
+    expect(welcome).toBeDefined()
+    expect(welcome).toMatch(/\d+ files/)
+  })
 })
