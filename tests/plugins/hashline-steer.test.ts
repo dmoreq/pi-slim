@@ -28,9 +28,11 @@ function makeState(overrides: Partial<SessionState['config']['hashline']> = {}):
     contextFilesInjected: false,
     providerGuidanceInjected: false,
     graphInsightsInjected: false,
+    graphInsightGodLabels: [],
     intelligenceInjected: false,
     intelligenceWorkflowInjected: false,
     retrieval: undefined,
+    recentToolNames: [],
     contextFiles: [],
     providerGuidanceFiles: [],
   }

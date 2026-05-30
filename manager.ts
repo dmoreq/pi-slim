@@ -7,6 +7,9 @@ import { type ContextFile, formatContextSection, loadContextFiles } from './cont
 import { watch, type FSWatcher } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { ContextInjector } from './context/dep-context.js'
+import { cycleWarningForFiles, formatCycleIntelligenceBlock } from './context/graph-cycle-warn.js'
+import { formatGraphInsightsSection, topGodLabels } from './context/graph-insights-format.js'
+import { formatGraphPulse } from './context/graph-pulse.js'
 import type { GraphAnalysis } from './context/graph-types.js'
 import { type ProviderGuidanceFile, formatProviderGuidanceSection, loadProviderGuidance } from './context/guidance.js'
 import {
@@ -22,7 +25,11 @@ import { produceDefaults } from './context/schema.js'
 import { SmartDependencyContextGenerator } from './context/smart-dep-context.js'
 import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import { estimateFileSavings } from './metrics/cost-estimator.js'
-import { buildGraphMetricsSummary, type GraphMetricsSummary } from './metrics/graph-metrics.js'
+import {
+  buildGraphMetricsSummary,
+  computeGraphTokenMetrics,
+  type GraphMetricsSummary,
+} from './metrics/graph-metrics.js'
 import { SessionStats } from './metrics/tracker.js'
 import { initHash } from './hashline/line-hash.js'
 import { AnchorStateManager } from './hashline/state-manager.js'
@@ -30,6 +37,7 @@ import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
 import { HashlineSteerPlugin } from './plugins/hashline-steer-plugin.js'
 import { HashlineValidatePlugin } from './plugins/hashline-validate-plugin.js'
+import { GraphSteerPlugin } from './plugins/graph-steer-plugin.js'
 import { LspSteerPlugin } from './plugins/lsp-steer-plugin.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { GraphService } from './services/graph-service.js'
@@ -45,12 +53,15 @@ import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { setHashlineMismatchReporter } from './metrics/hashline-reporter.js'
 import { collectLspPathsFromMessages } from './tools/lsp-result-paths.js'
 import { probeLspServers } from './lsp/health.js'
+import { setGraphImpactAnalysis } from './tools/graph-impact-tool.js'
 import {
   setHashlineLspHoverEnabled,
   setLspGraphAnalysis,
   setLspRepoIndex,
   setLspToolOptions,
 } from './tools/lsp-navigation.js'
+
+export { formatGraphInsightsSection, topGodLabels } from './context/graph-insights-format.js'
 import { type StatusBarState, clearStatusBar, info as nInfo, success as nSuccess, updateStatusBar, warn as nWarn } from './ui/notifications.js'
 import { isValidCodebase } from './shared/utils/path-utils.js'
 
@@ -96,10 +107,14 @@ export interface SessionState {
   providerGuidanceFiles: ProviderGuidanceFile[]
   providerGuidanceInjected: boolean
   graphInsightsInjected: boolean
+  /** God node labels already shown in full graph insights (for smart-dep dedupe). */
+  graphInsightGodLabels: string[]
   intelligenceInjected: boolean
   intelligenceWorkflowInjected: boolean
   graphMetrics?: GraphMetricsSummary
   retrieval: RetrievalEngine | undefined
+  /** Recent tool names for graph/LSP steer plugins (rolling window). */
+  recentToolNames: string[]
 }
 
 // ── Exported helpers ───────────────────────────────────────────────────
@@ -125,59 +140,6 @@ export function buildRepoMapSource(
       return baseMap
     },
   }
-}
-
-/**
- * Format the graph analysis insights block for system-prompt injection.
- */
-export function formatGraphInsightsSection(a: GraphAnalysis): string {
-  const lines: string[] = [
-    '## Graph Analysis Insights',
-    '',
-    `**Graph:** ${a.metrics.totalNodes} nodes, ${a.metrics.totalEdges} edges, ${a.metrics.communityCount} communities`,
-  ]
-  if (a.metrics.cycleCount > 0) {
-    lines.push(`**Circular Dependencies:** ${a.metrics.cycleCount}`)
-  }
-  lines.push('')
-  if (a.godNodes.length > 0) {
-    lines.push('**God Nodes (most depended-on symbols):**')
-    for (const g of a.godNodes.slice(0, 5)) {
-      lines.push(`  - \`${g.label}\` (${g.inDegree} in, ${g.outDegree} out, ${g.criticality})`)
-    }
-    if (a.godNodes.length > 5) {
-      lines.push(`  - ... and ${a.godNodes.length - 5} more`)
-    }
-    lines.push('')
-  }
-  if (a.communities.length > 1) {
-    lines.push('**Communities:**')
-    for (const c of a.communities) {
-      lines.push(`  - ${c.label}: ${c.nodes.length} nodes`)
-    }
-    lines.push('')
-  }
-  if (a.bottlenecks.length > 0) {
-    lines.push('**Bottlenecks (high betweenness):**')
-    for (const b of a.bottlenecks.slice(0, 5)) {
-      const label = b.nodeId.includes(':') ? b.nodeId.split(':').pop() : b.nodeId
-      lines.push(`  - \`${label}\` (${b.impact.dependentCount} dependents, ${b.betweenness.toFixed(2)} betweenness)`)
-    }
-    if (a.bottlenecks.length > 5) {
-      lines.push(`  - ... and ${a.bottlenecks.length - 5} more`)
-    }
-    lines.push('')
-  }
-  if (a.surprises.length > 0) {
-    lines.push('**Notable connections:**')
-    for (const s of a.surprises.slice(0, 3)) {
-      lines.push(`  - \`${s.source}\` → \`${s.target}\` (${s.reason})`)
-    }
-  }
-  return lines
-    .filter(l => l !== undefined)
-    .join('\n')
-    .trimEnd()
 }
 
 // ── Manager ────────────────────────────────────────────────────────────
@@ -247,7 +209,7 @@ export class SessionManager {
   constructor(_projectRoot?: string) {
     this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
-    this.pluginManager.register(new CommunityPruningPlugin(this.graphService))
+    this.pluginManager.register(new CommunityPruningPlugin(this.graphService, () => this.state))
     this.pluginManager.register(
       new HashlineSteerPlugin(() => this.state, () => this.hashlineAnchorPathsThisTurn)
     )
@@ -255,6 +217,26 @@ export class SessionManager {
       new HashlineValidatePlugin(() => this.state, () => this.hashlineAnchorPathsThisTurn)
     )
     this.pluginManager.register(new LspSteerPlugin(() => this.state))
+    this.pluginManager.register(
+      new GraphSteerPlugin(
+        () => this.state,
+        () => this.graphService.analysis ?? null,
+        () => {
+          const ins = this.intelligenceSnapshotCache?.insights
+          if (!ins) return []
+          return [
+            ...ins.editingIntent.targetSymbols,
+            ...ins.editingIntent.affectedGodNodes,
+          ]
+        }
+      )
+    )
+  }
+
+  private communityPruningPlugin(): CommunityPruningPlugin | undefined {
+    return this.pluginManager.getAll().find(
+      (p): p is CommunityPruningPlugin => p.name === 'community-pruning'
+    )
   }
 
   /**
@@ -545,6 +527,7 @@ export class SessionManager {
     const cacheDir = scopeDir(projectRoot)
     const stats = session.stats
     setLspGraphAnalysis(null)
+    setGraphImpactAnalysis(null)
     setLspRepoIndex(null)
     setHashlineLspHoverEnabled(false)
     setHashlineMismatchReporter(null)
@@ -553,6 +536,7 @@ export class SessionManager {
     if (!index || index.skeletons.size === 0) {
       this.telemetry.onGraphNoData()
       setLspGraphAnalysis(null)
+      setGraphImpactAnalysis(null)
       setLspRepoIndex(null)
       session.graphMetrics = undefined
       return
@@ -572,9 +556,10 @@ export class SessionManager {
 
     this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount, this._graphCommunityCount)
     setLspGraphAnalysis(nativeResult.analysis)
+    setGraphImpactAnalysis(nativeResult.analysis)
     setLspRepoIndex(index)
 
-    const graphSummary = buildGraphMetricsSummary(nativeResult.analysis, analysisMs, nativeResult.cacheHit)
+    const graphSummary = buildGraphMetricsSummary(nativeResult.analysis, analysisMs, nativeResult.cacheHit, 1)
     session.graphMetrics = graphSummary
     stats.recordGraphMetrics(graphSummary)
 
@@ -614,9 +599,11 @@ export class SessionManager {
       providerGuidanceFiles: [],
       providerGuidanceInjected: false,
       graphInsightsInjected: false,
+      graphInsightGodLabels: [],
       intelligenceInjected: false,
       intelligenceWorkflowInjected: false,
       retrieval: undefined,
+      recentToolNames: [],
     }
   }
 
@@ -691,11 +678,15 @@ export class SessionManager {
       }
     }
 
-    if (!s.graphInsightsInjected && graph) {
+    if (!s.graphInsightsInjected && graph && s.config.graph.enabled) {
       pipeline.register({
         name: 'graph-insights',
         priority: 3,
-        produce: () => formatGraphInsightsSection(graph),
+        produce: () =>
+          formatGraphInsightsSection(graph, {
+            surfaceAnomalies: s.config.graph.surfaceAnomaliesInInsights,
+            surfaceSurprisesMax: s.config.graph.surfaceSurprisesMax,
+          }),
       })
     }
 
@@ -742,6 +733,9 @@ export class SessionManager {
         s.stats.recordProviderGuidanceInjection(tokens, s.providerGuidanceFiles.length)
       } else if (entry.name === 'graph-insights' && entry.injected) {
         s.graphInsightsInjected = true
+        if (graph) {
+          s.graphInsightGodLabels = topGodLabels(graph)
+        }
         s.stats.recordGraphInsightsInjection(tokens)
       } else if (entry.name === 'context-intelligence' && entry.injected) {
         s.intelligenceInjected = true
@@ -787,6 +781,14 @@ export class SessionManager {
     _ctx: ExtensionContext
   ): Promise<{ block?: boolean; reason?: string } | undefined> {
     const s = this.state
+    if (s) {
+      const tn = event.toolName.toLowerCase()
+      s.recentToolNames.push(tn)
+      if (s.recentToolNames.length > 24) {
+        s.recentToolNames.splice(0, s.recentToolNames.length - 24)
+      }
+    }
+
     const result = await this.pluginManager.runToolCall(event, _ctx)
 
     if (!result.allowed) {
@@ -989,6 +991,15 @@ export class SessionManager {
             }
           : undefined
 
+      const commPlugin = this.communityPruningPlugin()
+      const activeCommunityId = commPlugin?.activeCommunityId ?? s.stats.activeCommunityId ?? null
+      if (activeCommunityId) {
+        s.stats.setActiveCommunityId(activeCommunityId)
+        if (s.graphMetrics && graph) {
+          s.graphMetrics.token = computeGraphTokenMetrics(graph, 1)
+        }
+      }
+
       depContextContent = s.injector.buildInjection(
         s.index,
         messagesPlain,
@@ -996,8 +1007,17 @@ export class SessionManager {
         s.retrieval,
         s.config.dependencyDepth ?? 1,
         graph,
-        hashlineOpts
+        hashlineOpts,
+        graph && s.config.graph.enabled
+          ? { activeCommunityId, graphConfig: s.config.graph }
+          : undefined
       )
+
+      const boosted =
+        s.injector.lastExplanation?.filter(f => f.signals.some(sig => sig.startsWith('graph:')))?.length ?? 0
+      if (boosted > 0) {
+        s.stats.recordGraphBoostedRetrieval(boosted)
+      }
     }
 
     this.hashlineAnchorPathsThisTurn = new Set(s.injector.lastInjectedHashlinePaths)
@@ -1010,9 +1030,47 @@ export class SessionManager {
       depContextContent
     )
 
+    const graphCfg = s.config.graph
+    const graphEnabled = graphCfg.enabled && graph
+    const commPlugin = this.communityPruningPlugin()
+    const activeCommunityId = commPlugin?.activeCommunityId ?? s.stats.activeCommunityId ?? null
+    if (activeCommunityId) {
+      s.stats.setActiveCommunityId(activeCommunityId)
+    }
+
+    let cycleWarn: string | null = null
+    if (graphEnabled && graphCfg.warnWhenEditingCycleParticipant && depContextContent) {
+      const focusPaths = extractInjectedFilePaths(depContextContent)
+      cycleWarn = cycleWarningForFiles(graph, focusPaths, s.projectRoot)
+    }
+
     // Assemble all context through the pipeline
     const pipeline = new InjectionPipeline()
     const budget = s.config.maxInjectionTokens
+
+    if (graphEnabled && s.graphInsightsInjected && graphCfg.compactPulseEachTurn && !graphCfg.repeatFullInsights) {
+      pipeline.register({
+        name: 'graph-pulse',
+        priority: 4.5,
+        produce: () =>
+          formatGraphPulse({
+            analysis: graph!,
+            insights: turnInsights,
+            activeCommunityId,
+            cycleWarning: cycleWarn,
+          }),
+      })
+    } else if (graphEnabled && graphCfg.repeatFullInsights && graph) {
+      pipeline.register({
+        name: 'graph-insights-repeat',
+        priority: 4.45,
+        produce: () =>
+          formatGraphInsightsSection(graph, {
+            surfaceAnomalies: graphCfg.surfaceAnomaliesInInsights,
+            surfaceSurprisesMax: graphCfg.surfaceSurprisesMax,
+          }),
+      })
+    }
 
     if (
       s.config.hashline.enabled &&
@@ -1028,6 +1086,13 @@ export class SessionManager {
 
     if (s.config.intelligence.enabled) {
       const intelOpts = this.intelligenceGuidanceOptions(s, turnInsights, hasCodebaseQuery)
+      const cycleBlock =
+        graphEnabled && graphCfg.warnWhenEditingCycleParticipant && depContextContent
+          ? formatCycleIntelligenceBlock(graph, extractInjectedFilePaths(depContextContent), s.projectRoot)
+          : null
+      if (cycleBlock) {
+        intelOpts.extraSections = [...(intelOpts.extraSections ?? []), cycleBlock]
+      }
       pipeline.register({
         name: 'context-intelligence',
         priority: 4,
@@ -1048,7 +1113,13 @@ export class SessionManager {
       name: 'smart-dep-context',
       priority: 5,
       produce: () => {
-        const dep = this.smartDepGenerator.generateEnhancedDependencyContext(snapshot.insights, graph)
+        const exclude =
+          graphCfg.dedupeGodNodesAcrossSources && s.graphInsightGodLabels.length > 0
+            ? s.graphInsightGodLabels
+            : undefined
+        const dep = this.smartDepGenerator.generateEnhancedDependencyContext(snapshot.insights, graph, {
+          excludeGodLabels: exclude,
+        })
         return dep.trim() ? dep : null
       },
     })
@@ -1074,7 +1145,11 @@ export class SessionManager {
 
     // Record stats per injected source
     for (const entry of result.sources) {
-      if (entry.name === 'context-intelligence' && entry.injected) {
+      if (entry.name === 'graph-pulse' && entry.injected) {
+        s.stats.recordGraphPulseInjection(entry.tokens)
+      } else if (entry.name === 'graph-insights-repeat' && entry.injected) {
+        s.stats.recordGraphInsightsInjection(entry.tokens)
+      } else if (entry.name === 'context-intelligence' && entry.injected) {
         s.stats.recordIntelligenceInjection(entry.tokens)
       } else if (entry.name === 'smart-dep-context' && entry.injected) {
         s.stats.recordSmartDepContextInjection(entry.tokens)
@@ -1103,9 +1178,7 @@ export class SessionManager {
     const s = this.state
     if (!s) return
 
-    const commPlugin = this.pluginManager.getAll().find(
-      (p): p is CommunityPruningPlugin => p.name === 'community-pruning'
-    )
+    const commPlugin = this.communityPruningPlugin()
     if (commPlugin) {
       s.stats.recordCommunityPrune(commPlugin.getStats()?.pruneCount ?? 0)
     }

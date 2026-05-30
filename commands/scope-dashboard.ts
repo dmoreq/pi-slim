@@ -76,6 +76,18 @@ export function formatScopeDashboard(manager: SessionManager): string {
   lines.push(padLine('💉 CONTEXT INJECTION'))
   lines.push(padLine(`  Repo Map        : ~${stats.repoMapTokens}t (once)`))
   lines.push(padLine(`  Graph Insights  : ~${stats.graphInsightsTokens}t`))
+  if (stats.graphPulseTokens > 0) {
+    lines.push(padLine(`  Graph Pulse     : ~${stats.graphPulseTokens}t`))
+  }
+  if (stats.graphSteerCount > 0) {
+    lines.push(padLine(`  Graph steer     : ${stats.graphSteerCount}`))
+  }
+  if (stats.graphBoostedRetrievalCount > 0) {
+    lines.push(padLine(`  Graph retrieval : ${stats.graphBoostedRetrievalCount} boosted`))
+  }
+  if (stats.activeCommunityId) {
+    lines.push(padLine(`  Active community: ${stats.activeCommunityId}`))
+  }
   lines.push(padLine(`  Intelligence    : ~${stats.intelligenceTokens}t`))
   lines.push(padLine(`  Smart Dep Ctx   : ~${stats.smartDepContextTokens}t`))
   lines.push(padLine(`  Dep Context     : ${stats.depContextTriggers}x, ~${stats.depContextTotalTokens}t total`))
@@ -166,7 +178,68 @@ export function formatScopeDashboard(manager: SessionManager): string {
 
   lines.push('└────────────────────────────────────────────────────────────┘')
   lines.push('')
-  lines.push('Tip: `/scope history` for recent session trends.')
+  lines.push('Tip: `/scope history` for trends · `/scope graph` for architecture detail.')
+  return lines.join('\n')
+}
+
+export function formatScopeGraph(manager: SessionManager): string {
+  const s = manager.state
+  if (!s) {
+    return 'pi-scope is not active for this session (no index loaded).'
+  }
+
+  const graph = manager.graphService.analysis
+  if (!graph) {
+    return 'No graph analysis loaded. Open a codebase project and wait for indexing to finish.'
+  }
+
+  const commPlugin = manager.pluginManager.getAll().find(
+    (p): p is CommunityPruningPlugin => p.name === 'community-pruning'
+  )
+  const pruneStats = commPlugin?.getStats()
+
+  const lines: string[] = [
+    '┌──── pi-scope Graph Detail ─────────────────────────────────┐',
+    padLine(`Nodes ${graph.metrics.totalNodes} · Edges ${graph.metrics.totalEdges} · Communities ${graph.communities.length}`),
+    padLine(`Cycles ${graph.metrics.cycleCount} · Anomalies ${graph.anomalies.length} · Surprises ${graph.surprises.length}`),
+  ]
+
+  if (pruneStats?.activeCommunityId || s.stats.activeCommunityId) {
+    lines.push(padLine(`Active community : ${pruneStats?.activeCommunityId ?? s.stats.activeCommunityId}`))
+    if (pruneStats && pruneStats.pruneCount > 0) {
+      lines.push(padLine(`Pruned messages  : ${pruneStats.pruneCount}`))
+    }
+  }
+
+  if (graph.godNodes.length > 0) {
+    lines.push(padLine('Top god nodes:'))
+    for (const g of graph.godNodes.slice(0, 5)) {
+      lines.push(padLine(`  ${g.label} (${g.criticality}, ${g.inDegree} in)`))
+    }
+  }
+
+  if (graph.communities.length > 1) {
+    lines.push(padLine('Communities:'))
+    for (const c of graph.communities.slice(0, 6)) {
+      lines.push(padLine(`  ${c.label}: ${c.nodes.length} nodes`))
+    }
+  }
+
+  if (graph.surprises.length > 0) {
+    lines.push(padLine('Notable connections:'))
+    for (const sur of graph.surprises.slice(0, 3)) {
+      lines.push(padLine(`  ${sur.source} → ${sur.target}`))
+    }
+  }
+
+  if (graph.anomalies.length > 0) {
+    lines.push(padLine('Anomalies:'))
+    for (const an of graph.anomalies.slice(0, 3)) {
+      lines.push(padLine(`  [${an.severity}] ${an.type}`))
+    }
+  }
+
+  lines.push('└────────────────────────────────────────────────────────────┘')
   return lines.join('\n')
 }
 
@@ -219,6 +292,9 @@ export async function formatScopeCommand(manager: SessionManager, args?: string)
     const parts = trimmed.split(/\s+/)
     const limit = parts[1] ? parseInt(parts[1], 10) : undefined
     return formatScopeHistory(manager, Number.isFinite(limit) ? limit : undefined)
+  }
+  if (trimmed === 'graph' || trimmed.startsWith('graph ')) {
+    return formatScopeGraph(manager)
   }
   return formatScopeDashboard(manager)
 }

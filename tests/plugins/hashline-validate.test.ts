@@ -23,9 +23,11 @@ function makeState(): SessionState {
     contextFilesInjected: false,
     providerGuidanceInjected: false,
     graphInsightsInjected: false,
+    graphInsightGodLabels: [],
     intelligenceInjected: false,
     intelligenceWorkflowInjected: false,
     retrieval: undefined,
+    recentToolNames: [],
     contextFiles: [],
     providerGuidanceFiles: [],
   }

@@ -19,6 +19,7 @@
 import { getTelemetry } from 'pi-telemetry'
 import type { CommunityAnalysis, GraphAnalysis } from '../context/graph-types.js'
 import type { GraphService } from '../services/graph-service.js'
+import type { SessionState } from '../manager.js'
 import type { Plugin } from './plugin.js'
 
 export class CommunityPruningPlugin implements Plugin {
@@ -26,12 +27,14 @@ export class CommunityPruningPlugin implements Plugin {
   readonly version = '1.0.0'
 
   private readonly graphService: GraphService
+  private readonly getState: () => SessionState | null
   private _activeCommunityId: string | null = null
   private _pruneCount = 0
   private _processedTurns = 0
 
-  constructor(graphService: GraphService) {
+  constructor(graphService: GraphService, getState: () => SessionState | null = () => null) {
     this.graphService = graphService
+    this.getState = getState
   }
 
   // ── Public accessors ───────────────────────────────────────────────
@@ -59,6 +62,9 @@ export class CommunityPruningPlugin implements Plugin {
   }
 
   async onContext(messages: Record<string, unknown>[]): Promise<void> {
+    const state = this.getState()
+    if (state && !state.config.graph.communityPruningEnabled) return
+
     const analysis = this.graphService.analysis
 
     // Skip: no analysis, trivially single-community graph, or too few messages to prune

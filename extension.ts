@@ -26,6 +26,7 @@ import { formatHashlineReadFromArgs } from './commands/hashline-read.js'
 import { formatScopeCommand } from './commands/scope-dashboard.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
 import { registerHashlineReadTool } from './tools/hashline-read-tool.js'
+import { registerGraphImpactTool } from './tools/graph-impact-tool.js'
 import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
 
 export type { ExtensionContext }
@@ -100,11 +101,12 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   registerHashlineTool(pi)
   registerHashlineReadTool(pi)
   registerLspTools(pi)
+  registerGraphImpactTool(pi)
 
   const manager = new SessionManager()
 
   pi.registerCommand('scope', {
-    description: 'Show pi-scope dashboard; use "scope history" for recent session stats',
+    description: 'Show pi-scope dashboard; "scope graph" for architecture; "scope history" for trends',
     handler: async (args?: string) => {
       return formatScopeCommand(manager, args)
     },
