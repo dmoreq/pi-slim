@@ -15,6 +15,7 @@ import { type ExtensionAPI, defineTool } from '@mariozechner/pi-coding-agent'
 
 import { applyHashlineEdits, HashlineMismatchError, hashlineParseText, parseTag } from '../hashline/core.js'
 import type { HashlineEdit } from '../hashline/core.js'
+import { clearDryRunPreview, recordDryRunPreview } from '../context/hashline-dry-run-followup.js'
 import { reportHashlineMismatch } from '../metrics/hashline-reporter.js'
 import { buildCompactHashlineDiffPreview } from '../hashline/diff-preview.js'
 import { generateDiffString } from '../hashline/diff.js'
@@ -125,6 +126,7 @@ async function makeEdit(
   if (!dryRun) {
     await mkdir(dirname(absPath), { recursive: true })
     await writeFile(absPath, finalContent, 'utf-8')
+    clearDryRunPreview()
   }
 
   const diffResult = generateDiffString(normalizedContent, result.lines)
@@ -132,6 +134,15 @@ async function makeEdit(
 
   details.addedLines = preview.addedLines
   details.removedLines = preview.removedLines
+
+  if (dryRun && preview.preview) {
+    recordDryRunPreview({
+      path,
+      preview: preview.preview,
+      addedLines: preview.addedLines,
+      removedLines: preview.removedLines,
+    })
+  }
 
   const summaryLine = `Changes: +${preview.addedLines} -${preview.removedLines}`
   const wb = result.warnings?.length ? `\n\nWarnings:\n${result.warnings.join('\n')}` : ''
@@ -196,7 +207,16 @@ const hashlineTool = defineTool({
       if (err instanceof HashlineMismatchError) {
         reportHashlineMismatch()
         return {
-          content: [{ type: 'text' as const, text: err.displayMessage }],
+          content: [
+            {
+              type: 'text' as const,
+              text: HashlineMismatchError.formatDisplayMessage(
+                err.mismatches,
+                err.fileLines,
+                params.path
+              ),
+            },
+          ],
           details: { path: params.path, addedLines: 0, removedLines: 0, firstChangedLine: undefined },
         }
       }

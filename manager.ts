@@ -1,4 +1,5 @@
 import { formatScopeCommand, formatScopeDashboard } from './commands/scope-dashboard.js'
+import { consumeDryRunFollowUpBlock } from './context/hashline-dry-run-followup.js'
 import { extractToolPath, resolveProjectPath } from './context/hashline-inject.js'
 import { collectLineRegionHints } from './context/hashline-region.js'
 import { formatHashlineTurnWorkflowBlock, mergeHashlineInjectionInsights } from './context/hashline-signals.js'
@@ -972,6 +973,14 @@ export class SessionManager {
         name: 'dep-context',
         priority: 7,
         produce: () => depContextContent,
+      })
+    }
+
+    if (s.config.hashline.enabled && s.config.hashline.injectDryRunFollowUp) {
+      pipeline.register({
+        name: 'hashline-dry-run-followup',
+        priority: 8,
+        produce: () => consumeDryRunFollowUpBlock(),
       })
     }
 
