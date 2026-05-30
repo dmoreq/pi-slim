@@ -407,6 +407,59 @@ export function formatScopeImpact(manager: SessionManager, symbol: string): stri
   return lines.join('\n')
 }
 
+export function formatScopeCommunity(manager: SessionManager, labelOrId: string): string {
+  const graph = manager.graphService.analysis
+  const codeGraph = manager.graphService.graph
+  if (!graph) return 'No graph analysis loaded.'
+
+  const query = labelOrId.toLowerCase()
+  const comm = graph.communities.find(
+    c => c.id.toLowerCase().includes(query) || c.label.toLowerCase().includes(query)
+  )
+  if (!comm) {
+    const available = graph.communities.slice(0, 5).map(c => c.label).join(', ')
+    return `Community "${labelOrId}" not found. Available: ${available}…`
+  }
+
+  const density = (comm.internalDensity * 100).toFixed(0)
+  const ifaces = comm.interfaceNodes.slice(0, 4).map(n => n.split(':').pop() ?? n).join(', ')
+  const bottlenecks = graph.bottlenecks
+    .filter(b => comm.nodes.includes(b.nodeId))
+    .slice(0, 3)
+    .map(b => `${b.nodeId.split(':').pop() ?? b.nodeId} (${b.impact.dependentCount} dep)`)
+    .join(', ')
+  const fileNodes = comm.nodes.filter(n => n.startsWith('file:') && !n.split(':')[2])
+  const keyFiles = fileNodes.slice(0, 5).map(n => n.split(':')[1]?.split('/').pop() ?? n).join(', ')
+
+  const extTargets = new Map<string, number>()
+  for (const edge of codeGraph?.edges ?? []) {
+    const srcInComm = comm.nodes.some(n => n === edge.source)
+    const tgtInComm = comm.nodes.some(n => n === edge.target)
+    if (srcInComm && !tgtInComm) {
+      const tgtComm = graph.communities.find(c => c.nodes.includes(edge.target))
+      if (tgtComm) extTargets.set(tgtComm.label, (extTargets.get(tgtComm.label) ?? 0) + 1)
+    }
+  }
+  const extLabel =
+    [...extTargets.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([l, n]) => `→ ${l} (${n})`)
+      .join(' · ') || 'none'
+
+  return [
+    `┌──── Community: ${comm.label} ${'─'.repeat(Math.max(0, 42 - comm.label.length))}┐`,
+    padLine(`  ID             : ${comm.id} · ${comm.nodes.length} nodes · density ${density}%`),
+    ifaces ? padLine(`  Interface nodes : ${ifaces}`) : '',
+    bottlenecks ? padLine(`  Bottlenecks     : ${bottlenecks}`) : '',
+    keyFiles ? padLine(`  Key files       : ${keyFiles}`) : '',
+    padLine(`  External links  : ${extLabel}`),
+    '└────────────────────────────────────────────────────────────┘',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
 export function formatScopeExplain(manager: SessionManager): string {
   const explanation = manager.getLastExplanation()
   if (explanation.length === 0) {
@@ -437,6 +490,10 @@ export async function formatScopeCommand(manager: SessionManager, args?: string)
   if (trimmed.startsWith('impact ')) {
     const symbol = trimmed.slice('impact '.length).trim()
     return formatScopeImpact(manager, symbol)
+  }
+  if (trimmed.startsWith('graph --community ') || trimmed.startsWith('graph -c ')) {
+    const label = trimmed.replace(/^graph (--community|-c)\s+/, '').trim()
+    return formatScopeCommunity(manager, label)
   }
   if (trimmed === 'history' || trimmed.startsWith('history ')) {
     const parts = trimmed.split(/\s+/)

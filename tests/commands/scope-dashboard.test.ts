@@ -4,6 +4,7 @@ import {
   formatScopeExplain,
   formatScopeHistory,
   formatScopeImpact,
+  formatScopeCommunity,
 } from '../../commands/scope-dashboard'
 import { summarizeTrend } from '../../metrics/stats-reader'
 import type { SessionRecord } from '../../metrics/tracker'
