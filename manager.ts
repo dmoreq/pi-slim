@@ -28,6 +28,7 @@ import { estimateFileSavings } from './metrics/cost-estimator.js'
 import {
   buildGraphMetricsSummary,
   computeGraphTokenMetrics,
+  formatGraphQualityOneLine,
   type GraphMetricsSummary,
 } from './metrics/graph-metrics.js'
 import { SessionStats } from './metrics/tracker.js'
@@ -42,7 +43,6 @@ import { LspSteerPlugin } from './plugins/lsp-steer-plugin.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { GraphService } from './services/graph-service.js'
 import { IndexService } from './services/index-service.js'
-import { TelemetryService } from './services/telemetry-service.js'
 import type { AgentMessage } from './shared/agent-message.js'
 import { detectPathsInOutput, detectPathsInToolCall, type FileReference } from './shared/file-detector.js'
 import type { ContextInsights } from './shared/intelligence-types.js'
@@ -167,10 +167,12 @@ export class SessionManager {
   state: SessionState | null = null
 
   /** Services (single-responsibility) */
-  readonly telemetry = new TelemetryService()
   readonly indexService = new IndexService()
   readonly graphService = new GraphService()
   readonly pluginManager = new PluginManager()
+
+  /** Context for UI notifications (set during start(), cleared on shutdown) */
+  private _notifyCtx: ExtensionContext | null = null
 
   /** Graph analysis result (cached for telemetry + status bar) */
   private _graphNodeCount = 0
@@ -366,8 +368,6 @@ export class SessionManager {
    * Enables `handleContext` with an empty index and default scope config.
    */
   private async bootstrapMinimalIntelligenceSession(): Promise<void> {
-    this.telemetry.register()
-    this.telemetry.onSessionStart()
     const projectRoot = typeof process !== 'undefined' && typeof process.cwd === 'function' ? process.cwd() : '.'
     const config = produceDefaults()
     if (!config.enabled) return
@@ -405,14 +405,14 @@ export class SessionManager {
       throw new Error('session start requires (projectRoot, getFlag, ctx) when bootstrap mode is disabled')
     }
 
+    this._notifyCtx = ctx
+
     // 1. Guard against running in system/home/non-codebase directories
     if (!isValidCodebase(projectRoot)) {
       console.log(`[pi-scope] Directory "${projectRoot}" is not a valid codebase. pi-scope remains dormant.`)
       return
     }
 
-    this.telemetry.register()
-    this.telemetry.onSessionStart()
 
     let config: SlimConfig = loadConfig(projectRoot, {
       'scope.enabled': getFlag('scope.enabled'),
@@ -473,7 +473,7 @@ export class SessionManager {
         stats.recordIndexAge(ageHours, ageHours > 24)
       }
 
-      this.telemetry.onCacheHit(idx.skeletons.size)
+      this._notify(nSuccess(`Loaded ${idx.skeletons.size} files from cache`), 'success')
 
       const retrieval = new RetrievalEngine(idx)
       this.intelligenceEngine.setProjectRoot(projectRoot)
@@ -509,7 +509,7 @@ export class SessionManager {
       stats.recordIndexLoaded(result.metadata as any)
       stats.recordIndexAge(0, false)
 
-      this.telemetry.onFreshBuild(result.fileCount, result.buildTimeMs)
+      this._notify(nSuccess(`Indexed ${result.fileCount} files in ${(result.buildTimeMs / 1000).toFixed(1)}s`), 'success')
 
       const contextFiles = config.contextFiles.enabled
         ? loadContextFiles(projectRoot, { filenames: config.contextFiles.filenames })
@@ -533,7 +533,8 @@ export class SessionManager {
       this.startAutoReindexWatcher(ctx)
       this.updateStatusBar(ctx)
     } catch (err) {
-      this.telemetry.onError('index_failed', err)
+      const msg = err instanceof Error ? err.message : String(err)
+      this._notify(nError(`Error: ${msg}`), 'error')
       this.state = null
     }
   }
@@ -552,7 +553,6 @@ export class SessionManager {
 
     const index = this.indexService.index
     if (!index || index.skeletons.size === 0) {
-      this.telemetry.onGraphNoData()
       setLspGraphAnalysis(null)
       setGraphImpactAnalysis(null)
       setLspRepoIndex(null)
@@ -572,7 +572,11 @@ export class SessionManager {
     stats.communityCount = nativeResult.analysis.communities.length
     stats.circularDependencies = nativeResult.analysis.metrics.cycleCount
 
-    this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount, this._graphCommunityCount)
+    const detail =
+      this._graphCommunityCount && this._graphCommunityCount > 1
+        ? `${this._graphNodeCount} nodes, ${this._graphEdgeCount} edges, ${this._graphCommunityCount} communities`
+        : `${this._graphNodeCount} nodes, ${this._graphEdgeCount} edges`
+    this._notify(nInfo(`Graph: ${detail}`), 'info')
     setLspGraphAnalysis(nativeResult.analysis)
     setGraphImpactAnalysis(nativeResult.analysis)
     setLspRepoIndex(index)
@@ -588,10 +592,13 @@ export class SessionManager {
 
     const m = session.config.metrics
     if (m.enabled && m.notifyQualityOnStart) {
-      this.telemetry.onGraphQuality(graphSummary, {
-        warnQualityBelow: m.warnQualityBelow,
-        warnCyclesAbove: m.warnCyclesAbove,
-      })
+      const line = formatGraphQualityOneLine(graphSummary)
+      const { quality } = graphSummary
+      if (quality.score < m.warnQualityBelow || quality.cycleCount > m.warnCyclesAbove) {
+        this._notify(nWarn(line), 'warning')
+      } else if (quality.score >= 80) {
+        this._notify(nInfo(line), 'info')
+      }
     }
   }
 
@@ -684,10 +691,7 @@ export class SessionManager {
             if (files.length > 0) {
               s.providerGuidanceFiles = files
               const names = files.map(f => f.path.split('/').pop() ?? f.path).join(', ')
-              this.telemetry.notify(`Provider guidance: ${names}`, {
-                severity: 'info' as any,
-                badge: { text: 'guidance', variant: 'info' as any },
-              })
+              this._notify(nInfo(`Provider guidance: ${names}`), 'info')
               return formatProviderGuidanceSection(files)
             }
             return null
@@ -830,13 +834,7 @@ export class SessionManager {
           if (dryRun) {
             this.hashlineDryRunSeenForPath.add(abs)
           } else if (s.config.hashline.preferDryRun && !this.hashlineDryRunSeenForPath.has(abs)) {
-            this.telemetry.notify(
-              `First hashline_edit on \`${path}\` should use dry_run: true to preview the diff.`,
-              {
-                severity: 'info' as const,
-                badge: { text: 'hashline', variant: 'info' as const },
-              }
-            )
+            this._notify(nInfo(`First hashline_edit on \`${path}\` should use dry_run: true to preview the diff.`), 'info')
           }
         }
         if (s.config.hashline.recordOnRead && tool === 'read') {
@@ -852,17 +850,11 @@ export class SessionManager {
 
     if (result.reason && s?.config.hashline.steerFromBuiltinEdit) {
       s.stats.recordBuiltinEditSteered()
-      this.telemetry.notify(result.reason, {
-        severity: 'info' as const,
-        badge: { text: 'hashline', variant: 'info' as const },
-      })
+      this._notify(nInfo(result.reason), 'info')
     }
 
     if (result.reason && s?.config.lsp.steerFromManualSearch) {
-      this.telemetry.notify(result.reason, {
-        severity: 'info' as const,
-        badge: { text: 'lsp', variant: 'info' as const },
-      })
+      this._notify(nInfo(result.reason), 'info')
     }
 
     if (s?.config.lsp.enabled) {
@@ -1205,10 +1197,12 @@ export class SessionManager {
     }
 
     const metrics = s.config.metrics
-    if (metrics.enabled && metrics.notifyOnShutdown) {
-      this.telemetry.onSessionShutdown(s.stats, { notify: true })
-    } else {
-      this.telemetry.onSessionShutdown(s.stats, { notify: false })
+    if (metrics.enabled && metrics.notifyOnShutdown && s.stats.totalTokensSaved > 0) {
+      const pct = Math.round(s.stats.savingsRatio * 100)
+      this._notify(
+        nSuccess(`Saved ~${s.stats.totalTokensSaved}t (${pct}% vs full reads) · ${s.stats.uniqueFilesInjected} files · ${s.stats.depContextTriggers} dep-context`),
+        'success'
+      )
     }
 
     if (ctx.hasUI) clearStatusBar(ctx.ui.setStatus)
@@ -1216,6 +1210,12 @@ export class SessionManager {
       console.warn('pi-scope: session stats persistence failed:', error)
     })
     this.state = null
+    this._notifyCtx = null
+  }
+
+  /** Notify via UI context if available. */
+  private _notify(msg: string, level: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
+    this._notifyCtx?.ui.notify(msg, level)
   }
 
   // ── Status bar ────────────────────────────────────────────────────
