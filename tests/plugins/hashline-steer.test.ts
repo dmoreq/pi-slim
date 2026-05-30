@@ -71,4 +71,12 @@ describe('HashlineSteerPlugin', () => {
     )
     expect(result).toBeUndefined()
   })
+
+  it('blocks edit in contextual strict when path has anchors this turn', async () => {
+    const state = makeState({ enabled: true, contextualStrictMode: true, strictMode: false })
+    const anchors = new Set([FOO])
+    const plugin = new HashlineSteerPlugin(() => state, () => anchors)
+    const result = await plugin.onToolCall!({ toolName: 'edit', input: { path: 'src/foo.ts' } }, {} as never)
+    expect(result?.allowed).toBe(false)
+  })
 })

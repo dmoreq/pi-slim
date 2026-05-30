@@ -18,11 +18,24 @@ const BUILTIN_EDIT_TOOLS = new Set([
   'patch',
 ])
 
+function resolveAbsPath(state: SessionState, filePath: string): string {
+  return resolve(state.projectRoot, filePath)
+}
+
 function pathIsIndexed(state: SessionState, filePath: string): boolean {
-  const abs = resolve(state.projectRoot, filePath)
+  const abs = resolveAbsPath(state, filePath)
   if (state.index.skeletons.has(abs)) return true
   for (const key of state.index.skeletons.keys()) {
     if (key.endsWith(filePath) || key.endsWith('/' + filePath)) return true
+  }
+  return false
+}
+
+function pathHasAnchorsThisTurn(getPaths: () => Set<string>, state: SessionState, filePath: string): boolean {
+  const abs = resolveAbsPath(state, filePath)
+  if (getPaths().has(abs)) return true
+  for (const p of getPaths()) {
+    if (p === abs || p.endsWith('/' + filePath) || p.endsWith(filePath)) return true
   }
   return false
 }
@@ -31,7 +44,10 @@ export class HashlineSteerPlugin implements Plugin {
   readonly name = 'hashline-steer'
   readonly version = '1.0.0'
 
-  constructor(private readonly getState: () => SessionState | null) {}
+  constructor(
+    private readonly getState: () => SessionState | null,
+    private readonly getAnchorPathsThisTurn: () => Set<string> = () => new Set()
+  ) {}
 
   private hashlineConfig(): SlimConfig['hashline'] | null {
     const s = this.getState()
@@ -63,7 +79,10 @@ export class HashlineSteerPlugin implements Plugin {
       `Prefer \`hashline_edit\` for \`${path}\` — anchors are in dep-context or use \`/hashline-read ${path}\`.` +
       ` Built-in \`${tool}\` can drift; hashline validates line anchors.${dryRunHint}`
 
-    if (cfg.strictMode) {
+    const block =
+      cfg.strictMode || (cfg.contextualStrictMode && pathHasAnchorsThisTurn(this.getAnchorPathsThisTurn, state, path))
+
+    if (block) {
       return { allowed: false, reason }
     }
 

@@ -232,7 +232,9 @@ export class SessionManager {
     this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
     this.pluginManager.register(new CommunityPruningPlugin(this.graphService))
-    this.pluginManager.register(new HashlineSteerPlugin(() => this.state))
+    this.pluginManager.register(
+      new HashlineSteerPlugin(() => this.state, () => this.hashlineAnchorPathsThisTurn)
+    )
   }
 
   /**
