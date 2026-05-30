@@ -22,6 +22,7 @@ import type {
 import telemetry from 'pi-telemetry'
 import { produceDefaults } from './context/schema.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
+import { formatHashlineRead } from './commands/hashline-read.js'
 import { formatScopeCommand } from './commands/scope-dashboard.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
 import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
@@ -107,6 +108,17 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     },
   })
 
+  pi.registerCommand('hashline-read', {
+    description: 'Read a file with hashline LINE+BIGRAM anchors for hashline_edit',
+    handler: async (args?: string) => {
+      const s = manager.state
+      if (!s) return 'pi-scope session is not active. Open a codebase project first.'
+      return formatHashlineRead(s.projectRoot, args ?? '', {
+        recordOnRead: s.config.hashline.recordOnRead,
+      })
+    },
+  })
+
   pi.on('session_start', ((_event: unknown, ctx: PiExtensionContext) => {
     void manager.start(ctx.cwd, (name: string) => pi.getFlag(name) as unknown, ctx as unknown as ExtensionContext)
   }) as AnyFn)
@@ -127,9 +139,12 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
     )
   }) as AnyFn)
 
-  pi.on('tool_call', ((event: ToolCallEvent, ctx: PiExtensionContext): ToolCallEventResult | undefined => {
+  pi.on('tool_call', (async (event: ToolCallEvent, ctx: PiExtensionContext): Promise<ToolCallEventResult | undefined> => {
     if (!manager.state) return undefined
-    return manager.handleToolCall({ toolName: event.toolName, input: event.input }, ctx as unknown as ExtensionContext)
+    return manager.handleToolCall(
+      { toolName: event.toolName, input: event.input },
+      ctx as unknown as ExtensionContext
+    )
   }) as AnyFn)
 
   pi.on('session_shutdown', (async (_event: unknown, ctx: PiExtensionContext) => {

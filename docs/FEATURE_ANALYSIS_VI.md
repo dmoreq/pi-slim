@@ -483,23 +483,24 @@ function symbolFromPosition(fp: string, _line: number, _column: number): string 
 
 ### 11.2 Tình trạng kích hoạt
 
-✅ **Đầy đủ.** Tool được register và guidance được inject vào system prompt.
+✅ **Đầy đủ** (sau bản cập nhật hashline integration):
+
+- Tool `hashline_edit` + command `/hashline-read`
+- Preamble hashline **trước** repo-map / dep-context trong `before_agent_start`
+- Anchors trong `dep-context` cho file in-focus (`slim.hashline.annotateDepContext`)
+- `HashlineSteerPlugin`: notify (hoặc block khi `strictMode`) khi agent dùng built-in `edit`/`write` trên file đã index
+- `recordOnRead`: cập nhật `AnchorStateManager` khi built-in `read` chạy
 
 ### 11.3 Nhận xét sử dụng
 
-🟡 **Tiềm năng chưa được tận dụng đúng mức:**
+🟢 **Tích hợp tốt hơn** với dep-context và tool steering; vẫn phụ thuộc agent chọn `hashline_edit` thay vì built-in edit (trừ `strictMode`).
 
-**Vấn đề 1 — Guidance position**: "Use `hashline_edit`" guidance được đặt trong `toolsBlock` **sau tất cả content khác** trong system prompt. LLMs tend to weight earlier context more — guidance này có thể bị ignore.
-
-**Vấn đề 2 — Intelligence Engine gợi ý nhưng không enforce**: `PatternDetector` detect StrReplace patterns và suggest hashline_edit. Nhưng không có mechanism nào **block** built-in edit tool hay **redirect** sang hashline. Suggestion là passive.
-
-**Vấn đề 3 — `/hashline-read` là separate command**: Để dùng hashline_edit hiệu quả, agent cần dùng `/hashline-read` trước để có anchors. Nhưng built-in `read` tool không có anchors. Agent có thể dùng built-in read → không có anchors → không thể dùng hashline_edit đúng cách.
+🟡 **Còn lại:** built-in `read` không trả anchors trong tool result — agent cần dep-context anchors hoặc `/hashline-read`.
 
 ### 11.4 Cơ hội cải thiện
 
-- **Auto-inject anchors**: Khi `dep-context` inject skeleton của file, thêm line anchors vào skeleton. Agent sẽ luôn có anchors mà không cần gọi riêng `/hashline-read`.
-- **Intelligence-guided routing**: Khi `onToolCall` hook fires cho `edit` tool, check nếu file đã có skeleton với anchors → suggest/redirect sang `hashline_edit`.
-- **Diff preview trong system prompt**: Khi `dry_run: true`, show diff trong một compact format để agent review trước khi confirm.
+- **Diff preview trong system prompt**: Khi `dry_run: true`, có thể surface diff compact hơn trong turn follow-up.
+- **Mismatch metrics**: Đếm anchor stale / rebase trong session stats.
 
 ---
 

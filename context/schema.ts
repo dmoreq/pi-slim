@@ -36,6 +36,16 @@ const MetricsSchema = z.object({
   historyLimit: z.number().int().positive().default(5),
 })
 
+const HashlineSchema = z.object({
+  enabled: z.boolean().default(true),
+  annotateDepContext: z.boolean().default(true),
+  annotateMaxLinesPerFile: z.number().int().positive().default(80),
+  preferDryRun: z.boolean().default(true),
+  steerFromBuiltinEdit: z.boolean().default(true),
+  strictMode: z.boolean().default(false),
+  recordOnRead: z.boolean().default(true),
+})
+
 // ── Root schema ───────────────────────────────────────────────────────────
 
 export const SlimConfigSchema = z
@@ -50,6 +60,7 @@ export const SlimConfigSchema = z
     providerGuidance: ProviderGuidanceSchema.default({}),
     intelligence: IntelligenceSchema.default({}),
     metrics: MetricsSchema.default({}),
+    hashline: HashlineSchema.default({}),
   })
   .default({})
 

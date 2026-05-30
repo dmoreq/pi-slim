@@ -1,6 +1,8 @@
 import { formatScopeCommand, formatScopeDashboard } from './commands/scope-dashboard.js'
+import { extractToolPath, resolveProjectPath } from './context/hashline-inject.js'
 import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
 import { watch, type FSWatcher } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { ContextInjector } from './context/dep-context.js'
 import type { GraphAnalysis } from './context/graph-types.js'
 import { type ProviderGuidanceFile, formatProviderGuidanceSection, loadProviderGuidance } from './context/guidance.js'
@@ -19,8 +21,11 @@ import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import { estimateFileSavings } from './metrics/cost-estimator.js'
 import { buildGraphMetricsSummary, type GraphMetricsSummary } from './metrics/graph-metrics.js'
 import { SessionStats } from './metrics/tracker.js'
+import { initHash } from './hashline/line-hash.js'
+import { AnchorStateManager } from './hashline/state-manager.js'
 import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
+import { HashlineSteerPlugin } from './plugins/hashline-steer-plugin.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { GraphService } from './services/graph-service.js'
 import { IndexService } from './services/index-service.js'
@@ -222,6 +227,7 @@ export class SessionManager {
     this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
     this.pluginManager.register(new CommunityPruningPlugin(this.graphService))
+    this.pluginManager.register(new HashlineSteerPlugin(() => this.state))
   }
 
   /**
@@ -397,6 +403,12 @@ export class SessionManager {
       'scope.providerGuidance.enabled': getFlag('scope.providerGuidance.enabled'),
     })
     if (!config.enabled) return
+
+    if (config.hashline.enabled) {
+      await initHash().catch(err => {
+        console.warn('[pi-scope] hashline initHash failed:', err)
+      })
+    }
 
     const stats = new SessionStats(ctx.sessionManager.getSessionId())
     const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
@@ -703,20 +715,54 @@ export class SessionManager {
       'Use pi-sherlock tools (`search`, `fuzzy_find`, `find_files`, etc.) for ad-hoc or external searches.\n' +
       'After search tools return results, pi-scope automatically injects AST skeletons for the matched files.\n'
 
+    const hashlinePreamble = s.config.hashline.enabled
+      ? '\n\n## Hashline editing (pi-scope)\n' +
+        '- Prefer `hashline_edit` with `dry_run: true` before writing files.\n' +
+        '- LINE+bigram anchors appear in dep-context for in-focus files, or use `/hashline-read <path>`.\n' +
+        '- Built-in `read` does **not** include hashline anchors.\n'
+      : ''
+
     return {
-      systemPrompt: `${event.systemPrompt}\n\n${result.content}${toolsBlock}`,
+      systemPrompt: `${event.systemPrompt}${hashlinePreamble}\n\n${result.content}${toolsBlock}`,
     }
   }
 
   // ── Tool Call ──────────────────────────────────────────────────────
 
-  handleToolCall(
+  async handleToolCall(
     event: { toolName: string; input: Record<string, unknown> | undefined },
     _ctx: ExtensionContext
-  ): { block?: boolean; reason?: string } | undefined {
-    this.pluginManager.runToolCall(event, _ctx).catch(error => {
-      console.warn('pi-scope: context plugin/tool-call hook failed:', error)
-    })
+  ): Promise<{ block?: boolean; reason?: string } | undefined> {
+    const s = this.state
+    const result = await this.pluginManager.runToolCall(event, _ctx)
+
+    if (!result.allowed) {
+      return { block: true, reason: result.reason ?? 'Tool call blocked by pi-scope plugin.' }
+    }
+
+    if (s?.config.hashline.enabled && s.config.hashline.recordOnRead) {
+      const tool = event.toolName.toLowerCase()
+      if (tool === 'read') {
+        const path = extractToolPath(event.input)
+        if (path) {
+          try {
+            const abs = resolveProjectPath(s.projectRoot, path)
+            const raw = await readFile(abs, 'utf-8')
+            AnchorStateManager.record(abs, raw)
+          } catch {
+            /* file may not exist yet */
+          }
+        }
+      }
+    }
+
+    if (result.reason && s?.config.hashline.steerFromBuiltinEdit) {
+      this.telemetry.notify(result.reason, {
+        severity: 'info' as const,
+        badge: { text: 'hashline', variant: 'info' as const },
+      })
+    }
+
     return undefined
   }
 
@@ -800,13 +846,23 @@ export class SessionManager {
         }
       }
 
+      const hashlineOpts =
+        s.config.hashline.enabled && s.config.hashline.annotateDepContext
+          ? {
+              enabled: true,
+              maxLinesPerFile: s.config.hashline.annotateMaxLinesPerFile,
+              recordOnRead: s.config.hashline.recordOnRead,
+            }
+          : undefined
+
       depContextContent = s.injector.buildInjection(
         s.index,
         messagesPlain,
         extraPaths.size > 0 ? extraPaths : undefined,
         s.retrieval,
         s.config.dependencyDepth ?? 1,
-        graph
+        graph,
+        hashlineOpts
       )
     }
 

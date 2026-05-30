@@ -1,4 +1,5 @@
 import { relative } from 'node:path'
+import { appendHashlineToEntry, type HashlineInjectOptions } from './hashline-inject.js'
 import { extractText } from '../shared/message.js'
 import { isBroadCodebaseQuery } from '../shared/query-intent.js'
 import { estimateTokens } from '../shared/token.js'
@@ -36,7 +37,8 @@ export class ContextInjector {
     extraPaths?: Set<string>,
     retrieval?: RetrievalEngine,
     transitiveDepth = 1,
-    graphAnalysis?: GraphAnalysis | null
+    graphAnalysis?: GraphAnalysis | null,
+    hashline?: HashlineInjectOptions
   ): string {
     const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval, graphAnalysis)
 
@@ -68,8 +70,13 @@ export class ContextInjector {
       const skeleton = index.skeletons.get(absPath)
       if (!skeleton) continue
       const rel = relative(this.projectRoot, absPath)
-      const entry = `### ${rel}\n${skeleton}`
-      const cost = estimateTokens(entry)
+      let entry = `### ${rel}\n${skeleton}`
+      let cost = estimateTokens(entry)
+      if (hashline?.enabled) {
+        const annotated = appendHashlineToEntry(entry, absPath, this.projectRoot, hashline, tokenBudget)
+        entry = annotated.entry
+        cost = annotated.cost
+      }
       if (cost > tokenBudget) continue
       activeLines.push(entry)
       tokenBudget -= cost
@@ -108,8 +115,13 @@ export class ContextInjector {
         const skeleton = index.skeletons.get(dep)
         if (!skeleton) continue
         const rel = relative(this.projectRoot, dep)
-        const entry = `### ${rel}\n${skeleton}`
-        const cost = estimateTokens(entry)
+        let entry = `### ${rel}\n${skeleton}`
+        let cost = estimateTokens(entry)
+        if (hashline?.enabled) {
+          const annotated = appendHashlineToEntry(entry, dep, this.projectRoot, hashline, tokenBudget)
+          entry = annotated.entry
+          cost = annotated.cost
+        }
         if (cost > tokenBudget) continue
         depLines.push(entry)
         tokenBudget -= cost

@@ -82,6 +82,17 @@ export interface SlimConfig {
     warnCyclesAbove: number
     historyLimit: number
   }
+
+  /** Hashline anchor editing (hashline_edit, /hashline-read, dep-context anchors). */
+  hashline: {
+    enabled: boolean
+    annotateDepContext: boolean
+    annotateMaxLinesPerFile: number
+    preferDryRun: boolean
+    steerFromBuiltinEdit: boolean
+    strictMode: boolean
+    recordOnRead: boolean
+  }
 }
 
 // Defaults and schema live in config/schema.ts — import from there

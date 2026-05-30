@@ -148,8 +148,8 @@ const hashlineTool = defineTool({
   description:
     "Edit files using hashline anchors (LINE+bigram references like '42nd'). " +
     'Set dry_run: true to validate anchors and preview the diff without writing. ' +
-    'Read the file first via the read tool to see anchor-annotated content, then ' +
-    'reference specific lines by their LINE+BIGRAM anchor. No file re-read needed. ' +
+    'Anchors appear in pi-scope dep-context for in-focus files, or use `/hashline-read <path>`. ' +
+    'Built-in `read` does not include anchors. Reference lines by LINE+BIGRAM anchor. ' +
     'Supports replace_line, replace_range, append_at, prepend_at, append_file, prepend_file.',
 
   parameters: Type.Object({

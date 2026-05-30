@@ -160,15 +160,19 @@ export class PluginManager {
     event: { toolName: string; input: Record<string, unknown> | undefined; toolCallId?: string },
     ctx: ExtensionContext
   ): Promise<PluginToolCallResult> {
+    let steerReason: string | undefined
+
     for (const pluginName of this.registerOrder) {
       const plugin = this.plugins.get(pluginName)
       if (!plugin || !plugin.onToolCall) continue
 
       try {
         const result = await plugin.onToolCall(event, ctx)
-        if (result && !result.allowed) {
-          // Short-circuit: plugin blocked the tool call
-          return result
+        if (result) {
+          if (!result.allowed) {
+            return result
+          }
+          if (result.reason) steerReason = result.reason
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err)
@@ -177,8 +181,7 @@ export class PluginManager {
       }
     }
 
-    // All plugins allowed the tool call
-    return { allowed: true }
+    return steerReason ? { allowed: true, reason: steerReason } : { allowed: true }
   }
 
   // ── State Management ─────────────────────────────────────────────────────

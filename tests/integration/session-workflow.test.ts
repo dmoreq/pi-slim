@@ -144,19 +144,22 @@ export function startServer(port: number) {
     // Note: The actual injection might modify the original messages
 
     // 4. Tool call (should trigger read awareness)
-    const toolCallResult = manager.handleToolCall({ toolName: 'read', input: { path: 'src/auth.ts' } }, mockContext)
-    // Should allow the read
-    expect(toolCallResult).toBeUndefined() // undefined means allowed
+    const toolCallResult = await manager.handleToolCall(
+      { toolName: 'read', input: { path: 'src/auth.ts' } },
+      mockContext
+    )
+    expect(toolCallResult).toBeUndefined()
 
-    const editCallResult = manager.handleToolCall({ toolName: 'edit', input: { path: 'src/auth.ts' } }, mockContext)
-    // Should allow edit after read
+    const editCallResult = await manager.handleToolCall(
+      { toolName: 'edit', input: { path: 'src/auth.ts' } },
+      mockContext
+    )
     expect(editCallResult).toBeUndefined()
 
-    const editUnreadResult = manager.handleToolCall(
+    const editUnreadResult = await manager.handleToolCall(
       { toolName: 'edit', input: { path: 'src/unknown.ts' } },
       mockContext
     )
-    // handleToolCall delegates to plugins asynchronously; orchestrator returns undefined
     expect(editUnreadResult).toBeUndefined()
 
     // 5. Shutdown (stats live on manager.state.stats)
@@ -172,12 +175,11 @@ export function startServer(port: number) {
     await manager.start(tmpDir, configFlag, mockContext)
 
     // Test malformed tool call
-    const result = manager.handleToolCall(
+    const result = await manager.handleToolCall(
       { toolName: 'read', input: null }, // Invalid input
       mockContext
     )
 
-    // Should not crash
     expect(result).toBeUndefined()
   })
 
