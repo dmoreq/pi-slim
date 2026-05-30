@@ -1,109 +1,45 @@
 ---
 name: pi-scope-lsp
-description: Use when you need go-to-definition, find-references, hover type info, or LSP diagnostics via pi-scope; when LSP tools return errors; or when setting up language servers for code navigation
+description: Use when navigating code with pi-scope LSP tools, installing language servers, or choosing between lsp_go_to_definition, lsp_find_references, lsp_hover, and workspace symbol search
 ---
 
-# pi-scope LSP Code Navigation
+# pi-scope LSP Navigation
 
-## Prerequisites: Install LSP Servers
+## When to use
 
-Each language needs its LSP server on `$PATH`. pi-scope logs which are found and which are missing at session start.
+- Locate definitions or implementations → LSP, not full-file `read`
+- Assess blast radius before edits → `lsp_find_references`
+- Type info + graph impact + hashline anchor → `lsp_hover`
+- Search symbol by name → `lsp_workspace_symbol`
 
-```bash
-# TypeScript / JavaScript (recommended for all TS/JS projects)
-npm install -g typescript typescript-language-server
+## Line and column
 
-# Python
-pip install pyright
+Tools use **0-based** `line` and `column` (LSP convention).
 
-# Go
-go install golang.org/x/tools/gopls@latest
+From citation `src/auth.ts:42` use `line: 41`, `column: 0` unless you know the exact column.
 
-# Rust
-rustup component add rust-analyzer
-```
+## Recommended workflow
 
-**Missing server?** The corresponding `lsp_*` tool logs a warning and skips that language — no crash, no blocking.
+1. `lsp_go_to_definition` or `lsp_workspace_symbol` to find the symbol
+2. `lsp_find_references` before changing shared APIs
+3. `lsp_hover` for type, graph impact, and hashline anchor at cursor
+4. `hashline_edit` with `dry_run: true` then apply
 
-## Available Tools
+## Language servers (install on PATH)
 
-| Tool | Description | Parameters |
-|------|-------------|------------|
-| `lsp_go_to_definition` | Find where a symbol is defined | `path`, `line` (0-indexed), `column` (0-indexed) |
-| `lsp_find_references` | Find all usages of a symbol | `path`, `line`, `column` |
-| `lsp_hover` | Get type info and docs at cursor | `path`, `line`, `column` |
+| Language | Binary |
+|----------|--------|
+| TypeScript/JavaScript | `typescript-language-server` |
+| Python | `pyright-langserver` |
+| Go | `gopls` |
+| Rust | `rust-analyzer` |
 
-All three tools use **0-indexed** line and column positions.
+Check `/scope` for server health when `lsp.probeServersOnStart` is enabled.
 
-## Supported Languages & Required Servers
+## Config (`slim.lsp`)
 
-| Language | Server Binary | Command | Extensions |
-|----------|-------------|---------|----|
-| TypeScript/JS | `typescript-language-server` | `--stdio` | `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx` |
-| Python | `pyright-langserver` | `--stdio` | `.py`, `.pyi` |
-| Go | `gopls` | (no args) | `.go` |
-| Rust | `rust-analyzer` | (no args) | `.rs` |
+- `injectPathsSameTurn` — LSP result files enter dep-context on the next context pass (same message batch)
+- `steerFromManualSearch` — nudge away from `grep` / line-targeted `read`
+- `strictNavigation` — block those tools when LSP is preferred
 
-**Servers must be on `$PATH`.** Install them via your package manager (npm, pip, go install, rustup).
-
-## Graph-Enhanced Hover (When Native Graph Analysis Active)
-
-When native graph analysis has run on the computed code index, the `lsp_hover` tool returns **enhanced information** beyond standard LSP type info:
-
-| Extra Field | What it shows |
-|-------------|---------------|
-| **God Node Status** | ⭐ if the symbol is a god node, with CRITICAL/HIGH/MEDIUM/LOW criticality |
-| **Centrality** | In-degree, out-degree, PageRank score |
-| **Community** | Which functional group the symbol belongs to |
-| **Surprising Connections** | Cross-community edges involving this symbol |
-| **Impact Analysis** | How many dependents would be affected by a change |
-
-This is automatic — no extra configuration needed. All standard LSP type info is still returned.
-
-## How It Works
-
-1. **Lazy startup** — language servers start on first tool call, not at session start
-2. **Per-language** — one server instance per language (cached for the session)
-3. **Auto-injection** — results feed into the next context turn's `extraPaths`, making resolved files available in the dep-context without manual reads
-
-## Example Usage
-
-```typescript
-// Go to definition
-lsp_go_to_definition({
-  path: "src/auth.ts",
-  line: 5,     // 0-indexed
-  column: 10
-})
-
-// Find all references
-lsp_find_references({
-  path: "src/auth.ts",
-  line: 5,
-  column: 10
-})
-
-// Hover for type info
-lsp_hover({
-  path: "src/auth.ts",
-  line: 5,
-  column: 10
-})
-```
-
-## Troubleshooting
-
-| Error | Cause | Fix |
-|-------|-------|-----|
-| "No language server available" | File extension not mapped | Only `.ts`, `.tsx`, `.py`, `.rs`, `.go` files have LSP support |
-| "LSP error: spawn ENOENT" | Server binary not found | Install the binary on `$PATH` |
-| "LSP request timed out" | Server unresponsive | Check server health, restart pi session |
-| "No definition found" | Symbol not defined in the file tree | Try typing a more precise position |
-| Empty hover result | Position has no type info | Move cursor to a symbol (not whitespace) |
-
-## Tips
-
-- **Position is 0-indexed** (line 0 = first line, column 0 = first character)
-- **Results are file paths** — resolved files appear in the next dep-context automatically
-- **One server per language** — switching between `.ts` and `.py` files starts both servers
-- **Session lifetime** — servers live until `session_shutdown`, then killed with SIGTERM (+ 3s grace, then SIGKILL)
+See `docs/LSP_ADOPTION_PLAN_VI.md` for the full adoption plan.
