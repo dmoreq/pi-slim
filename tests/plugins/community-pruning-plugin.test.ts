@@ -188,6 +188,20 @@ describe('CommunityPruningPlugin', () => {
     expect(plugin.getStats().pruneCount).toBe(0)
   })
 
+  it('emits friendly focused-context message when pruning fires', async () => {
+    const msgs: string[] = []
+    const plugin = new CommunityPruningPlugin(makeGraphService(TWO_COMM_ANALYSIS), () => null, m => msgs.push(m))
+    const messages: Record<string, unknown>[] = [
+      { role: 'user', content: 'edit auth.ts' },
+      { role: 'developer', content: 'Context from db.ts: export function query()' },
+      { role: 'developer', content: 'Context from auth.ts: export function authenticate()' },
+    ]
+    await plugin.onContext!(messages)
+    expect(msgs.length).toBeGreaterThan(0)
+    expect(msgs[0]).toMatch(/Context focused on.*cleared/)
+    expect(msgs[0]).not.toMatch(/off-community/)
+  })
+
   it('increments processedTurns on each qualifying call', async () => {
     const plugin = new CommunityPruningPlugin(makeGraphService(TWO_COMM_ANALYSIS))
     const makeMessages = (): Record<string, unknown>[] => [

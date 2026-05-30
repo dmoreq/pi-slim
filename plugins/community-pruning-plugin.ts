@@ -120,14 +120,17 @@ export class CommunityPruningPlugin implements Plugin {
     }
 
     if (prunedThisTurn > 0) {
-      this.onPrune?.(`Community pruning: removed ${prunedThisTurn} off-community injection(s) (active: ${activeCommunity.label})`)
+      const noun = prunedThisTurn === 1 ? 'block' : 'blocks'
+      this.onPrune?.(
+        `Context focused on "${activeCommunity.label}" — cleared ${prunedThisTurn} off-topic ${noun}`
+      )
     }
 
   }
   async onSessionShutdown(): Promise<void> {
     if (this._pruneCount > 0) {
-      console.error(
-        `[community-pruning] Session summary: ${this._pruneCount} context messages pruned over ${this._processedTurns} turns`
+      console.log(
+        `[pi-scope] Community pruning: ${this._pruneCount} off-topic blocks cleared across ${this._processedTurns} turns`
       )
     }
   }
