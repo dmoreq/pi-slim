@@ -57,6 +57,29 @@ describe('buildStatusText', () => {
     expect(buildStatusText(state)).toBe('')
   })
 
+  it('includes shield emoji and steer count when steers > 0', () => {
+    const text = buildStatusText({
+      indexedFiles: 100,
+      repoMapTokens: 200,
+      depContextTriggers: 3,
+      contextFilesCount: 0,
+      providerGuidanceCount: 0,
+      graphSteerCount: 4,
+    })
+    expect(text).toContain('🛡 4')
+  })
+
+  it('omits shield when steerCount is 0 or undefined', () => {
+    const text = buildStatusText({
+      indexedFiles: 100,
+      repoMapTokens: 200,
+      depContextTriggers: 0,
+      contextFilesCount: 0,
+      providerGuidanceCount: 0,
+    })
+    expect(text).not.toContain('🛡')
+  })
+
   it('includes guidance count when present', () => {
     const state: StatusBarState = {
       indexedFiles: 10,

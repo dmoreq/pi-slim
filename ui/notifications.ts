@@ -65,6 +65,8 @@ export interface StatusBarState {
   tokensSaved?: number
   /** Graph quality score 0–100 (shown when graph loaded). */
   graphQualityScore?: number
+  /** Number of graph steers fired this session (shown when > 0). */
+  graphSteerCount?: number
 }
 
 /**
@@ -96,6 +98,9 @@ export function buildStatusText(state: StatusBarState): string {
   }
   if (state.tokensSaved && state.tokensSaved > 0) {
     parts.push(`saved ~${state.tokensSaved}t`)
+  }
+  if (state.graphSteerCount && state.graphSteerCount > 0) {
+    parts.push(`🛡 ${state.graphSteerCount}`)
   }
 
   return parts.length > 0 ? parts.join(' | ') : ''

@@ -1320,6 +1320,7 @@ export class SessionManager {
       graphCommunityCount: this._graphCommunityCount > 1 ? this._graphCommunityCount : undefined,
       tokensSaved: s.stats.totalTokensSaved > 0 ? s.stats.totalTokensSaved : undefined,
       graphQualityScore: s.graphMetrics?.quality.score,
+      graphSteerCount: s.stats.graphSteerCount > 0 ? s.stats.graphSteerCount : undefined,
     }
   }
 
