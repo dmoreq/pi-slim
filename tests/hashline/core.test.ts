@@ -37,6 +37,18 @@ describe('validateLineRef', () => {
     expect(() => validateLineRef({ line: 1, hash: ch(1, fileLines[0]) }, fileLines)).not.toThrow())
   it('throws HashlineMismatchError on mismatched hash', () =>
     expect(() => validateLineRef({ line: 1, hash: 'xx' }, fileLines)).toThrow(HashlineMismatchError))
+
+  it('formatDisplayMessage includes hashline_read range when path provided', () => {
+    const msg = HashlineMismatchError.formatDisplayMessage(
+      [{ line: 2, expected: 'ab', actual: 'cd' }],
+      fileLines,
+      'src/foo.ts'
+    )
+    expect(msg).toContain('hashline_read')
+    expect(msg).toContain('src/foo.ts')
+    expect(msg).toContain('start_line=')
+    expect(msg).toContain('end_line=')
+  })
   it('throws on out-of-range line', () =>
     expect(() => validateLineRef({ line: 10, hash: 'un' }, fileLines)).toThrow('Line 10 does not exist'))
 })

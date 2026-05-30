@@ -32,7 +32,7 @@ export type HashlineEdit =
 // ── Constants ─────────────────────────────────────────────────────────────
 
 export const ANCHOR_REBASE_WINDOW = 5
-const MISMATCH_CONTEXT = 2
+const MISMATCH_CONTEXT = 3
 
 const HASHLINE_CONTENT_SEPARATOR_RE = '[:|]'
 const HASHLINE_PREFIX_RE = new RegExp(
@@ -155,7 +155,11 @@ export class HashlineMismatchError extends Error {
     return HashlineMismatchError.formatDisplayMessage(this.mismatches, this.fileLines)
   }
 
-  static formatDisplayMessage(mismatches: HashMismatch[], fileLines: string[]): string {
+  static formatDisplayMessage(
+    mismatches: HashMismatch[],
+    fileLines: string[],
+    filePath?: string
+  ): string {
     const mismatchSet = new Set(mismatches.map(m => m.line))
     const displayLines = buildDisplayLineSet(mismatches, fileLines.length)
     const sorted = [...displayLines].sort((a, b) => a - b)
@@ -163,8 +167,16 @@ export class HashlineMismatchError extends Error {
     const out: string[] = [
       `Edit rejected: ${mismatches.length} line${mismatches.length > 1 ? 's have' : ' has'} changed since the last read (marked *).`,
       'The edit was NOT applied. Re-read with `hashline_read` (or `/hashline-read <path>`), then retry `hashline_edit` using the anchors below.',
-      '',
     ]
+    const firstMismatchLine = mismatches[0]?.line
+    if (filePath && firstMismatchLine != null) {
+      const start = Math.max(1, firstMismatchLine - MISMATCH_CONTEXT)
+      const end = Math.min(fileLines.length, firstMismatchLine + MISMATCH_CONTEXT)
+      out.push(
+        `Quick re-read: \`hashline_read\` path=\`${filePath}\` start_line=${start} end_line=${end}`
+      )
+    }
+    out.push('')
     let prev = -1
     for (const n of sorted) {
       if (prev !== -1 && n > prev + 1) out.push('...')

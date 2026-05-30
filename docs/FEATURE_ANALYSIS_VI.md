@@ -508,7 +508,7 @@ function symbolFromPosition(fp: string, _line: number, _column: number): string 
 
 ### 11.4 Cơ hội cải thiện (v2 còn lại)
 
-- Chunk stream + post dry_run inject (Phase D, tùy chọn)
+- Phase D (stream read, dry-run follow-up inject, mismatch recovery) — ✅ hoàn tất
 
 ---
 

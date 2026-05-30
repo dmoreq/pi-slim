@@ -355,13 +355,13 @@ flowchart TB
 
 ---
 
-### Phase D — File lớn & UX nâng cao (tùy chọn, 2–3 ngày)
+### Phase D — File lớn & UX nâng cao ✅
 
-| Task | Mô tả |
-|------|--------|
-| Chunk stream | `hashline/stream.ts` — annotate từng chunk khi đọc file > 500 dòng |
-| Post dry_run context | Sau dry_run, inject compact diff vào turn tiếp (pipeline priority 8) |
-| Mismatch recovery | Error text luôn kèm `hashline_read` path + 3 dòng quanh mismatch |
+| Task | Mô tả | Trạng thái |
+|------|--------|------------|
+| Chunk stream | `hashline/streaming.ts` — chunked annotate khi slice ≥ `streamAnnotateThresholdLines` (500) | ✅ |
+| Post dry_run context | `context/hashline-dry-run-followup.ts` — inject turn tiếp (priority 8) | ✅ |
+| Mismatch recovery | `hashline_read` path + `start_line`/`end_line` ±3 quanh mismatch | ✅ |
 
 ---
 

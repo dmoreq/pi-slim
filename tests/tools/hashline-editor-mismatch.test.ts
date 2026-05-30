@@ -36,6 +36,9 @@ describe('hashline_edit mismatch handling', () => {
 
     const text = result.content[0]?.text ?? ''
     expect(text).toContain('hashline_read')
+    expect(text).toContain('start_line=')
+    expect(text).toContain('end_line=')
+    expect(text).toContain('target.ts')
     expect(text).toContain('Edit rejected')
     expect(result.details.addedLines).toBe(0)
     expect(result.details.removedLines).toBe(0)
