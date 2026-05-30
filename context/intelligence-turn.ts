@@ -11,6 +11,8 @@ export interface IntelligenceGuidanceOptions {
   includeWorkflow?: boolean
   /** Turn mode from intent classification. */
   mode?: IntelligenceTurnMode
+  /** Extra markdown sections appended after graph-aware blocks. */
+  extraSections?: string[]
 }
 
 export function classifyIntelligenceTurnMode(

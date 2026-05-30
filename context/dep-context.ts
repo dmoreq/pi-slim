@@ -4,9 +4,10 @@ import { extractText } from '../shared/message.js'
 import { isBroadCodebaseQuery } from '../shared/query-intent.js'
 import { estimateTokens } from '../shared/token.js'
 import type { RepoIndex } from '../shared/types.js'
-import { godNodeMatchesFilePath, parseGraphNodeId } from './graph-node-id.js'
+import { parseGraphNodeId } from './graph-node-id.js'
 import type { GraphAnalysis } from './graph-types.js'
-import { RetrievalEngine, type ScoredFile } from './retrieval.js'
+import { RetrievalEngine, type RetrievalGraphOptions, type ScoredFile } from './retrieval.js'
+import type { SlimConfig } from '../shared/types.js'
 
 const FILE_PATH_RE = /(?:^|[\s'"`(])([.\/\w-]+\/[\w.\/-]+\.(?:tsx|ts|py|rs))/g
 
@@ -41,10 +42,18 @@ export class ContextInjector {
     retrieval?: RetrievalEngine,
     transitiveDepth = 1,
     graphAnalysis?: GraphAnalysis | null,
-    hashline?: HashlineInjectOptions
+    hashline?: HashlineInjectOptions,
+    retrievalGraph?: { activeCommunityId?: string | null; graphConfig?: SlimConfig['graph'] }
   ): string {
     this.lastInjectedHashlinePaths.clear()
-    const inFocus = this.detectInFocusFiles(index, messages, extraPaths, retrieval, graphAnalysis)
+    const inFocus = this.detectInFocusFiles(
+      index,
+      messages,
+      extraPaths,
+      retrieval,
+      graphAnalysis,
+      retrievalGraph
+    )
 
     // Broad codebase overview: inject top files by centrality when the query
     // is a high-level codebase question with no specific paths/symbols.
@@ -144,7 +153,8 @@ export class ContextInjector {
     messages: Message[],
     extraPaths?: Set<string>,
     retrieval?: RetrievalEngine,
-    graphAnalysis?: GraphAnalysis | null
+    graphAnalysis?: GraphAnalysis | null,
+    retrievalGraph?: { activeCommunityId?: string | null; graphConfig?: SlimConfig['graph'] }
   ): Set<string> {
     const recent = messages.slice(-this.scanLastN)
     const mentioned = new Set<string>()
@@ -165,22 +175,19 @@ export class ContextInjector {
     // Scored retrieval via RetrievalEngine
     if (retrieval && index.symbolIndex?.size) {
       const query = recent.map(m => extractText(m.content)).join(' ')
-      let scored = retrieval.retrieveTopK(query, 20)
-
-      // Graph-aware boost: promote files that match god nodes (file:path ids, not stems only)
-      if (graphAnalysis?.godNodes?.length) {
-        scored = scored
-          .map(f => {
-            const rel = relative(this.projectRoot, f.file)
-            const matchesGod = graphAnalysis.godNodes.some(gn => godNodeMatchesFilePath(rel, gn))
-            if (matchesGod) {
-              return { ...f, score: f.score + Math.max(f.score, 1) }
+      const cfg = retrievalGraph?.graphConfig
+      const graphOpts: RetrievalGraphOptions | undefined =
+        graphAnalysis && cfg?.enabled !== false
+          ? {
+              graph: graphAnalysis,
+              activeCommunityId: retrievalGraph?.activeCommunityId ?? null,
+              boostGodNodes: cfg?.boostRetrievalWithGodNodes ?? true,
+              boostActiveCommunity: cfg?.boostRetrievalWithActiveCommunity ?? true,
+              projectRoot: this.projectRoot,
             }
-            return f
-          })
-          .sort((a, b) => b.score - a.score)
-      }
+          : undefined
 
+      const scored = retrieval.retrieveTopK(query, 20, new Set(), graphOpts)
       this.lastExplanation = scored
 
       const inFocus = new Set<string>()

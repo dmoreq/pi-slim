@@ -8,11 +8,21 @@ import type { ContextInsights } from '../shared/intelligence-types.js'
 import { godNodeMatchesSymbol } from './god-node-match.js'
 import type { GodNode, GraphAnalysis } from './graph-types.js'
 
+export interface SmartDepContextOptions {
+  excludeGodLabels?: string[]
+}
+
 export class SmartDependencyContextGenerator {
-  generateEnhancedDependencyContext(insights: ContextInsights, graphAnalysis: GraphAnalysis | null): string {
+  generateEnhancedDependencyContext(
+    insights: ContextInsights,
+    graphAnalysis: GraphAnalysis | null,
+    options: SmartDepContextOptions = {}
+  ): string {
+    if (!graphAnalysis) return ''
+
     const sections: string[] = []
 
-    const highPri = graphAnalysis ? this.collectHighPrioritySymbols(insights, graphAnalysis) : []
+    const highPri = this.collectHighPrioritySymbols(insights, graphAnalysis, options.excludeGodLabels)
     if (highPri.length > 0) {
       const lines = highPri.map(g => `- ${g.label} (${g.criticality}, ${g.inDegree} in)`)
       sections.push(`🎯 HIGH-PRIORITY SYMBOLS\n${lines.join('\n')}`)
@@ -40,7 +50,15 @@ export class SmartDependencyContextGenerator {
     return [...nodes].sort((a, b) => order[a.criticality] - order[b.criticality] || b.inDegree - a.inDegree)
   }
 
-  private collectHighPrioritySymbols(insights: ContextInsights, graphAnalysis: GraphAnalysis): GodNode[] {
+  private collectHighPrioritySymbols(
+    insights: ContextInsights,
+    graphAnalysis: GraphAnalysis,
+    excludeLabels?: string[]
+  ): GodNode[] {
+    const exclude = new Set((excludeLabels ?? []).map(l => l.toLowerCase()))
+    const filterExcluded = (nodes: GodNode[]) =>
+      exclude.size > 0 ? nodes.filter(gn => !exclude.has(gn.label.toLowerCase())) : nodes
+
     const relevantSymbols = [
       ...insights.editingIntent.targetSymbols,
       ...insights.navigationRequests.requestedSymbols,
@@ -49,11 +67,11 @@ export class SmartDependencyContextGenerator {
 
     if (relevantSymbols.length > 0) {
       const matches = graphAnalysis.godNodes.filter(gn => relevantSymbols.some(sym => godNodeMatchesSymbol(gn, sym)))
-      return this.sortGodNodesByPriority(matches)
+      return this.sortGodNodesByPriority(filterExcluded(matches))
     }
 
     if (graphAnalysis.godNodes.length > 0) {
-      return this.sortGodNodesByPriority(graphAnalysis.godNodes).slice(0, 3)
+      return this.sortGodNodesByPriority(filterExcluded(graphAnalysis.godNodes)).slice(0, 3)
     }
 
     return []

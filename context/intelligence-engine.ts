@@ -89,7 +89,9 @@ export class ContextIntelligenceEngine {
     const includeWorkflow = options.includeWorkflow ?? true
 
     if (!graphAnalysis) {
-      return this.generateBasicGuidance(insights, { includeWorkflow, mode })
+      const basic = this.generateBasicGuidance(insights, { includeWorkflow, mode })
+      const extra = (options.extraSections ?? []).filter(Boolean).join('\n\n')
+      return extra ? `${basic}\n\n${extra}` : basic
     }
 
     const sections: string[] = []
@@ -121,6 +123,10 @@ export class ContextIntelligenceEngine {
     const contextualSuggestions = this.generateContextualSuggestions(insights, graphAnalysis, mode)
     if (contextualSuggestions) {
       sections.push(contextualSuggestions)
+    }
+
+    for (const extra of options.extraSections ?? []) {
+      if (extra.trim()) sections.push(extra)
     }
 
     return sections.filter(Boolean).join('\n\n')
