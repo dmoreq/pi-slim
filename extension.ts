@@ -4,7 +4,6 @@
  * Zero-config, fully automatic. No user commands needed.
  *   - Auto-indexes on first codebase-relevant query
  *   - Native graph analysis runs automatically on the computed code index
- *   - All lifecycle events reported via pi-telemetry
  *   - 4 LLM tools + `/scope` dashboard command
  *
  * Trigger: before_agent_start checks if query is codebase-related (contains
@@ -19,7 +18,6 @@ import type {
   ToolCallEvent,
   ToolCallEventResult,
 } from '@mariozechner/pi-coding-agent'
-import telemetry from 'pi-telemetry'
 import { produceDefaults } from './context/schema.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
 import { formatHashlineReadFromArgs } from './commands/hashline-read.js'
@@ -92,11 +90,6 @@ type AnyFn = (...args: any[]) => any
 
 export default function smartContextExtension(pi: ExtensionAPI): void {
   registerFlags(pi)
-  try {
-    telemetry(pi)
-  } catch {
-    // pi-telemetry may not be available at extension load time
-  }
 
   registerHashlineTool(pi)
   registerHashlineReadTool(pi)
