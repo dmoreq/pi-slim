@@ -6,6 +6,7 @@ import {
   computeGraphQualityMetrics,
   computeGraphTokenMetrics,
   formatGraphMetricsSummary,
+  formatGraphQualityOneLine,
 } from '../../metrics/graph-metrics'
 
 // ── Fixture ────────────────────────────────────────────────────────────────
@@ -183,6 +184,16 @@ describe('buildGraphMetricsSummary', () => {
 })
 
 // ── Formatter ─────────────────────────────────────────────────────────────
+
+describe('formatGraphQualityOneLine', () => {
+  it('includes score and analysis mode', () => {
+    const summary = buildGraphMetricsSummary(makeAnalysis({ cycleCount: 2 }), 50, false)
+    const line = formatGraphQualityOneLine(summary)
+    expect(line).toContain('/100')
+    expect(line).toContain('50ms')
+    expect(line).toContain('2 cycles')
+  })
+})
 
 describe('formatGraphMetricsSummary', () => {
   it('includes quality score and node counts', () => {

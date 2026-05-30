@@ -1,9 +1,23 @@
 /**
  * `/scope` — in-session pi-scope dashboard (stats + graph summary).
+ * `/scope history` — recent sessions from stats.jsonl.
  */
 
+import { buildInjectionBreakdown } from '../metrics/injection-breakdown.js'
+import { readRecentSessions, summarizeTrend } from '../metrics/stats-reader.js'
 import type { CommunityPruningPlugin } from '../plugins/community-pruning-plugin.js'
 import type { SessionManager } from '../manager.js'
+
+function padLine(content: string, width = 63): string {
+  return `│ ${content}`.padEnd(width) + '│'
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`
+  const m = Math.floor(ms / 60_000)
+  const s = Math.round((ms % 60_000) / 1000)
+  return `${m}m ${s}s`
+}
 
 export function formatScopeDashboard(manager: SessionManager): string {
   const s = manager.state
@@ -13,6 +27,7 @@ export function formatScopeDashboard(manager: SessionManager): string {
 
   const stats = s.stats
   const graph = manager.graphService.analysis
+  const gm = s.graphMetrics
   const commPlugin = manager.pluginManager.getAll().find(
     (p): p is CommunityPruningPlugin => p.name === 'community-pruning'
   )
@@ -20,57 +35,148 @@ export function formatScopeDashboard(manager: SessionManager): string {
 
   const lines: string[] = [
     '┌──── pi-scope Session Dashboard ────────────────────────────┐',
-    '│ 📇 INDEX                                                    │',
-    `│   Source          : ${stats.indexSource === 'cache' ? 'Cached' : 'Fresh build'}`.padEnd(63) + '│',
-    `│   Files           : ${String(stats.indexedFiles).padStart(6)}`.padEnd(63) + '│',
-    `│   Symbols         : ${String(stats.symbolCount).padStart(6)}`.padEnd(63) + '│',
-    `│   Dependencies    : ${String(stats.depEdges).padStart(6)}`.padEnd(63) + '│',
-    `│   Dep depth       : ${String(s.config.dependencyDepth)} (slim.dependencyDepth 0–3)`.padEnd(63) + '│',
-    '│ 📊 GRAPH ANALYSIS                                          │',
+    padLine('📇 INDEX'),
+    padLine(`  Source          : ${stats.indexSource === 'cache' ? 'Cached' : 'Fresh build'}`),
+    padLine(`  Files           : ${String(stats.indexedFiles).padStart(6)}`),
+    padLine(`  Symbols         : ${String(stats.symbolCount).padStart(6)}`),
+    padLine(`  Dependencies    : ${String(stats.depEdges).padStart(6)}`),
+    padLine(`  Dep depth       : ${String(s.config.dependencyDepth)} (slim.dependencyDepth 0–3)`),
+    padLine('⏱️  SESSION'),
+    padLine(`  Duration        : ${formatDuration(stats.sessionDurationMs())}`),
+    padLine(`  Index load      : ${stats.indexLoadTime != null ? `${stats.indexLoadTime}ms` : 'n/a'}`),
+    padLine(`  Index stale     : ${stats.indexStale ? 'yes' : 'no'}`),
+    padLine('📊 GRAPH ANALYSIS'),
   ]
 
   if (graph) {
-    lines.push(`│   Nodes / Edges   : ${graph.metrics.totalNodes} / ${graph.metrics.totalEdges}`.padEnd(63) + '│')
-    lines.push(`│   God Nodes       : ${String(graph.godNodes.length).padStart(6)}`.padEnd(63) + '│')
-    lines.push(`│   Communities     : ${String(graph.communities.length).padStart(6)}`.padEnd(63) + '│')
-    lines.push(`│   Circular Deps   : ${String(graph.metrics.cycleCount).padStart(6)}`.padEnd(63) + '│')
-    lines.push(`│   Bottlenecks     : ${String(graph.bottlenecks.length).padStart(6)}`.padEnd(63) + '│')
-    lines.push(`│   Surprises       : ${String(graph.surprises.length).padStart(6)}`.padEnd(63) + '│')
+    lines.push(padLine(`  Nodes / Edges   : ${graph.metrics.totalNodes} / ${graph.metrics.totalEdges}`))
+    lines.push(padLine(`  God Nodes       : ${String(graph.godNodes.length).padStart(6)}`))
+    lines.push(padLine(`  Communities     : ${String(graph.communities.length).padStart(6)}`))
+    lines.push(padLine(`  Circular Deps   : ${String(graph.metrics.cycleCount).padStart(6)}`))
+    lines.push(padLine(`  Bottlenecks     : ${String(graph.bottlenecks.length).padStart(6)}`))
+    lines.push(padLine(`  Surprises       : ${String(graph.surprises.length).padStart(6)}`))
   } else {
-    lines.push('│   (no graph analysis loaded)                               │')
+    lines.push(padLine('  (no graph analysis loaded)'))
   }
 
-  lines.push('│ 💉 CONTEXT INJECTION                                       │')
-  lines.push(`│   Repo Map        : ~${stats.repoMapTokens}t (once)`.padEnd(63) + '│')
-  lines.push(`│   Graph Insights  : ~${stats.graphInsightsTokens}t`.padEnd(63) + '│')
-  lines.push(`│   Intelligence    : ~${stats.intelligenceTokens}t`.padEnd(63) + '│')
-  lines.push(`│   Smart Dep Ctx   : ~${stats.smartDepContextTokens}t`.padEnd(63) + '│')
-  lines.push(`│   Dep Context     : ${stats.depContextTriggers}x, ~${stats.depContextTotalTokens}t total`.padEnd(63) + '│')
+  if (gm) {
+    lines.push(padLine('📈 GRAPH QUALITY'))
+    lines.push(padLine(`  Score           : ${gm.quality.score}/100`))
+    lines.push(
+      padLine(
+        `  Analysis        : ${gm.performance.cacheHit ? 'cache hit' : `${gm.performance.analysisMs}ms fresh`}`
+      )
+    )
+    if (gm.quality.cycleCount > 0) {
+      lines.push(padLine(`  Cycles          : ${gm.quality.cycleCount}`))
+    }
+    lines.push(padLine(`  Est. savings    : ~${gm.token.estimatedSavings}t (community filter heuristic)`))
+  }
+
+  lines.push(padLine('💉 CONTEXT INJECTION'))
+  lines.push(padLine(`  Repo Map        : ~${stats.repoMapTokens}t (once)`))
+  lines.push(padLine(`  Graph Insights  : ~${stats.graphInsightsTokens}t`))
+  lines.push(padLine(`  Intelligence    : ~${stats.intelligenceTokens}t`))
+  lines.push(padLine(`  Smart Dep Ctx   : ~${stats.smartDepContextTokens}t`))
+  lines.push(padLine(`  Dep Context     : ${stats.depContextTriggers}x, ~${stats.depContextTotalTokens}t total`))
+  lines.push(padLine(`  Total injected  : ~${stats.totalInjectionTokens()}t`))
+
+  const breakdown = buildInjectionBreakdown([
+    { label: 'repo-map', tokens: stats.repoMapTokens },
+    { label: 'graph', tokens: stats.graphInsightsTokens },
+    { label: 'intelligence', tokens: stats.intelligenceTokens },
+    { label: 'smart-dep', tokens: stats.smartDepContextTokens },
+    { label: 'dep-context', tokens: stats.depContextTotalTokens },
+  ])
+  if (breakdown.length > 0) {
+    lines.push(padLine('  Breakdown       : ' + breakdown.map(b => `${b.label} ${b.percent}%`).join(' · ')))
+  }
 
   if (pruneStats && pruneStats.pruneCount > 0) {
-    lines.push(
-      `│   Community prune : ${pruneStats.pruneCount} msgs (${pruneStats.activeCommunityId ?? 'n/a'})`.padEnd(63) + '│'
-    )
+    lines.push(padLine(`  Community prune : ${pruneStats.pruneCount} msgs (${pruneStats.activeCommunityId ?? 'n/a'})`))
   }
 
-  lines.push('│ 💰 TOKEN SAVINGS                                           │')
+  lines.push(padLine('💰 TOKEN SAVINGS'))
   if (stats.totalTokensSaved > 0) {
     lines.push(
-      `│   Saved           : ~${stats.totalTokensSaved}t (${Math.round(stats.savingsRatio * 100)}% vs full reads)`.padEnd(63) +
-        '│'
+      padLine(`  Saved           : ~${stats.totalTokensSaved}t (${Math.round(stats.savingsRatio * 100)}% vs full reads)`)
     )
   } else {
-    lines.push('│   Saved           : (accumulates after dep-context injections)'.padEnd(63) + '│')
+    lines.push(padLine('  Saved           : (accumulates after dep-context injections)'))
+  }
+
+  const topFiles = stats.getTopFiles(5)
+  if (topFiles.length > 0) {
+    lines.push(padLine('📁 TOP FILES (dep-context)'))
+    for (const { file, mentions } of topFiles) {
+      const short = file.split('/').slice(-2).join('/')
+      lines.push(padLine(`  ${mentions}×  ${short}`))
+    }
   }
 
   if (s.providerGuidanceFiles.length > 0) {
-    lines.push('│ 📋 PROVIDER GUIDANCE                                       │')
+    lines.push(padLine('📋 PROVIDER GUIDANCE'))
     for (const f of s.providerGuidanceFiles.slice(0, 3)) {
       const short = f.path.split('/').slice(-2).join('/')
-      lines.push(`│   - ${short}`.padEnd(63) + '│')
+      lines.push(padLine(`  - ${short}`))
     }
   }
 
   lines.push('└────────────────────────────────────────────────────────────┘')
+  lines.push('')
+  lines.push('Tip: `/scope history` for recent session trends.')
   return lines.join('\n')
+}
+
+export async function formatScopeHistory(manager: SessionManager, limit?: number): Promise<string> {
+  const s = manager.state
+  const projectRoot = s?.projectRoot
+  if (!projectRoot) {
+    return 'pi-scope is not active — no project root for history.'
+  }
+
+  const cfgLimit = s?.config.metrics.historyLimit ?? 5
+  const n = limit ?? cfgLimit
+  const sessions = await readRecentSessions(projectRoot, n)
+
+  if (sessions.length === 0) {
+    return 'No session history in .pi/pi-scope/stats.jsonl yet (records appear after session shutdown).'
+  }
+
+  const trend = summarizeTrend(sessions)
+  const lines: string[] = [
+    '┌──── pi-scope Session History ──────────────────────────────┐',
+    padLine(`Last ${sessions.length} session(s) · averages below`),
+    padLine(
+      `  Avg savings     : ~${trend.averages.totalTokensSaved}t (${Math.round(trend.averages.savingsRatio * 100)}%)`
+    ),
+    padLine(`  Avg dep-context : ${trend.averages.depContextTriggers}x`),
+    padLine(`  Avg injected    : ~${trend.averages.totalInjectionTokens}t`),
+    padLine(''),
+  ]
+
+  for (const rec of sessions) {
+    const started = rec.startedAt.slice(0, 16).replace('T', ' ')
+    const dur = rec.sessionDurationMs != null ? formatDuration(rec.sessionDurationMs) : '?'
+    const quality = rec.graphQualityScore != null ? ` · Q${rec.graphQualityScore}` : ''
+    lines.push(
+      padLine(
+        `  ${started} · ${rec.indexedFiles} files · saved ~${rec.totalTokensSaved}t · ${rec.depContextTriggers} inj · ${dur}${quality}`
+      )
+    )
+  }
+
+  lines.push('└────────────────────────────────────────────────────────────┘')
+  return lines.join('\n')
+}
+
+/** Route `/scope` with optional `history` argument. */
+export async function formatScopeCommand(manager: SessionManager, args?: string): Promise<string> {
+  const trimmed = (args ?? '').trim().toLowerCase()
+  if (trimmed === 'history' || trimmed.startsWith('history ')) {
+    const parts = trimmed.split(/\s+/)
+    const limit = parts[1] ? parseInt(parts[1], 10) : undefined
+    return formatScopeHistory(manager, Number.isFinite(limit) ? limit : undefined)
+  }
+  return formatScopeDashboard(manager)
 }

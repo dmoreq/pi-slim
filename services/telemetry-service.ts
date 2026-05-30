@@ -16,6 +16,8 @@
 
 import { getTelemetry } from 'pi-telemetry'
 import type { NotifyOptions } from 'pi-telemetry/types'
+import { formatGraphQualityOneLine, type GraphMetricsSummary } from '../metrics/graph-metrics.js'
+import type { SessionStats } from '../metrics/tracker.js'
 
 const PKG = 'pi-scope'
 
@@ -69,8 +71,45 @@ export class TelemetryService {
     this.heartbeat('healthy')
   }
 
-  onSessionShutdown(): void {
-    // auto-recorded by pi-telemetry
+  onSessionShutdown(stats: SessionStats, opts: { notify: boolean }): void {
+    if (!opts.notify || stats.totalTokensSaved <= 0) return
+    const pct = Math.round(stats.savingsRatio * 100)
+    this.notify(
+      `Saved ~${stats.totalTokensSaved}t (${pct}% vs full reads) · ${stats.uniqueFilesInjected} files · ${stats.depContextTriggers} dep-context`,
+      {
+        severity: 'success' as any,
+        badge: { text: 'savings', variant: 'success' as any },
+      }
+    )
+    try {
+      getTelemetry()?.recordTokens(PKG, {
+        input: stats.totalInjectionTokens(),
+        output: 0,
+      })
+    } catch {}
+  }
+
+  onGraphQuality(
+    summary: GraphMetricsSummary,
+    thresholds: { warnQualityBelow: number; warnCyclesAbove: number }
+  ): void {
+    const { quality } = summary
+    const line = formatGraphQualityOneLine(summary)
+
+    if (quality.score < thresholds.warnQualityBelow || quality.cycleCount > thresholds.warnCyclesAbove) {
+      this.notify(line, {
+        severity: 'warning' as any,
+        badge: { text: 'graph', variant: 'warning' as any },
+      })
+      return
+    }
+
+    if (quality.score >= 80) {
+      this.notify(line, {
+        severity: 'info' as any,
+        badge: { text: 'graph', variant: 'info' as any },
+      })
+    }
   }
 
   onCacheHit(fileCount: number): void {

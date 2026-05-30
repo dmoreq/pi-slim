@@ -1,4 +1,4 @@
-import { formatScopeDashboard } from './commands/scope-dashboard.js'
+import { formatScopeCommand, formatScopeDashboard } from './commands/scope-dashboard.js'
 import { type ContextFile, formatContextSection, loadContextFiles } from './context/context-files.js'
 import { watch, type FSWatcher } from 'node:fs'
 import { ContextInjector } from './context/dep-context.js'
@@ -17,7 +17,7 @@ import { produceDefaults } from './context/schema.js'
 import { SmartDependencyContextGenerator } from './context/smart-dep-context.js'
 import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import { estimateFileSavings } from './metrics/cost-estimator.js'
-import { buildGraphMetricsSummary } from './metrics/graph-metrics.js'
+import { buildGraphMetricsSummary, type GraphMetricsSummary } from './metrics/graph-metrics.js'
 import { SessionStats } from './metrics/tracker.js'
 import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
@@ -80,6 +80,7 @@ export interface SessionState {
   graphInsightsInjected: boolean
   intelligenceInjected: boolean
   intelligenceWorkflowInjected: boolean
+  graphMetrics?: GraphMetricsSummary
   retrieval: RetrievalEngine | undefined
 }
 
@@ -254,6 +255,11 @@ export class SessionManager {
     return formatScopeDashboard(this)
   }
 
+  /** `/scope` with optional `history` argument. */
+  async scopeCommand(args?: string): Promise<string> {
+    return formatScopeCommand(this, args)
+  }
+
   /** Same guidance string suitable for injecting alongside dep-context or tool hints. */
   async getEnhancedContextResponse(): Promise<string> {
     return this.generateIntelligentGuidance()
@@ -426,7 +432,7 @@ export class SessionManager {
       this.state.retrieval = retrieval
 
       // Load graph from cache
-      await this.loadGraph(projectRoot, stats)
+      await this.loadGraph(projectRoot, this.state)
       this.startAutoReindexWatcher(ctx)
       this.updateStatusBar(ctx)
       return
@@ -448,10 +454,6 @@ export class SessionManager {
 
       this.telemetry.onFreshBuild(result.fileCount, result.buildTimeMs)
 
-      // Load graph
-      await this.loadGraph(projectRoot, stats)
-
-      // Context files
       const contextFiles = config.contextFiles.enabled
         ? loadContextFiles(projectRoot, { filenames: config.contextFiles.filenames })
         : []
@@ -467,6 +469,8 @@ export class SessionManager {
         contextFiles,
       })
       this.state.retrieval = retrieval
+
+      await this.loadGraph(projectRoot, this.state)
       this.startAutoReindexWatcher(ctx)
       this.updateStatusBar(ctx)
     } catch (err) {
@@ -478,14 +482,16 @@ export class SessionManager {
   /**
    * Run native index-based graph analysis.
    */
-  private async loadGraph(projectRoot: string, stats: SessionStats): Promise<void> {
+  private async loadGraph(projectRoot: string, session: SessionState): Promise<void> {
     const cacheDir = scopeDir(projectRoot)
+    const stats = session.stats
     setLspGraphAnalysis(null) // clear stale analysis
 
     const index = this.indexService.index
     if (!index || index.skeletons.size === 0) {
       this.telemetry.onGraphNoData()
       setLspGraphAnalysis(null)
+      session.graphMetrics = undefined
       return
     }
 
@@ -504,11 +510,21 @@ export class SessionManager {
     this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount, this._graphCommunityCount)
     setLspGraphAnalysis(nativeResult.analysis)
 
-    // Log quality metrics; warn on circular dependencies
     const graphSummary = buildGraphMetricsSummary(nativeResult.analysis, analysisMs, nativeResult.cacheHit)
+    session.graphMetrics = graphSummary
+    stats.recordGraphMetrics(graphSummary)
+
     if (graphSummary.quality.cycleCount > 0) {
       const n = graphSummary.quality.cycleCount
       console.warn(`[pi-scope] Graph: ${n} circular dependenc${n === 1 ? 'y' : 'ies'} detected`)
+    }
+
+    const m = session.config.metrics
+    if (m.enabled && m.notifyQualityOnStart) {
+      this.telemetry.onGraphQuality(graphSummary, {
+        warnQualityBelow: m.warnQualityBelow,
+        warnCyclesAbove: m.warnCyclesAbove,
+      })
     }
   }
 
@@ -682,7 +698,7 @@ export class SessionManager {
       '- `lsp_go_to_definition`, `lsp_find_references`: Code navigation via LSP.\n' +
       '- `/hashline-read <file>`: Read a file with hash anchors for editing.\n' +
       `- Config: \`slim.dependencyDepth\` = ${depDepth} (transitive dep skeleton depth 0–3).\n` +
-      '- `/scope`: Session dashboard (index, graph, injection stats).\n' +
+      '- `/scope`: Session dashboard (index, graph, injections, savings); `/scope history` for trends.\n' +
       '\n**Priority model:** pi-scope handles codebase intelligence (symbols, structure, context).\n' +
       'Use pi-sherlock tools (`search`, `fuzzy_find`, `find_files`, etc.) for ad-hoc or external searches.\n' +
       'After search tools return results, pi-scope automatically injects AST skeletons for the matched files.\n'
@@ -866,7 +882,21 @@ export class SessionManager {
     await this.pluginManager.runHook('onSessionShutdown')
     const s = this.state
     if (!s) return
-    this.telemetry.onSessionShutdown()
+
+    const commPlugin = this.pluginManager.getAll().find(
+      (p): p is CommunityPruningPlugin => p.name === 'community-pruning'
+    )
+    if (commPlugin) {
+      s.stats.recordCommunityPrune(commPlugin.getStats()?.pruneCount ?? 0)
+    }
+
+    const metrics = s.config.metrics
+    if (metrics.enabled && metrics.notifyOnShutdown) {
+      this.telemetry.onSessionShutdown(s.stats, { notify: true })
+    } else {
+      this.telemetry.onSessionShutdown(s.stats, { notify: false })
+    }
+
     if (ctx.hasUI) clearStatusBar(ctx.ui.setStatus)
     s.stats.persist(s.projectRoot).catch(error => {
       console.warn('pi-scope: session stats persistence failed:', error)
@@ -885,6 +915,8 @@ export class SessionManager {
       contextFilesCount: s.stats.contextFilesCount,
       providerGuidanceCount: s.stats.providerGuidanceCount,
       graphCommunityCount: this._graphCommunityCount > 1 ? this._graphCommunityCount : undefined,
+      tokensSaved: s.stats.totalTokensSaved > 0 ? s.stats.totalTokensSaved : undefined,
+      graphQualityScore: s.graphMetrics?.quality.score,
     }
   }
 
@@ -970,7 +1002,7 @@ export class SessionManager {
         currentState.stats.recordIndexLoaded(result.metadata as any)
         currentState.stats.recordIndexAge(0, false)
 
-        await this.loadGraph(currentState.projectRoot, currentState.stats)
+        await this.loadGraph(currentState.projectRoot, this.state)
 
         this.state = this.initState({
           index: result.index,

@@ -6,6 +6,7 @@
  */
 
 import { appendFile, mkdir } from 'node:fs/promises'
+import type { GraphMetricsSummary } from './graph-metrics.js'
 import { scopeDir } from '../shared/paths.js'
 import { writeState } from '../shared/runtime-state.js'
 import { PathUtils } from '../shared/utils/path-utils.js'
@@ -43,6 +44,13 @@ export interface SessionRecord {
   godNodesCount?: number
   communityCount?: number
   circularDependencies?: number
+  graphQualityScore?: number
+  graphAnalysisMs?: number
+  graphCacheHit?: boolean
+  graphEstimatedSavings?: number
+  sessionDurationMs?: number
+  totalInjectionTokens?: number
+  communityPruneCount?: number
 }
 
 // ── Live tracker ──────────────────────────────────────────────────────────
@@ -79,6 +87,12 @@ export class SessionStats {
   communityCount?: number
   circularDependencies?: number
   indexStale = false
+
+  graphQualityScore?: number
+  graphAnalysisMs?: number
+  graphCacheHit?: boolean
+  graphEstimatedSavings?: number
+  communityPruneCount = 0
 
   private mentionCounts = new Map<string, number>()
   private injectedFiles = new Set<string>()
@@ -129,6 +143,44 @@ export class SessionStats {
 
   recordSmartDepContextInjection(tokens: number): void {
     this.smartDepContextTokens += tokens
+  }
+
+  recordGraphMetrics(summary: GraphMetricsSummary): void {
+    this.graphQualityScore = summary.quality.score
+    this.graphAnalysisMs = summary.performance.analysisMs
+    this.graphCacheHit = summary.performance.cacheHit
+    this.graphEstimatedSavings = summary.token.estimatedSavings
+  }
+
+  recordCommunityPrune(count: number): void {
+    this.communityPruneCount = count
+  }
+
+  get uniqueFilesInjected(): number {
+    return this.injectedFiles.size
+  }
+
+  getTopFiles(limit = 5): { file: string; mentions: number }[] {
+    return [...this.mentionCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([file, mentions]) => ({ file, mentions }))
+  }
+
+  totalInjectionTokens(): number {
+    return (
+      this.repoMapTokens +
+      this.graphInsightsTokens +
+      this.intelligenceTokens +
+      this.smartDepContextTokens +
+      this.depContextTotalTokens +
+      this.contextFilesTokens +
+      this.providerGuidanceTokens
+    )
+  }
+
+  sessionDurationMs(): number {
+    return Date.now() - this.startedAt
   }
 
   recordIndexLoaded(metadata?: any): void {
@@ -182,6 +234,12 @@ export class SessionStats {
       lines.push(`  Context files    : ${this.contextFilesCount}, ~${this.contextFilesTokens}t (once)`)
     if (this.providerGuidanceCount > 0)
       lines.push(`  Provider guidance: ${this.providerGuidanceCount}, ~${this.providerGuidanceTokens}t (once)`)
+    if (this.graphInsightsTokens > 0) lines.push(`  Graph insights    : ~${this.graphInsightsTokens}t`)
+    if (this.intelligenceTokens > 0) lines.push(`  Intelligence      : ~${this.intelligenceTokens}t`)
+    if (this.smartDepContextTokens > 0) lines.push(`  Smart dep context : ~${this.smartDepContextTokens}t`)
+    if (this.graphQualityScore !== undefined) {
+      lines.push(`  Graph quality     : ${this.graphQualityScore}/100`)
+    }
     if (this.totalTokensSaved > 0) {
       lines.push(
         `  Token savings    : ~${this.totalTokensSaved}t (${Math.round(this.savingsRatio * 100)}% vs full reads)`
@@ -200,10 +258,7 @@ export class SessionStats {
   }
 
   toRecord(): SessionRecord {
-    const topFiles = [...this.mentionCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([file, mentions]) => ({ file, mentions }))
+    const topFiles = this.getTopFiles(5)
     return {
       sessionId: this.sessionId,
       startedAt: new Date(this.startedAt).toISOString(),
@@ -235,29 +290,23 @@ export class SessionStats {
       godNodesCount: this.godNodesCount,
       communityCount: this.communityCount,
       circularDependencies: this.circularDependencies,
+      graphQualityScore: this.graphQualityScore,
+      graphAnalysisMs: this.graphAnalysisMs,
+      graphCacheHit: this.graphCacheHit,
+      graphEstimatedSavings: this.graphEstimatedSavings,
+      sessionDurationMs: this.sessionDurationMs(),
+      totalInjectionTokens: this.totalInjectionTokens(),
+      communityPruneCount: this.communityPruneCount > 0 ? this.communityPruneCount : undefined,
     }
   }
 
   async persist(projectRoot: string): Promise<void> {
     const dir = scopeDir(projectRoot)
     await mkdir(dir, { recursive: true })
-    const line = `${JSON.stringify(this.toRecord())}\n`
+    const record = this.toRecord()
+    const line = `${JSON.stringify(record)}\n`
     await appendFile(PathUtils.joinSafe(dir, 'stats.jsonl'), line, 'utf-8')
-    await writeState(projectRoot, {
-      lastSession: {
-        sessionId: this.sessionId,
-        startedAt: this.startedAt,
-        indexSource: this.indexSource,
-        indexedFiles: this.indexedFiles,
-        repoMapTokens: this.repoMapTokens,
-        depContextTriggers: this.depContextTriggers,
-        depContextTotalTokens: this.depContextTotalTokens,
-        contextFilesCount: this.contextFilesCount,
-        providerGuidanceCount: this.providerGuidanceCount,
-        totalTokensSaved: this.totalTokensSaved,
-        savingsRatio: this.savingsRatio,
-      },
-    })
+    await writeState(projectRoot, { lastSession: record as unknown as Record<string, unknown> })
   }
 }
 

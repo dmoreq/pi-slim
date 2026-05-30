@@ -16,7 +16,7 @@ Everything is automatic — pi-telemetry handles all notifications:
 | Graph data loaded | `[graph] Graph: 144 nodes, 330 edges` |
 | Error occurred | `[error] indexing failed: ...` |
 
-You don't need to run `/scope` or any command. All stats are tracked silently in `.pi/pi-scope/stats.jsonl`.
+Run `/scope` for the live session dashboard or `/scope history` for recent sessions. All stats are also appended to `.pi/pi-scope/stats.jsonl` on shutdown.
 
 ## Notification Types
 
@@ -42,6 +42,8 @@ SmartCtx: 1,234 files | map ~3,500t | 12 inj | 1 ctx | 1 guid
 | `N inj` | Dep-context injection count this session |
 | `N ctx` | Context files loaded |
 | `N guid` | Provider guidance files loaded |
+| `Q85` | Graph quality score (when graph loaded) |
+| `saved ~1200t` | Cumulative dep-context token savings |
 
 ## Token Savings Calculation
 
@@ -80,8 +82,16 @@ All stored under `.pi/pi-scope/`:
   "depContextTotalTokens": 2400,
   "uniqueFilesInjected": 24,
   "topFiles": [{"file": "src/auth.ts", "mentions": 6}],
+  "graphInsightsTokens": 200,
+  "intelligenceTokens": 450,
+  "smartDepContextTokens": 180,
   "totalTokensSaved": 18000,
-  "savingsRatio": 0.88
+  "savingsRatio": 0.88,
+  "graphQualityScore": 85,
+  "graphAnalysisMs": 120,
+  "graphCacheHit": true,
+  "sessionDurationMs": 3600000,
+  "totalInjectionTokens": 5200
 }
 ```
 

@@ -75,7 +75,7 @@ Mỗi lượt LLM call
 | Hashline Editor | ✅ Đầy đủ | 🟡 Một phần | 🔴 Cao |
 | File Detector | ✅ Đầy đủ | ✅ Tốt | 🟢 Thấp |
 | Query Intent | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
-| Metrics & Tracking | ⚠️ Thiếu exposure | 🟡 Một phần | 🔴 Cao |
+| Metrics & Tracking | ✅ Đầy đủ | ✅ Tốt (đã kích hoạt) | 🟡 Trung bình |
 
 ---
 
@@ -594,20 +594,24 @@ godNodesCount, communityCount, circularDependencies
 
 ### 14.2 Tình trạng kích hoạt
 
-⚠️ **Kích hoạt nhưng thiếu exposure:**
+✅ **Đã kích hoạt đầy đủ (2026-05):**
 
-`SessionStats` được populate đầy đủ, nhưng:
-- Chỉ persist khi session shutdown
-- Không có command nào để user xem stats trong session
-- `GraphMetrics` được tính toán nhưng không được log hay display
-- `stats.jsonl` tích lũy data nhưng không có tool để read/visualize
+| Kênh | Nội dung |
+|------|----------|
+| `/scope` | Dashboard: session duration, graph quality, injection breakdown %, top files, savings |
+| `/scope history` | 5 session gần nhất từ `stats.jsonl` + averages |
+| Status bar | `Q{score}`, `saved ~Nt` khi có dữ liệu |
+| Startup notify | Graph quality warn/info (`slim.metrics`) |
+| Shutdown notify | Token savings summary |
+| Persist | `stats.jsonl` + `state.json` với field mở rộng (`graphQualityScore`, `totalInjectionTokens`, …) |
 
-### 14.3 Cơ hội cải thiện
+Config: `slim.metrics` (`enabled`, `notifyOnShutdown`, `notifyQualityOnStart`, `warnQualityBelow`, `warnCyclesAbove`, `historyLimit`).
 
-- **`/scope stats` command**: Hiển thị current session stats trong-session.
-- **Graph quality warning**: Nếu `quality.cycleCount > 5` hoặc `quality.score < 60`, notify user ngay khi start.
-- **Token savings report**: Ở cuối session, notify "Tiết kiệm ~X tokens (~Y%) so với full file reads". User feedback loop quan trọng.
-- **Dashboard visualization**: `stats.jsonl` có đủ data để build trendline về: session length, injection effectiveness, most-mentioned files.
+### 14.3 Cơ hội cải thiện (backlog)
+
+- **CSV export** hoặc HTML trend chart từ `stats.jsonl`.
+- **Per-turn injection log** (`injections.jsonl`) cho debug chi tiết.
+- **Real-time `activeCommunityCount`** feed vào `computeGraphTokenMetrics` từ CommunityPruningPlugin.
 
 ---
 
@@ -627,7 +631,7 @@ godNodesCount, communityCount, circularDependencies
 2. **Symbol granularity mismatch**: LSP hover dùng filename stem thay vì actual symbol — làm giảm accuracy của graph enrichment.
 3. **God node boost có bug**: `retrieveTopK()` match god node với filename stem, nhưng nodeId format là `file:relative/path/to/file.ts` → match không xảy ra.
 4. ~~**Community keywords hardcoded**~~: ✅ Graph communities khi có analysis; legacy keywords chỉ fallback.
-5. **Metrics không visible**: Data được collect nhưng không được expose trong session.
+5. ~~**Metrics không visible**~~: ✅ `/scope`, status bar, shutdown/startup notify.
 
 ### 15.3 Tính năng "hidden gem" — trạng thái sau kích hoạt (2025-05-30)
 
@@ -663,8 +667,8 @@ Xếp theo độ ưu tiên (impact × effort):
 | # | Cải thiện | Effort |
 |---|-----------|--------|
 | 5 | ~~Surface bottlenecks trong graph insights~~ | ✅ Done |
-| 6 | Log graph quality score khi startup | Thấp |
-| 7 | Token savings notification khi shutdown | Thấp |
+| 6 | ~~Log graph quality score khi startup~~ | ✅ Done (`onGraphQuality`) |
+| 7 | ~~Token savings notification khi shutdown~~ | ✅ Done (`onSessionShutdown`) |
 | 8 | Broad query → community overview thay vì entry points | Trung bình |
 | 9 | Auto-inject line anchors vào dep-context skeletons | Trung bình |
 | 10 | ~~`/scope` dashboard trong-session~~ | ✅ Done (`/scope`) |

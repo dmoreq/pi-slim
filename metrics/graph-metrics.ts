@@ -171,6 +171,17 @@ export function buildGraphMetricsSummary(
 /**
  * Format a `GraphMetricsSummary` as a multi-line string suitable for debug logs.
  */
+/** Single-line quality summary for notifications and status bar. */
+export function formatGraphQualityOneLine(summary: GraphMetricsSummary): string {
+  const { quality, performance } = summary
+  const analysis = performance.cacheHit ? 'cache' : `${performance.analysisMs}ms`
+  let line = `Graph quality ${quality.score}/100 · ${analysis}`
+  if (quality.cycleCount > 0) {
+    line += ` · ${quality.cycleCount} cycle${quality.cycleCount === 1 ? '' : 's'}`
+  }
+  return line
+}
+
 export function formatGraphMetricsSummary(summary: GraphMetricsSummary): string {
   const { quality, performance, token } = summary
   const lines: string[] = [

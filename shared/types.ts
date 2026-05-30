@@ -72,6 +72,16 @@ export interface SlimConfig {
     enabled: boolean
     repeatWorkflowGuidance: boolean
   }
+
+  /** Metrics visibility: dashboard, notifications, history. */
+  metrics: {
+    enabled: boolean
+    notifyOnShutdown: boolean
+    notifyQualityOnStart: boolean
+    warnQualityBelow: number
+    warnCyclesAbove: number
+    historyLimit: number
+  }
 }
 
 // Defaults and schema live in config/schema.ts — import from there

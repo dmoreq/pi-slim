@@ -61,6 +61,10 @@ export interface StatusBarState {
   providerGuidanceCount: number
   /** Number of graph communities (shown in status bar when > 1). */
   graphCommunityCount?: number
+  /** Cumulative token savings from dep-context (shown when > 0). */
+  tokensSaved?: number
+  /** Graph quality score 0–100 (shown when graph loaded). */
+  graphQualityScore?: number
 }
 
 /**
@@ -86,6 +90,12 @@ export function buildStatusText(state: StatusBarState): string {
   }
   if (state.graphCommunityCount && state.graphCommunityCount > 1) {
     parts.push(`${state.graphCommunityCount} comm`)
+  }
+  if (state.graphQualityScore !== undefined) {
+    parts.push(`Q${state.graphQualityScore}`)
+  }
+  if (state.tokensSaved && state.tokensSaved > 0) {
+    parts.push(`saved ~${state.tokensSaved}t`)
   }
 
   return parts.length > 0 ? parts.join(' | ') : ''

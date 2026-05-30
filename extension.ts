@@ -22,7 +22,7 @@ import type {
 import telemetry from 'pi-telemetry'
 import { produceDefaults } from './context/schema.js'
 import { type ExtensionContext, SessionManager } from './manager.js'
-import { formatScopeDashboard } from './commands/scope-dashboard.js'
+import { formatScopeCommand } from './commands/scope-dashboard.js'
 import { registerHashlineTool } from './tools/hashline-editor.js'
 import { registerLspTools, shutdownLsp } from './tools/lsp-navigation.js'
 
@@ -101,9 +101,9 @@ export default function smartContextExtension(pi: ExtensionAPI): void {
   const manager = new SessionManager()
 
   pi.registerCommand('scope', {
-    description: 'Show pi-scope session dashboard (index, graph, injections, savings)',
-    handler: async () => {
-      return formatScopeDashboard(manager)
+    description: 'Show pi-scope dashboard; use "scope history" for recent session stats',
+    handler: async (args?: string) => {
+      return formatScopeCommand(manager, args)
     },
   })
 
