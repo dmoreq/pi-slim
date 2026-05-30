@@ -561,6 +561,9 @@ export class SessionManager {
     }
 
     const analysisStart = Date.now()
+    if (session.config.metrics.notifyGraphProgress) {
+      this._notify(nInfo('Analyzing codebase graph…'), 'info')
+    }
     const nativeResult = await this.graphService.analyzeFromIndex(index, projectRoot, cacheDir)
     const analysisMs = Date.now() - analysisStart
 
@@ -572,10 +575,11 @@ export class SessionManager {
     stats.communityCount = nativeResult.analysis.communities.length
     stats.circularDependencies = nativeResult.analysis.metrics.cycleCount
 
+    const cacheLabel = nativeResult.cacheHit ? ' (from cache)' : ` — ${analysisMs}ms`
     const detail =
       this._graphCommunityCount && this._graphCommunityCount > 1
-        ? `${this._graphNodeCount} nodes, ${this._graphEdgeCount} edges, ${this._graphCommunityCount} communities`
-        : `${this._graphNodeCount} nodes, ${this._graphEdgeCount} edges`
+        ? `${this._graphNodeCount} nodes, ${this._graphEdgeCount} edges, ${this._graphCommunityCount} communities${cacheLabel}`
+        : `${this._graphNodeCount} nodes, ${this._graphEdgeCount} edges${cacheLabel}`
     this._notify(nInfo(`Graph: ${detail}`), 'info')
     setLspGraphAnalysis(nativeResult.analysis)
     setGraphImpactAnalysis(nativeResult.analysis)

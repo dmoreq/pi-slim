@@ -31,6 +31,7 @@ const MetricsSchema = z.object({
   enabled: z.boolean().default(true),
   notifyOnShutdown: z.boolean().default(true),
   notifyQualityOnStart: z.boolean().default(true),
+  notifyGraphProgress: z.boolean().default(true),
   warnQualityBelow: z.number().int().min(0).max(100).default(60),
   warnCyclesAbove: z.number().int().min(0).default(5),
   historyLimit: z.number().int().positive().default(5),
