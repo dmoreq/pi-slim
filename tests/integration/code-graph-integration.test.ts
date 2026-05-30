@@ -1,5 +1,5 @@
 /**
- * Graphify Integration — end-to-end test for the full graph pipeline.
+ * Code-Graph Integration — end-to-end test for the full native graph pipeline.
  *
  * Covers the complete flow:
  *   1. Load   — index a TypeScript project with real import relationships
@@ -108,7 +108,7 @@ let tmpDir: string
 let ctx: ExtensionContext
 
 beforeEach(async () => {
-  tmpDir = await mkdtemp(join(tmpdir(), 'pi-graphify-test-'))
+  tmpDir = await mkdtemp(join(tmpdir(), 'pi-graph-test-'))
   await writeFixture(tmpDir)
 
   ctx = {
@@ -116,7 +116,7 @@ beforeEach(async () => {
     ui: { notify: vi.fn(), setStatus: vi.fn() },
     hasUI: true,
     getSystemPrompt: () => '',
-    sessionManager: { getSessionId: () => 'graphify-test' },
+    sessionManager: { getSessionId: () => 'graph-test' },
     model: { provider: 'anthropic', id: 'claude-3-5-sonnet' },
   }
 })
@@ -127,7 +127,7 @@ afterEach(async () => {
 
 // ── Suite ─────────────────────────────────────────────────────────────────
 
-describe('Graphify Integration', () => {
+describe('Code-Graph Integration', () => {
 
   // ── Phase 1: Load & Analyze ───────────────────────────────────────────
 
