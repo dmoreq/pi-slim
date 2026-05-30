@@ -66,7 +66,7 @@ Mỗi lượt LLM call
 | Index & Cache | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Context Pipeline | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Code-Graph | ✅ Đầy đủ | ✅ Tốt | 🔴 Cao |
-| Intelligence Engine | ✅ Đầy đủ | 🟡 Một phần | 🔴 Cao |
+| Intelligence Engine | ✅ Đầy đủ | ✅ Tốt (đã tinh chỉnh) | 🟡 Trung bình |
 | Retrieval Engine | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Provider Guidance | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
 | Context Files | ✅ Đầy đủ | ✅ Tốt | 🟡 Trung bình |
@@ -228,36 +228,37 @@ RepoIndex
 - Detect manual file lookup → đề xuất LSP tools
 - Detect god node discussion without impact analysis → cảnh báo
 
-**Guidance được inject vào 2 nơi:**
-- `handleBeforeAgentStart`: Block "🎯 WORKFLOW OPTIMIZATION" + risk warnings
-- `handleContext` per-turn: `SmartDepContext` với high-priority symbols + architectural hints
+**Guidance được inject qua pipeline (tách vai trò):**
+
+| Nguồn | Ưu tiên | Nội dung |
+|--------|---------|----------|
+| `context-intelligence` | 4 | Workflow (một lần/session), risk, optimization, gợi ý theo turn mode |
+| `smart-dep-context` | 5 | God nodes, architectural context, tool pattern hints |
+| `dep-context` | 7 | File/skeleton injection (khi trigger) |
+
+**Turn modes** (`classifyIntelligenceTurnMode`): `editing` \| `navigation` \| `overview` \| `idle` — điều khiển block nào được sinh (ví dụ `overview` bỏ workflow).
 
 ### 5.2 Tình trạng kích hoạt
 
-✅ **Hoàn toàn kích hoạt.** Intelligence engine chạy mỗi turn qua `buildIntelligenceSnapshot()`.
+✅ **Hoàn toàn kích hoạt.** Snapshot dùng `getIntelligenceSnapshot()` (cache fingerprint/turn). Config `slim.intelligence.enabled` và `repeatWorkflowGuidance` (mặc định `false`).
 
 ### 5.3 Nhận xét sử dụng
 
-🟡 **Một phần tốt, nhưng có vấn đề quan trọng:**
+✅ **Đã cải thiện đáng kể (2026-05):**
 
-**Vấn đề 1 — Double computation**: `buildIntelligenceSnapshot()` được gọi cả trong `handleBeforeAgentStart()` và `handleContext()`. Mỗi call này re-analyze toàn bộ conversation buffer. Không có caching giữa hai calls trong cùng một turn.
+- **Snapshot cache**: `getIntelligenceSnapshot()` — không re-analyze 2 lần trong cùng turn.
+- **Community từ graph**: Khi có `graphAnalysis`, `detectMentionedGraphCommunities()` match label/id/node paths; legacy keywords chỉ fallback khi không có graph.
+- **God-node matching thống nhất**: `godNodeMatchesSymbol()` từ `god-node-match.ts`.
+- **BFS fan-out**: `computeDependentFanout()` từ `graph-impact.ts` cho risk warnings.
+- **No-graph fallback**: Block `IMPACT UNKNOWN` + gợi ý `lsp_find_references` khi đang edit mà không có graph.
+- **Dedupe injection**: Workflow một lần/session (`intelligenceWorkflowInjected`); architectural guidance chỉ ở `smart-dep-context`.
 
-**Vấn đề 2 — Community detection bằng keyword hardcode**: `analyzeConversationMeta()` dùng list cứng:
-```typescript
-['auth', 'authentication', 'security', 'transport', 'client', 'api',
- 'database', 'storage', 'ui', 'frontend', 'backend', 'service']
-```
-Đây là hardcoded domain keywords, không liên quan đến community names thực tế trong graph. Nếu project có community "payment-processing" hay "notification", sẽ không được detect.
-
-**Vấn đề 3 — Risk warning chỉ show khi có graph**: Khi graph không load được (index rỗng), chỉ có `generateBasicGuidance()` — mất toàn bộ risk awareness. Cần fallback graceful hơn.
-
-**Điểm tốt**: `computeDependencyFanout()` dùng BFS thực sự trên graph edges để tính affected communities — không chỉ ước lượng heuristic. Đây là implementation chính xác.
+**Còn lại (ưu tiên thấp):** feedback loop khi agent follow suggestion; unify intent với `query-intent` module.
 
 ### 5.4 Cơ hội cải thiện
 
-- **Cache intelligence snapshot** trong cùng một turn (pass snapshot từ `handleBeforeAgentStart` sang `handleContext`).
-- **Thay hardcoded keywords** bằng dynamic community labels từ `graphAnalysis.communities[*].label`.
-- **Feedback loop**: Khi agent thực sự dùng `hashline_edit` sau khi được suggest, tăng confidence score cho các lần suggest tiếp theo.
+- **Feedback loop**: Tăng confidence khi agent dùng tool được gợi ý.
+- **Intent unification**: Một classifier cho broad query + editing + navigation.
 
 ---
 
@@ -622,10 +623,10 @@ godNodesCount, communityCount, circularDependencies
 
 ### 15.2 Điểm yếu hệ thống
 
-1. **Intelligence Engine chạy double per turn**: `buildIntelligenceSnapshot()` gọi 2 lần/turn không có cache.
+1. ~~**Intelligence Engine chạy double per turn**~~: ✅ Đã cache qua `getIntelligenceSnapshot()`.
 2. **Symbol granularity mismatch**: LSP hover dùng filename stem thay vì actual symbol — làm giảm accuracy của graph enrichment.
 3. **God node boost có bug**: `retrieveTopK()` match god node với filename stem, nhưng nodeId format là `file:relative/path/to/file.ts` → match không xảy ra.
-4. **Community keywords hardcoded**: 12 keywords domain-specific cho "auth/api/database" không scale với arbitrary projects.
+4. ~~**Community keywords hardcoded**~~: ✅ Graph communities khi có analysis; legacy keywords chỉ fallback.
 5. **Metrics không visible**: Data được collect nhưng không được expose trong session.
 
 ### 15.3 Tính năng "hidden gem" — trạng thái sau kích hoạt (2025-05-30)
@@ -655,7 +656,7 @@ Xếp theo độ ưu tiên (impact × effort):
 | 1 | ~~God node boost không match đúng~~ | `context/dep-context.ts` | ✅ `godNodeMatchesFilePath` |
 | 2 | ~~`lsp_hover` dùng filename thay vì symbol~~ | `tools/lsp-navigation.ts` | ✅ `extractSymbolFromHoverText` |
 | 3 | ~~Intelligence snapshot double compute~~ | `manager.ts` | ✅ `getIntelligenceSnapshot` cache theo fingerprint |
-| 4 | Community detection hardcoded keywords | `context/intelligence-engine.ts:337` | Dùng `graphAnalysis.communities[*].label` |
+| 4 | ~~Community detection hardcoded keywords~~ | `context/intelligence-engine.ts` | ✅ `detectMentionedGraphCommunities()` |
 
 ### 🟡 Ưu tiên trung bình — Nâng cao tính năng có sẵn
 

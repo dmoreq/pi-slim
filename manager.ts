@@ -4,7 +4,11 @@ import { watch, type FSWatcher } from 'node:fs'
 import { ContextInjector } from './context/dep-context.js'
 import type { GraphAnalysis } from './context/graph-types.js'
 import { type ProviderGuidanceFile, formatProviderGuidanceSection, loadProviderGuidance } from './context/guidance.js'
-import { ContextIntelligenceEngine } from './context/intelligence-engine.js'
+import {
+  ContextIntelligenceEngine,
+  classifyIntelligenceTurnMode,
+  type IntelligenceGuidanceOptions,
+} from './context/intelligence-engine.js'
 import { loadConfig } from './context/loader.js'
 import { InjectionPipeline } from './context/pipeline.js'
 import type { PipelineSource } from './context/pipeline.js'
@@ -75,6 +79,7 @@ export interface SessionState {
   providerGuidanceInjected: boolean
   graphInsightsInjected: boolean
   intelligenceInjected: boolean
+  intelligenceWorkflowInjected: boolean
   retrieval: RetrievalEngine | undefined
 }
 
@@ -191,6 +196,7 @@ export class SessionManager {
   private _graphCommunityCount = 0
 
   private intelligenceEngine: ContextIntelligenceEngine
+  private smartDepGenerator = new SmartDependencyContextGenerator()
   private autoReindexWatcher: FSWatcher | null = null
   private autoReindexTimer: ReturnType<typeof setTimeout> | null = null
   private autoReindexInFlight: Promise<void> | null = null
@@ -529,7 +535,28 @@ export class SessionManager {
       providerGuidanceInjected: false,
       graphInsightsInjected: false,
       intelligenceInjected: false,
+      intelligenceWorkflowInjected: false,
       retrieval: undefined,
+    }
+  }
+
+  private intelligenceGuidanceOptions(
+    s: SessionState,
+    insights: ContextInsights,
+    isBroadCodebaseQuery: boolean
+  ): IntelligenceGuidanceOptions {
+    if (!s.config.intelligence.enabled) {
+      return { mode: 'idle', includeWorkflow: false }
+    }
+    const mode = classifyIntelligenceTurnMode(insights, isBroadCodebaseQuery)
+    const includeWorkflow =
+      s.config.intelligence.repeatWorkflowGuidance || !s.intelligenceWorkflowInjected
+    return { mode, includeWorkflow }
+  }
+
+  private markIntelligenceWorkflowInjected(s: SessionState, guidance: string): void {
+    if (guidance.includes('WORKFLOW OPTIMIZATION')) {
+      s.intelligenceWorkflowInjected = true
     }
   }
 
@@ -592,7 +619,9 @@ export class SessionManager {
       })
     }
 
-    if (!s.intelligenceInjected) {
+    if (!s.intelligenceInjected && s.config.intelligence.enabled) {
+      const isBroad = isBroadCodebaseQuery(event.prompt ?? '')
+      const intelOpts = this.intelligenceGuidanceOptions(s, snapshot.insights, isBroad)
       pipeline.register({
         name: 'context-intelligence',
         priority: 4,
@@ -600,8 +629,10 @@ export class SessionManager {
           const guidance = this.intelligenceEngine.generateActionableGuidance(
             snapshot.insights,
             graph,
-            this.graphService.graph
+            this.graphService.graph,
+            intelOpts
           )
+          this.markIntelligenceWorkflowInjected(s, guidance)
           return guidance.trim() ? `## Context intelligence\n\n${guidance}` : null
         },
       })
@@ -767,21 +798,29 @@ export class SessionManager {
     const pipeline = new InjectionPipeline()
     const budget = s.config.maxInjectionTokens
 
-    pipeline.register({
-      name: 'context-intelligence',
-      priority: 4,
-      produce: () => {
-        const g = this.intelligenceEngine.generateActionableGuidance(snapshot.insights, graph, this.graphService.graph)
-        return g.trim() ? g : null
-      },
-    })
+    if (s.config.intelligence.enabled) {
+      const intelOpts = this.intelligenceGuidanceOptions(s, snapshot.insights, hasCodebaseQuery)
+      pipeline.register({
+        name: 'context-intelligence',
+        priority: 4,
+        produce: () => {
+          const g = this.intelligenceEngine.generateActionableGuidance(
+            snapshot.insights,
+            graph,
+            this.graphService.graph,
+            intelOpts
+          )
+          this.markIntelligenceWorkflowInjected(s, g)
+          return g.trim() ? g : null
+        },
+      })
+    }
 
     pipeline.register({
       name: 'smart-dep-context',
       priority: 5,
       produce: () => {
-        const gen = new SmartDependencyContextGenerator()
-        const dep = gen.generateEnhancedDependencyContext(snapshot.insights, graph)
+        const dep = this.smartDepGenerator.generateEnhancedDependencyContext(snapshot.insights, graph)
         return dep.trim() ? dep : null
       },
     })

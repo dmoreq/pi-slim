@@ -21,6 +21,12 @@ const ProviderGuidanceSchema = z.object({
   enabled: z.boolean().default(true),
 })
 
+const IntelligenceSchema = z.object({
+  enabled: z.boolean().default(true),
+  /** When false (default), WORKFLOW OPTIMIZATION is injected once per session. */
+  repeatWorkflowGuidance: z.boolean().default(false),
+})
+
 // ── Root schema ───────────────────────────────────────────────────────────
 
 export const SlimConfigSchema = z
@@ -33,6 +39,7 @@ export const SlimConfigSchema = z
     exclude: z.array(z.string()).default(['**/node_modules/**', '**/.git/**', '**/.pi-cache/**', '**/dist/**']),
     contextFiles: ContextFilesSchema.default({}),
     providerGuidance: ProviderGuidanceSchema.default({}),
+    intelligence: IntelligenceSchema.default({}),
   })
   .default({})
 

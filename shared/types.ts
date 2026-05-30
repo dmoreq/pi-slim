@@ -66,6 +66,12 @@ export interface SlimConfig {
   providerGuidance: {
     enabled: boolean
   }
+
+  /** Context intelligence engine (workflow tips, risk, pattern hints). */
+  intelligence: {
+    enabled: boolean
+    repeatWorkflowGuidance: boolean
+  }
 }
 
 // Defaults and schema live in config/schema.ts — import from there

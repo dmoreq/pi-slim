@@ -91,7 +91,7 @@ describe('Enhanced Context Intelligence Integration', () => {
 
     const response = await manager.handleContext(event)
 
-    expect(response?.content).toContain('RECOMMENDED TOOLS')
+    expect(response?.content).toContain('WORKFLOW OPTIMIZATION')
     expect(response?.content).toContain('lsp_go_to_definition')
   })
 

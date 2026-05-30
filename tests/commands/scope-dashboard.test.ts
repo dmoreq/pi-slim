@@ -35,6 +35,7 @@ describe('formatScopeDashboard', () => {
       providerGuidanceInjected: false,
       graphInsightsInjected: false,
       intelligenceInjected: false,
+      intelligenceWorkflowInjected: false,
       retrieval: undefined,
     }
     manager.state.stats.indexedFiles = 1

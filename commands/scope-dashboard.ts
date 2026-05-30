@@ -44,6 +44,7 @@ export function formatScopeDashboard(manager: SessionManager): string {
   lines.push(`│   Repo Map        : ~${stats.repoMapTokens}t (once)`.padEnd(63) + '│')
   lines.push(`│   Graph Insights  : ~${stats.graphInsightsTokens}t`.padEnd(63) + '│')
   lines.push(`│   Intelligence    : ~${stats.intelligenceTokens}t`.padEnd(63) + '│')
+  lines.push(`│   Smart Dep Ctx   : ~${stats.smartDepContextTokens}t`.padEnd(63) + '│')
   lines.push(`│   Dep Context     : ${stats.depContextTriggers}x, ~${stats.depContextTotalTokens}t total`.padEnd(63) + '│')
 
   if (pruneStats && pruneStats.pruneCount > 0) {

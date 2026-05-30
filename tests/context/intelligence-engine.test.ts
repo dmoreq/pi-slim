@@ -365,8 +365,10 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
       },
     }
 
-    const refGuidance = engine.generateActionableGuidance(refInsights, mockGraphAnalysis)
-    expect(refGuidance).toMatch(/Navigation request detected: Use `lsp_find_references`/)
+    const refGuidance = engine.generateActionableGuidance(refInsights, mockGraphAnalysis, undefined, {
+      mode: 'navigation',
+    })
+    expect(refGuidance).toContain('lsp_find_references')
 
     const defInsights: ContextInsights = {
       editingIntent: { ...baseEmptyEdit },
@@ -384,8 +386,10 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
       },
     }
 
-    const defGuidance = engine.generateActionableGuidance(defInsights, mockGraphAnalysis)
-    expect(defGuidance).toMatch(/Navigation request detected: Use `lsp_go_to_definition`/)
+    const defGuidance = engine.generateActionableGuidance(defInsights, mockGraphAnalysis, undefined, {
+      mode: 'navigation',
+    })
+    expect(defGuidance).toContain('lsp_go_to_definition')
   })
 
   it('should suggest lsp_go_to_definition for file_location navigation', () => {
@@ -416,7 +420,13 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
     expect(guidance).toContain('lsp_go_to_definition')
   })
 
-  it('should emit architectural guidance when communities are mentioned', () => {
+  it('detects graph communities from conversation text when graph is available', () => {
+    const messages: AgentMessage[] = [{ role: 'user', content: 'refactor the authentication module' }]
+    const insights = engine.analyzeConversationContext(messages, mockGraphAnalysis)
+    expect(insights.conversationContext.mentionedCommunities).toContain('Authentication')
+  })
+
+  it('skips workflow block in overview mode', () => {
     const insights: ContextInsights = {
       editingIntent: {
         detected: false,
@@ -432,18 +442,80 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
       },
       suboptimalPatterns: [],
       conversationContext: {
-        recentMessages: 2,
+        recentMessages: 1,
         codebaseRelevant: true,
-        mentionedCommunities: ['auth'],
+        mentionedCommunities: [],
         mentionedFiles: [],
       },
     }
 
-    const guidance = engine.generateActionableGuidance(insights, mockGraphAnalysis)
+    const guidance = engine.generateActionableGuidance(insights, mockGraphAnalysis, undefined, {
+      mode: 'overview',
+      includeWorkflow: true,
+    })
 
-    expect(guidance).toContain('ARCHITECTURAL GUIDANCE')
-    expect(guidance).toContain('Authentication')
-    expect(guidance).toContain('safe to refactor')
+    expect(guidance).not.toContain('WORKFLOW OPTIMIZATION')
+  })
+
+  it('omits workflow when includeWorkflow is false', () => {
+    const insights: ContextInsights = {
+      editingIntent: {
+        detected: true,
+        targetSymbols: ['Client'],
+        targetFiles: [],
+        hasHashAnnotations: false,
+        affectedGodNodes: [],
+      },
+      navigationRequests: {
+        detected: false,
+        requestedSymbols: [],
+        requestType: 'none',
+      },
+      suboptimalPatterns: [],
+      conversationContext: {
+        recentMessages: 1,
+        codebaseRelevant: true,
+        mentionedCommunities: [],
+        mentionedFiles: [],
+      },
+    }
+
+    const guidance = engine.generateActionableGuidance(insights, mockGraphAnalysis, undefined, {
+      mode: 'editing',
+      includeWorkflow: false,
+    })
+
+    expect(guidance).not.toContain('WORKFLOW OPTIMIZATION')
+    expect(guidance).toContain('HIGH-IMPACT SYMBOLS')
+  })
+
+  it('includes IMPACT UNKNOWN when graph is missing during editing', () => {
+    const insights: ContextInsights = {
+      editingIntent: {
+        detected: true,
+        targetSymbols: ['authenticate'],
+        targetFiles: [],
+        hasHashAnnotations: false,
+        affectedGodNodes: [],
+      },
+      navigationRequests: {
+        detected: false,
+        requestedSymbols: [],
+        requestType: 'none',
+      },
+      suboptimalPatterns: [],
+      conversationContext: {
+        recentMessages: 1,
+        codebaseRelevant: true,
+        mentionedCommunities: [],
+        mentionedFiles: [],
+      },
+    }
+
+    const guidance = engine.generateActionableGuidance(insights, null, undefined, { mode: 'editing' })
+
+    expect(guidance).toContain('IMPACT UNKNOWN')
+    expect(guidance).toContain('lsp_find_references')
   })
 
   describe('LSP tool guidance', () => {
@@ -475,7 +547,7 @@ describe('ContextIntelligenceEngine comprehensive tests', () => {
       const guidance = engine.generateActionableGuidance(insights, analysis)
       // Workflow tips always present; hover must be described as type/docs lookup
       expect(guidance).toContain('lsp_hover')
-      expect(guidance).toContain('type info')
+      expect(guidance).toMatch(/Types:.*lsp_hover/)
     })
   })
 
