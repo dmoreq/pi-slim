@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatScopeDashboard, formatScopeHistory } from '../../commands/scope-dashboard'
+import { formatScopeDashboard, formatScopeExplain, formatScopeHistory } from '../../commands/scope-dashboard'
 import { buildGraphMetricsSummary } from '../../metrics/graph-metrics'
 import type { GraphAnalysis } from '../../context/graph-types'
 import { SessionManager } from '../../manager'
@@ -134,6 +134,11 @@ describe('formatScopeDashboard', () => {
     expect(text).toContain('GRAPH QUALITY')
     expect(text).toContain('/100')
     expect(text).toContain('Breakdown')
+  })
+
+  it('formatScopeExplain shows empty state when no injection', () => {
+    const manager = new SessionManager()
+    expect(formatScopeExplain(manager)).toContain('no injection last turn')
   })
 
   it('formatScopeHistory reports empty when no stats file', async () => {

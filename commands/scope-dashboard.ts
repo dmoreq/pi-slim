@@ -338,9 +338,33 @@ export async function formatScopeHistory(manager: SessionManager, limit?: number
   return lines.join('\n')
 }
 
+export function formatScopeExplain(manager: SessionManager): string {
+  const explanation = manager.getLastExplanation()
+  if (explanation.length === 0) {
+    return [
+      '┌──── Why these files were injected (last turn) ─────────────┐',
+      padLine('  (no injection last turn — ask a question or mention a file)'),
+      '└────────────────────────────────────────────────────────────┘',
+    ].join('\n')
+  }
+
+  const lines = ['┌──── Why these files were injected (last turn) ─────────────┐']
+  for (const { file, score, signals } of explanation.slice(0, 8)) {
+    const short = file.split('/').slice(-2).join('/')
+    const scoreStr = score.toFixed(1).padStart(5)
+    lines.push(padLine(`${short.padEnd(40)} score ${scoreStr}`))
+    lines.push(padLine(`  signals: ${signals.slice(0, 4).join(', ')}`))
+  }
+  lines.push('└────────────────────────────────────────────────────────────┘')
+  return lines.join('\n')
+}
+
 /** Route `/scope` with optional `history` argument. */
 export async function formatScopeCommand(manager: SessionManager, args?: string): Promise<string> {
   const trimmed = (args ?? '').trim().toLowerCase()
+  if (trimmed === 'explain') {
+    return formatScopeExplain(manager)
+  }
   if (trimmed === 'history' || trimmed.startsWith('history ')) {
     const parts = trimmed.split(/\s+/)
     const limit = parts[1] ? parseInt(parts[1], 10) : undefined

@@ -291,6 +291,11 @@ export class SessionManager {
     return formatScopeCommand(this, args)
   }
 
+  /** Expose last injection explanation for `/scope explain`. */
+  getLastExplanation() {
+    return this.state?.injector.lastExplanation ?? []
+  }
+
   /** Same guidance string suitable for injecting alongside dep-context or tool hints. */
   async getEnhancedContextResponse(): Promise<string> {
     return this.generateIntelligentGuidance()
