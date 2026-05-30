@@ -16,7 +16,6 @@
  *                                                            the live conversation history
  */
 
-import { getTelemetry } from 'pi-telemetry'
 import type { CommunityAnalysis, GraphAnalysis } from '../context/graph-types.js'
 import type { GraphService } from '../services/graph-service.js'
 import type { SessionState } from '../manager.js'
@@ -32,7 +31,11 @@ export class CommunityPruningPlugin implements Plugin {
   private _pruneCount = 0
   private _processedTurns = 0
 
-  constructor(graphService: GraphService, getState: () => SessionState | null = () => null) {
+  constructor(
+    graphService: GraphService,
+    getState: () => SessionState | null = () => null,
+    private readonly onPrune?: (msg: string) => void,
+  ) {
     this.graphService = graphService
     this.getState = getState
   }
@@ -117,20 +120,10 @@ export class CommunityPruningPlugin implements Plugin {
     }
 
     if (prunedThisTurn > 0) {
-      try {
-        getTelemetry()?.notify(
-          `Community pruning: removed ${prunedThisTurn} off-community injection(s) (active: ${activeCommunity.label})`,
-          {
-            severity: 'info' as any,
-            badge: { text: 'comm prune', variant: 'info' as any },
-          }
-        )
-      } catch {
-        // pi-telemetry optional
-      }
+      this.onPrune?.(`Community pruning: removed ${prunedThisTurn} off-community injection(s) (active: ${activeCommunity.label})`)
     }
-  }
 
+  }
   async onSessionShutdown(): Promise<void> {
     if (this._pruneCount > 0) {
       console.error(

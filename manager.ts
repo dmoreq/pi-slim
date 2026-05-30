@@ -220,7 +220,7 @@ export class SessionManager {
   constructor(_projectRoot?: string) {
     this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
-    this.pluginManager.register(new CommunityPruningPlugin(this.graphService, () => this.state))
+    this.pluginManager.register(new CommunityPruningPlugin(this.graphService, () => this.state, (msg) => this._notify(msg, 'info')))
     this.pluginManager.register(
       new HashlineSteerPlugin(() => this.state, () => this.hashlineAnchorPathsThisTurn)
     )
