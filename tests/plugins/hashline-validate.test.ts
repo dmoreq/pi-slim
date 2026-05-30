@@ -1,5 +1,6 @@
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { initHash } from '../../hashline/line-hash.js'
 import { AnchorStateManager } from '../../hashline/state-manager.js'
 import { HashlineValidatePlugin } from '../../plugins/hashline-validate-plugin.js'
 import type { SessionState } from '../../manager.js'
@@ -29,6 +30,10 @@ function makeState(): SessionState {
     providerGuidanceFiles: [],
   }
 }
+
+beforeAll(async () => {
+  await initHash()
+})
 
 describe('HashlineValidatePlugin', () => {
   it('nudges apply when file was never read with anchors', async () => {
