@@ -1270,6 +1270,21 @@ export class SessionManager {
 
     this.updateStatusBar(ctx)
 
+    if (
+      s.config.metrics.notifyPeriodic &&
+      s.stats.totalTokensSaved > 0 &&
+      s.stats.depContextTriggers > 0 &&
+      s.stats.depContextTriggers % 5 === 0
+    ) {
+      const pct = Math.round(s.stats.savingsRatio * 100)
+      this._notify(
+        nInfo(
+          `${s.stats.depContextTriggers} injections so far · ~${s.stats.totalTokensSaved}t saved (${pct}%) this session`
+        ),
+        'info'
+      )
+    }
+
     const contextMsg: AgentMessage = { role: 'developer', content: result.content }
     return { messages: [contextMsg, ...(event.messages ?? [])], content: result.content }
   }
