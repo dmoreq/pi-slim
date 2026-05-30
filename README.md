@@ -259,9 +259,14 @@ The **Community Pruning Plugin** (auto-registered when communities are detected)
 
 ---
 
-## Zero Commands
+## Commands
 
-pi-scope has **no user-visible commands.** Everything is automatic:
+| Command | Description |
+|---------|-------------|
+| `/scope` | In-session dashboard: index, graph, injections, token savings |
+
+Most behavior is still automatic (no other user commands):
+
 
 | What happens | How |
 |-------------|-----|
