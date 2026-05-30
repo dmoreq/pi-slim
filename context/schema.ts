@@ -53,6 +53,17 @@ const HashlineSchema = z.object({
   injectDryRunFollowUp: z.boolean().default(true),
 })
 
+const LspSchema = z.object({
+  enabled: z.boolean().default(true),
+  enrichHoverWithGraph: z.boolean().default(true),
+  injectPathsSameTurn: z.boolean().default(true),
+  steerFromManualSearch: z.boolean().default(true),
+  strictNavigation: z.boolean().default(false),
+  hoverMaxReferencesListed: z.number().int().positive().default(10),
+  recordToolMetrics: z.boolean().default(true),
+  probeServersOnStart: z.boolean().default(true),
+})
+
 // ── Root schema ───────────────────────────────────────────────────────────
 
 export const SlimConfigSchema = z
@@ -68,6 +79,7 @@ export const SlimConfigSchema = z
     intelligence: IntelligenceSchema.default({}),
     metrics: MetricsSchema.default({}),
     hashline: HashlineSchema.default({}),
+    lsp: LspSchema.default({}),
   })
   .default({})
 

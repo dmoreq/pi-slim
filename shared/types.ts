@@ -100,6 +100,18 @@ export interface SlimConfig {
     streamChunkLines: number
     injectDryRunFollowUp: boolean
   }
+
+  /** LSP code navigation tools and graph-enriched hover. */
+  lsp: {
+    enabled: boolean
+    enrichHoverWithGraph: boolean
+    injectPathsSameTurn: boolean
+    steerFromManualSearch: boolean
+    strictNavigation: boolean
+    hoverMaxReferencesListed: number
+    recordToolMetrics: boolean
+    probeServersOnStart: boolean
+  }
 }
 
 // Defaults and schema live in config/schema.ts — import from there
