@@ -3,6 +3,7 @@
  * `/scope history` — recent sessions from stats.jsonl.
  */
 
+import { computeDependentFanout } from '../context/graph-impact.js'
 import { buildInjectionBreakdown } from '../metrics/injection-breakdown.js'
 import { readRecentSessions, summarizeTrend } from '../metrics/stats-reader.js'
 import type { CommunityPruningPlugin } from '../plugins/community-pruning-plugin.js'
@@ -338,6 +339,58 @@ export async function formatScopeHistory(manager: SessionManager, limit?: number
   return lines.join('\n')
 }
 
+export function formatScopeImpact(manager: SessionManager, symbol: string): string {
+  const graph = manager.graphService.analysis
+  if (!graph) {
+    return 'No graph analysis loaded. Run /scope to check status.'
+  }
+  if (!symbol.trim()) {
+    return 'Usage: /scope impact <symbol-name>'
+  }
+
+  const normSym = symbol.toLowerCase()
+  const godNode = graph.godNodes.find(
+    gn => gn.label.toLowerCase() === normSym || gn.nodeId.toLowerCase().includes(normSym)
+  )
+  const community = godNode ? graph.communities.find(c => c.id === godNode.community) : undefined
+  const { dependentCount, affectedCommunities } = computeDependentFanout(symbol, graph)
+
+  const critIcon = !godNode
+    ? '🟢'
+    : godNode.criticality === 'CRITICAL'
+      ? '🔴'
+      : godNode.criticality === 'IMPORTANT'
+        ? '🟠'
+        : '🟡'
+
+  const rec =
+    godNode?.criticality === 'CRITICAL'
+      ? 'Schedule mandatory code review before editing this symbol.'
+      : godNode?.criticality === 'IMPORTANT'
+        ? 'Request code review before applying changes.'
+        : dependentCount > 5
+          ? 'Run lsp_find_references before editing.'
+          : 'Standard review applies.'
+
+  const lines = [
+    `┌──── Impact: ${symbol} ${'─'.repeat(Math.max(0, 46 - symbol.length))}┐`,
+    ...(godNode
+      ? [padLine(`  File           : ${godNode.nodeId.split(':')[1] ?? 'unknown'}`)]
+      : []),
+    padLine(`  Criticality    : ${critIcon} ${godNode?.criticality ?? 'NORMAL'} ${godNode ? 'god node' : ''}`),
+    ...(godNode ? [padLine(`  In-degree      : ${godNode.inDegree}`)] : []),
+    ...(godNode ? [padLine(`  PageRank       : ${godNode.pageRank.toFixed(4)}`)] : []),
+    ...(community
+      ? [padLine(`  Community      : ${community.id} (${community.nodes.length} nodes)`)]
+      : []),
+    padLine(`  Dependents     : ${dependentCount} (across ${affectedCommunities} communities)`),
+    padLine(`  Recommendation : ${rec}`),
+    '└────────────────────────────────────────────────────────────┘',
+  ]
+
+  return lines.join('\n')
+}
+
 export function formatScopeExplain(manager: SessionManager): string {
   const explanation = manager.getLastExplanation()
   if (explanation.length === 0) {
@@ -364,6 +417,10 @@ export async function formatScopeCommand(manager: SessionManager, args?: string)
   const trimmed = (args ?? '').trim().toLowerCase()
   if (trimmed === 'explain') {
     return formatScopeExplain(manager)
+  }
+  if (trimmed.startsWith('impact ')) {
+    const symbol = trimmed.slice('impact '.length).trim()
+    return formatScopeImpact(manager, symbol)
   }
   if (trimmed === 'history' || trimmed.startsWith('history ')) {
     const parts = trimmed.split(/\s+/)
