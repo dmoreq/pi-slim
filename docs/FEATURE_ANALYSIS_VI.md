@@ -443,10 +443,11 @@ Ba tools LLM (`tools/lsp-navigation.ts`), server lazy-start per language (`lsp/s
 | Graph-enhanced hover | ✅ |
 | Symbol parse từ hover body | ✅ (không còn filename-stem-only) |
 | Hashline anchor on hover | ✅ |
-| Same-turn dep-context từ LSP paths | ❌ (turn N+1 qua FileDetector) |
-| `slim.lsp` config / metrics | ❌ |
-| `LspSteerPlugin` | ❌ |
-| `lsp_workspace_symbol` / outline tools | ❌ |
+| Same-turn dep-context từ LSP paths | ✅ (`injectPathsSameTurn`) |
+| `slim.lsp` config / metrics | ✅ |
+| `LspSteerPlugin` | ✅ |
+| Extended tools (workspace/document symbol, impl, batch) | ✅ |
+| Server health on `/scope` | ✅ |
 
 ### 10.3 Nhận xét sử dụng
 

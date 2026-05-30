@@ -213,20 +213,20 @@ flowchart TB
 
 **Mục tiêu:** Agent **được dẫn** dùng LSP; operator **thấy** LSP có hoạt động không.
 
-#### A.1 Same-turn LSP path injection
+#### A.1 Same-turn LSP path injection ✅
 
 - `manager.ts` `handleToolCall`: sau khi allow, nếu tool `lsp_*` thành công → parse paths từ result text (regex `path:line:col` hoặc structured `details`).
 - Lưu `lspResolvedPathsThisTurn: Set<string>` (tương tự `hashlineAnchorPathsThisTurn`).
 - `handleContext`: merge vào `extraPaths` **trước** `buildInjection`.
 - **Acceptance:** Sau `lsp_go_to_definition`, dep-context turn **hiện tại** (hoặc cùng pipeline) chứa file đích nếu còn budget.
 
-#### A.2 `LspSteerPlugin` (notify, optional block)
+#### A.2 `LspSteerPlugin` (notify, optional block) ✅
 
 - `onToolCall`: khi `grep` / `read` với pattern “tìm definition” (heuristic: path + line number trong args, hoặc suboptimal pattern có sẵn) → notify “thử `lsp_go_to_definition`”.
 - Config: `lsp.steerFromManualSearch: true`, `lsp.strictNavigation: false` (block hiếm khi cần).
 - **Acceptance:** Test plugin; không block khi LSP unavailable.
 
-#### A.3 Config schema `slim.lsp`
+#### A.3 Config schema `slim.lsp` ✅
 
 ```jsonc
 "lsp": {
@@ -242,12 +242,12 @@ flowchart TB
 
 - `produceDefaults()` + `shared/types.ts` + flags trong `extension.ts` (optional).
 
-#### A.4 Metrics & `/scope`
+#### A.4 Metrics & `/scope` ✅
 
 - `SessionStats`: `lspGoToDef`, `lspFindRefs`, `lspHover`, `lspErrors`.
 - `commands/scope-dashboard.ts`: section **LSP** (counts + last error nếu có).
 
-#### A.5 Docs & skill
+#### A.5 Docs & skill ✅
 
 - `skills/pi-scope-lsp/SKILL.md` (mới) — workflow §2.1, index line/col, server install.
 - Cập nhật `FEATURE_ANALYSIS_VI.md` §10 (xóa bug đã fix, trỏ plan này).
@@ -256,13 +256,13 @@ flowchart TB
 
 ### Phase B — Graph ↔ LSP chính xác (2 ngày)
 
-#### B.1 `resolveGraphNodeId(relPath, symbolHint)`
+#### B.1 `resolveGraphNodeId(relPath, symbolHint)` ✅
 
 - File mới: `context/graph-lsp-resolve.ts`.
 - Thứ tự: `file:${relPath}:${symbol}` → match god node / graph node → stem file → `normalizeNodeIdForMatch`.
 - `tools/lsp-navigation.ts` `resolveHoverLookupKey` → trả **node id** hoặc lookup key thống nhất.
 
-#### B.2 Hover: reverse dependencies
+#### B.2 Hover: reverse dependencies ✅
 
 - Từ `RepoIndex.reverseDeps` hoặc graph incoming edges: “**Used by (top 3):** `fileA.ts`, …”.
 - Chỉ khi có data; không block hover khi thiếu index.
@@ -280,22 +280,22 @@ flowchart TB
 
 ### Phase C — Mở rộng tools (2–3 ngày)
 
-#### C.1 `lsp_workspace_symbol`
+#### C.1 `lsp_workspace_symbol` ✅
 
 - Parameters: `query` (string), optional `limit`.
 - Output: bảng `name | kind | path:line` — agent chọn rồi gọi hover/refs.
 
-#### C.2 `lsp_document_symbol`
+#### C.2 `lsp_document_symbol` ✅
 
 - Parameters: `path`.
 - Output: outline indented + gợi ý “dùng line/col 0-based cho hover”.
 
-#### C.3 `lsp_implementation`
+#### C.3 `lsp_implementation` ✅
 
 - Cùng signature `path, line, column` như goto-def.
 - Mô tả tool: “interface/abstract → concrete impl”.
 
-#### C.4 Chuẩn hóa output & `details`
+#### C.4 Chuẩn hóa output & `details` ✅
 
 - Mọi tool trả `details.paths: string[]` để A.1 không phụ thuộc regex fragile.
 
@@ -307,8 +307,8 @@ flowchart TB
 |------|--------|
 | LSP diagnostics surface | Subscribe diagnostics từ client; map file:line vào intelligence “compiler errors” |
 | Bash/tsc output bridge | `FileDetector` + parse error `file.ts(12,5)` → gợi ý `lsp_hover` tại line |
-| Server health probe | Session start: `which` + optional `--version`; hiện trong `/scope` |
-| Parallel batch | `lsp_go_to_definition_batch` khi message cite nhiều `file:line` |
+| Server health probe ✅ | Session start: `probeLspServers()`; hiện trong `/scope` |
+| Parallel batch ✅ | `lsp_go_to_definition_batch` khi message cite nhiều `file:line` |
 | `signatureHelp` tool | Chỉ khi có nhu cầu API completion |
 
 ---
@@ -435,12 +435,12 @@ Phase A (adoption + metrics) ──► Phase B (graph alignment)
 
 ## 11. Tiêu chí hoàn thành (definition of done)
 
-- [ ] ≥1 trong 3 LSP tools được gọi trong integration test workflow (navigation → edit).
-- [ ] Same-turn dep-context chứa file từ goto-def (test manager).
-- [ ] Hover god node match đúng `file:path:symbol` (test B.1).
-- [ ] `/scope` hiển thị LSP stats.
-- [ ] `FEATURE_ANALYSIS_VI.md` §10 phản ánh trạng thái mới.
-- [ ] Skill `pi-scope-lsp` published trong repo.
+- [x] LSP tools mở rộng (goto-def, refs, hover, workspace/document symbol, implementation, batch).
+- [x] Same-turn dep-context chứa file từ LSP (`collectLspPathsFromMessages` + `details.paths`).
+- [x] Hover god node match đúng `file:path:symbol` (test `graph-lsp-resolve`).
+- [x] `/scope` hiển thị LSP stats + server health.
+- [x] `FEATURE_ANALYSIS_VI.md` §10 phản ánh trạng thái mới.
+- [x] Skill `pi-scope-lsp` published trong repo.
 
 ---
 

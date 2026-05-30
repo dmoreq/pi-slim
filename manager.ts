@@ -44,10 +44,12 @@ import { isBroadCodebaseQuery } from './shared/query-intent.js'
 import type { RepoIndex, SlimConfig } from './shared/types.js'
 import { setHashlineMismatchReporter } from './metrics/hashline-reporter.js'
 import { collectLspPathsFromMessages } from './tools/lsp-result-paths.js'
+import { probeLspServers } from './lsp/health.js'
 import {
   setHashlineLspHoverEnabled,
   setLspGraphAnalysis,
   setLspRepoIndex,
+  setLspToolOptions,
 } from './tools/lsp-navigation.js'
 import { type StatusBarState, clearStatusBar, info as nInfo, success as nSuccess, updateStatusBar, warn as nWarn } from './ui/notifications.js'
 import { isValidCodebase } from './shared/utils/path-utils.js'
@@ -438,6 +440,16 @@ export class SessionManager {
     setHashlineMismatchReporter(() => {
       this.state?.stats.recordHashlineMismatch()
     })
+
+    if (config.lsp.enabled) {
+      setLspToolOptions({
+        enrichHoverWithGraph: config.lsp.enrichHoverWithGraph,
+        hoverMaxReferencesListed: config.lsp.hoverMaxReferencesListed,
+      })
+      if (config.lsp.probeServersOnStart) {
+        this.lspServerHealth = probeLspServers()
+      }
+    }
 
     const stats = new SessionStats(ctx.sessionManager.getSessionId())
     const injector = new ContextInjector(projectRoot, config.maxInjectionTokens, config.scanLastNMessages)
