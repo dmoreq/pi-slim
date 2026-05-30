@@ -16,6 +16,43 @@ import { SessionStats } from '../../metrics/tracker'
 import { ContextInjector } from '../../context/dep-context'
 import type { RepoIndex } from '../../shared/types'
 
+function attachMinimalGraph(manager: SessionManager): void {
+  const analysis: GraphAnalysis = {
+    godNodes: [],
+    communities: [
+      {
+        id: 'comm-auth',
+        label: 'Auth Module',
+        nodes: ['file:auth.ts'],
+        internalDensity: 0.8,
+        externalDensity: 0.1,
+        interfaceNodes: [],
+        bottlenecks: [],
+      },
+    ],
+    surprises: [],
+    bottlenecks: [],
+    anomalies: [],
+    wikipedia: { entries: new Map(), query: () => [], get: () => undefined, find: () => [] },
+    metrics: {
+      totalNodes: 1,
+      totalEdges: 0,
+      godNodeCount: 0,
+      communityCount: 1,
+      averageDegree: 0,
+      maxDegree: 0,
+      graphDensity: 0,
+      avgClusteringCoeff: 0,
+      cycleCount: 0,
+      bottleneckCount: 0,
+    },
+    computedAt: Date.now(),
+    version: '1',
+  }
+  ;(manager as unknown as { graphService: { analysis: GraphAnalysis; graph: { nodes: []; edges: [] } } }).graphService =
+    { analysis, graph: { nodes: [], edges: [] } }
+}
+
 describe('formatScopeDashboard', () => {
   it('reports inactive when session has no state', () => {
     const manager = new SessionManager()
@@ -144,6 +181,12 @@ describe('formatScopeDashboard', () => {
     expect(text).toContain('Breakdown')
   })
 
+  it('formatScopeCommunity reports not found for unknown label', () => {
+    const manager = new SessionManager()
+    attachMinimalGraph(manager)
+    expect(formatScopeCommunity(manager, 'nope')).toContain('not found')
+  })
+
   it('summarizeTrend picks best session by totalTokensSaved', () => {
     const sessions = [
       { totalTokensSaved: 100, savingsRatio: 0.2 } as SessionRecord,
@@ -155,6 +198,7 @@ describe('formatScopeDashboard', () => {
 
   it('formatScopeImpact reports usage when symbol is missing', () => {
     const manager = new SessionManager()
+    attachMinimalGraph(manager)
     expect(formatScopeImpact(manager, '')).toContain('Usage: /scope impact')
   })
 
