@@ -60,9 +60,10 @@ hashline_edit({
 
 ## Getting Hash Anchors
 
-1. **From skeletons** — dep-context skeletons include anchors automatically
-2. **`/hashline-read <file>`** — read any file with anchor annotations
-3. **`read` tool** — use `hashline_edit` after reading normally (the edit tool validates anchors)
+1. **dep-context (automatic)** — AST **skeleton** plus a separate **Hashline anchors** block (often first N lines or around `file.ts:42` citations). Do not confuse skeleton signatures with anchor lines.
+2. **`hashline_read` tool (preferred)** — same as below; appears in the agent tool list with `start_line` / `end_line`.
+3. **`/hashline-read <path> [start] [end]`** — slash command for humans or hosts that expose commands.
+4. **Built-in `read`** — does **not** include anchors. It only updates internal state; call `hashline_read` before editing if anchors are missing.
 
 ## Dry-Run Mode
 
@@ -117,7 +118,8 @@ If you copy/paste content from a hashline-annotated read into your edit, the sys
 | Mistake | Result | Fix |
 |---------|--------|-----|
 | Supplying only the 2-letter suffix ("nd") | Parse error | Supply the full anchor ("42nd") — line number + bigram |
-| Editing unread file | ReadAwarenessPlugin blocks it | Read the file first with `read` or `/hashline-read` |
+| Using built-in `edit` on indexed files | Drift / steer notify | Use `hashline_edit`; enable `strictMode` in config to block |
+| Editing without anchors in context | Mismatch or wrong line | `hashline_read` or `/hashline-read` for the target range |
 | Forgetting `dry_run: true` | Edit applied immediately | Use dry-run for validation first |
 | Re-using stale anchors | HashlineMismatchError | Re-read file, use current anchors |
 | Editing range where pos > end | Error | Ensure start line < end line |

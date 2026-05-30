@@ -483,24 +483,30 @@ function symbolFromPosition(fp: string, _line: number, _column: number): string 
 
 ### 11.2 Tình trạng kích hoạt
 
-✅ **Đầy đủ** (sau bản cập nhật hashline integration):
+✅ **Adoption v2 (đang triển khai)** — xem `docs/HASHLINE_ADOPTION_PLAN_VI.md`:
 
-- Tool `hashline_edit` + command `/hashline-read`
-- Preamble hashline **trước** repo-map / dep-context trong `before_agent_start`
-- Anchors trong `dep-context` cho file in-focus (`slim.hashline.annotateDepContext`)
-- `HashlineSteerPlugin`: notify (hoặc block khi `strictMode`) khi agent dùng built-in `edit`/`write` trên file đã index
-- `recordOnRead`: cập nhật `AnchorStateManager` khi built-in `read` chạy
+| Thành phần | Trạng thái |
+|------------|------------|
+| `hashline_edit` + `/hashline-read` | ✅ |
+| `hashline_read` tool | ✅ |
+| Anchors dep-context (đầu file + vùng `file:line`) | ✅ |
+| Preamble + per-turn hashline workflow block | ✅ |
+| `hasHashAnnotations` từ inject thực tế | ✅ |
+| `HashlineSteerPlugin` (notify / `strictMode`) | ✅ |
+| `contextualStrictMode` | 🔜 Phase B |
+| Metrics `/scope` | 🔜 Phase B |
 
 ### 11.3 Nhận xét sử dụng
 
-🟢 **Tích hợp tốt hơn** với dep-context và tool steering; vẫn phụ thuộc agent chọn `hashline_edit` thay vì built-in edit (trừ `strictMode`).
+🟢 **Workflow rõ hơn:** agent có `hashline_read`, anchor theo citation, block hướng dẫn mỗi turn khi có anchor.
 
-🟡 **Còn lại:** built-in `read` không trả anchors trong tool result — agent cần dep-context anchors hoặc `/hashline-read`.
+🟡 **Còn phụ thuộc agent** trừ khi bật `strictMode` hoặc `contextualStrictMode`.
 
-### 11.4 Cơ hội cải thiện
+### 11.4 Cơ hội cải thiện (v2 còn lại)
 
-- **Diff preview trong system prompt**: Khi `dry_run: true`, có thể surface diff compact hơn trong turn follow-up.
-- **Mismatch metrics**: Đếm anchor stale / rebase trong session stats.
+- Contextual strict + metrics (Phase B)
+- LSP hover kèm anchor (Phase C)
+- Align `AnchorStateManager` hash với `computeLineHash`
 
 ---
 

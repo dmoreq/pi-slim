@@ -163,7 +163,7 @@ Skeletons are **function/class signatures only** — ~8-15% of full file size.
 The `hashline_edit` tool edits files using **hash-verified line anchors** — no file re-read needed.
 
 **Workflow:**
-1. Agent sees skeleton with hash annotations or calls `/hashline-read`
+1. Agent sees dep-context (skeleton + hashline anchor block) or calls `hashline_read` / `/hashline-read`
 2. References lines by `LINE+BIGRAM` anchor (e.g. `"1tz"`)
 3. Hash validated against current content. Auto-rebases within ±5 lines on shift
 4. Compact diff preview returned with added/removed line counts
