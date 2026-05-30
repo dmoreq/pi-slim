@@ -12,7 +12,9 @@ import { produceDefaults } from './context/schema.js'
 import { SmartDependencyContextGenerator } from './context/smart-dep-context.js'
 import { SmartRepositoryMapGenerator } from './context/smart-repo-map.js'
 import { estimateFileSavings } from './metrics/cost-estimator.js'
+import { buildGraphMetricsSummary } from './metrics/graph-metrics.js'
 import { SessionStats } from './metrics/tracker.js'
+import { CommunityPruningPlugin } from './plugins/community-pruning-plugin.js'
 import { ContextPruningPlugin } from './plugins/context-pruning.js'
 import { PluginManager } from './plugins/plugin-manager.js'
 import { GraphService } from './services/graph-service.js'
@@ -171,9 +173,10 @@ export class SessionManager {
   readonly graphService = new GraphService()
   readonly pluginManager = new PluginManager()
 
-  /** Graph analysis result (cached for telemetry) */
+  /** Graph analysis result (cached for telemetry + status bar) */
   private _graphNodeCount = 0
   private _graphEdgeCount = 0
+  private _graphCommunityCount = 0
 
   private intelligenceEngine: ContextIntelligenceEngine
   private autoReindexWatcher: FSWatcher | null = null
@@ -192,6 +195,7 @@ export class SessionManager {
   constructor(_projectRoot?: string) {
     this.intelligenceEngine = new ContextIntelligenceEngine()
     this.pluginManager.register(new ContextPruningPlugin())
+    this.pluginManager.register(new CommunityPruningPlugin(this.graphService))
   }
 
   /**
@@ -428,14 +432,27 @@ export class SessionManager {
       return
     }
 
+    const analysisStart = Date.now()
     const nativeResult = await this.graphService.analyzeFromIndex(index, projectRoot, cacheDir)
+    const analysisMs = Date.now() - analysisStart
+
     this._graphNodeCount = nativeResult.graph.nodes.length
     this._graphEdgeCount = nativeResult.graph.edges.length
+    this._graphCommunityCount = nativeResult.analysis.communities.length
+
     stats.godNodesCount = nativeResult.analysis.godNodes.length
     stats.communityCount = nativeResult.analysis.communities.length
     stats.circularDependencies = nativeResult.analysis.metrics.cycleCount
-    this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount)
+
+    this.telemetry.onGraphLoaded(this._graphNodeCount, this._graphEdgeCount, this._graphCommunityCount)
     setLspGraphAnalysis(nativeResult.analysis)
+
+    // Log quality metrics; warn on circular dependencies
+    const graphSummary = buildGraphMetricsSummary(nativeResult.analysis, analysisMs, nativeResult.cacheHit)
+    if (graphSummary.quality.cycleCount > 0) {
+      const n = graphSummary.quality.cycleCount
+      console.warn(`[pi-scope] Graph: ${n} circular dependenc${n === 1 ? 'y' : 'ies'} detected`)
+    }
   }
 
   private initState(opts: {
@@ -768,6 +785,7 @@ export class SessionManager {
       depContextTriggers: s.stats.depContextTriggers,
       contextFilesCount: s.stats.contextFilesCount,
       providerGuidanceCount: s.stats.providerGuidanceCount,
+      graphCommunityCount: this._graphCommunityCount > 1 ? this._graphCommunityCount : undefined,
     }
   }
 

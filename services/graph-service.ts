@@ -26,6 +26,8 @@ import type { RepoIndex } from '../shared/types.js'
 export interface GraphResult {
   graph: CodeGraph
   analysis: GraphAnalysis
+  /** True when the result was served from disk cache (no algorithms re-ran). */
+  cacheHit: boolean
 }
 
 /**
@@ -90,7 +92,7 @@ export class GraphService {
       const cachedWithGraph = cached as GraphAnalysis & { _restoredGraph?: CodeGraph }
       this._graph = cachedWithGraph._restoredGraph ?? null
       this._analysis = cached
-      return { graph: this._graph!, analysis: cached }
+      return { graph: this._graph!, analysis: cached, cacheHit: true }
     }
 
     // Build CodeGraph from RepoIndex
@@ -103,13 +105,13 @@ export class GraphService {
     // Cache with fingerprint so it invalidates when index changes
     await saveGraphCache(cacheDir, result.analysis, graph, fp).catch(() => {})
 
-    return result
+    return { ...result, cacheHit: false }
   }
 
   /**
    * Run all algorithms on the graph.
    */
-  private async runAlgorithms(graph: CodeGraph): Promise<GraphResult> {
+  private async runAlgorithms(graph: CodeGraph): Promise<Omit<GraphResult, 'cacheHit'>> {
     const key = graphStructureCacheKey(graph)
     const cached = this.sessionAnalysisCache.get(key) as GraphAnalysis | null
     if (cached) {

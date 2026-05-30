@@ -59,6 +59,8 @@ export interface StatusBarState {
   contextFilesCount: number
   /** Number of provider guidance files loaded. */
   providerGuidanceCount: number
+  /** Number of graph communities (shown in status bar when > 1). */
+  graphCommunityCount?: number
 }
 
 /**
@@ -81,6 +83,9 @@ export function buildStatusText(state: StatusBarState): string {
   }
   if (state.providerGuidanceCount > 0) {
     parts.push(`${state.providerGuidanceCount} guid`)
+  }
+  if (state.graphCommunityCount && state.graphCommunityCount > 1) {
+    parts.push(`${state.graphCommunityCount} comm`)
   }
 
   return parts.length > 0 ? parts.join(' | ') : ''

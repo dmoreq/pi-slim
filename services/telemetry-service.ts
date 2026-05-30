@@ -87,8 +87,12 @@ export class TelemetryService {
     })
   }
 
-  onGraphLoaded(nodeCount: number, edgeCount: number): void {
-    this.notify(`Graph: ${nodeCount} nodes, ${edgeCount} edges`, {
+  onGraphLoaded(nodeCount: number, edgeCount: number, communityCount?: number): void {
+    const detail =
+      communityCount && communityCount > 1
+        ? `${nodeCount} nodes, ${edgeCount} edges, ${communityCount} communities`
+        : `${nodeCount} nodes, ${edgeCount} edges`
+    this.notify(`Graph: ${detail}`, {
       severity: 'info' as any,
       badge: { text: 'graph', variant: 'info' as any },
     })
