@@ -190,8 +190,16 @@ describe('formatGraphQualityOneLine', () => {
     const summary = buildGraphMetricsSummary(makeAnalysis({ cycleCount: 2 }), 50, false)
     const line = formatGraphQualityOneLine(summary)
     expect(line).toContain('/100')
-    expect(line).toContain('50ms')
+    expect(line).toContain('— 50ms')
     expect(line).toContain('2 cycles')
+    expect(line).toContain('— run /scope graph')
+  })
+
+  it('includes community and god-node counts in one-line quality format', () => {
+    const summary = buildGraphMetricsSummary(makeAnalysis(), 250, false, 1)
+    const line = formatGraphQualityOneLine(summary)
+    expect(line).toMatch(/\d+ communities/)
+    expect(line).toMatch(/\d+ god node/)
   })
 })
 

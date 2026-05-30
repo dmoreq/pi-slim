@@ -174,12 +174,14 @@ export function buildGraphMetricsSummary(
 /** Single-line quality summary for notifications and status bar. */
 export function formatGraphQualityOneLine(summary: GraphMetricsSummary): string {
   const { quality, performance } = summary
-  const analysis = performance.cacheHit ? 'cache' : `${performance.analysisMs}ms`
-  let line = `Graph quality ${quality.score}/100 · ${analysis}`
-  if (quality.cycleCount > 0) {
-    line += ` · ${quality.cycleCount} cycle${quality.cycleCount === 1 ? '' : 's'}`
-  }
-  return line
+  const analysisLabel = performance.cacheHit ? '(from cache)' : `— ${performance.analysisMs}ms`
+  const parts: string[] = [`Graph quality ${quality.score}/100`]
+  if (quality.communityCount > 1) parts.push(`${quality.communityCount} communities`)
+  if (quality.godNodeCount > 0) parts.push(`${quality.godNodeCount} god node${quality.godNodeCount === 1 ? '' : 's'}`)
+  if (quality.cycleCount > 0) parts.push(`${quality.cycleCount} cycle${quality.cycleCount === 1 ? '' : 's'}`)
+  parts.push(analysisLabel)
+  if (quality.cycleCount > 0 || quality.score < 70) parts.push('— run /scope graph')
+  return parts.join(' · ')
 }
 
 export function formatGraphMetricsSummary(summary: GraphMetricsSummary): string {
