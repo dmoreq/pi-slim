@@ -315,22 +315,38 @@ export async function formatScopeHistory(manager: SessionManager, limit?: number
   const trend = summarizeTrend(sessions)
   const lines: string[] = [
     '┌──── pi-scope Session History ──────────────────────────────┐',
-    padLine(`Last ${sessions.length} session(s) · averages below`),
+    padLine(`Last ${sessions.length} session(s)`),
     padLine(
       `  Avg savings     : ~${trend.averages.totalTokensSaved}t (${Math.round(trend.averages.savingsRatio * 100)}%)`
     ),
-    padLine(`  Avg dep-context : ${trend.averages.depContextTriggers}x`),
+    padLine(`  Avg injections  : ${trend.averages.depContextTriggers}x`),
     padLine(`  Avg injected    : ~${trend.averages.totalInjectionTokens}t`),
-    padLine(''),
   ]
+
+  if (trend.bestSession) {
+    const bs = trend.bestSession
+    const bsDate = bs.startedAt.slice(0, 10)
+    const bsPct = Math.round((bs.savingsRatio ?? 0) * 100)
+    lines.push(padLine(`  Best session    : ${bsDate} · ~${bs.totalTokensSaved}t (${bsPct}%) ⭐`))
+  }
+
+  lines.push(padLine(''))
 
   for (const rec of sessions) {
     const started = rec.startedAt.slice(0, 16).replace('T', ' ')
     const dur = rec.sessionDurationMs != null ? formatDuration(rec.sessionDurationMs) : '?'
     const quality = rec.graphQualityScore != null ? ` · Q${rec.graphQualityScore}` : ''
+    const delta =
+      trend.averages.totalTokensSaved > 0
+        ? Math.round(
+            ((rec.totalTokensSaved - trend.averages.totalTokensSaved) / trend.averages.totalTokensSaved) * 100
+          )
+        : null
+    const deltaLabel =
+      delta != null && Math.abs(delta) >= 5 ? ` (${delta > 0 ? '+' : ''}${delta}% vs avg)` : ''
     lines.push(
       padLine(
-        `  ${started} · ${rec.indexedFiles} files · saved ~${rec.totalTokensSaved}t · ${rec.depContextTriggers} inj · ${dur}${quality}`
+        `  ${started} · ${rec.indexedFiles} files · saved ~${rec.totalTokensSaved}t · ${rec.depContextTriggers} inj · ${dur}${quality}${deltaLabel}`
       )
     )
   }

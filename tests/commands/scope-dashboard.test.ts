@@ -5,6 +5,8 @@ import {
   formatScopeHistory,
   formatScopeImpact,
 } from '../../commands/scope-dashboard'
+import { summarizeTrend } from '../../metrics/stats-reader'
+import type { SessionRecord } from '../../metrics/tracker'
 import { buildGraphMetricsSummary } from '../../metrics/graph-metrics'
 import type { GraphAnalysis } from '../../context/graph-types'
 import { SessionManager } from '../../manager'
@@ -139,6 +141,15 @@ describe('formatScopeDashboard', () => {
     expect(text).toContain('GRAPH QUALITY')
     expect(text).toContain('/100')
     expect(text).toContain('Breakdown')
+  })
+
+  it('summarizeTrend picks best session by totalTokensSaved', () => {
+    const sessions = [
+      { totalTokensSaved: 100, savingsRatio: 0.2 } as SessionRecord,
+      { totalTokensSaved: 500, savingsRatio: 0.6 } as SessionRecord,
+    ]
+    const trend = summarizeTrend(sessions)
+    expect(trend.bestSession?.totalTokensSaved).toBe(500)
   })
 
   it('formatScopeImpact reports usage when symbol is missing', () => {

@@ -15,6 +15,7 @@ export interface StatsTrend {
     savingsRatio: number
     totalInjectionTokens: number
   }
+  bestSession?: SessionRecord
 }
 
 export async function readRecentSessions(projectRoot: string, limit = 5): Promise<SessionRecord[]> {
@@ -64,6 +65,8 @@ export function summarizeTrend(sessions: SessionRecord[]): StatsTrend {
     { depContextTriggers: 0, totalTokensSaved: 0, savingsRatio: 0, totalInjectionTokens: 0 }
   )
 
+  const best = [...sessions].sort((a, b) => b.totalTokensSaved - a.totalTokensSaved)[0]
+
   return {
     sessions,
     averages: {
@@ -72,5 +75,6 @@ export function summarizeTrend(sessions: SessionRecord[]): StatsTrend {
       savingsRatio: Math.round((sum.savingsRatio / n) * 100) / 100,
       totalInjectionTokens: Math.round(sum.totalInjectionTokens / n),
     },
+    bestSession: best?.totalTokensSaved > 0 ? best : undefined,
   }
 }
