@@ -111,6 +111,7 @@ export interface SlimConfig {
     hoverMaxReferencesListed: number
     recordToolMetrics: boolean
     probeServersOnStart: boolean
+    suggestHoverOnCompilerErrors: boolean
   }
 }
 

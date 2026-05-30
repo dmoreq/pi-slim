@@ -15,6 +15,14 @@
 /**
  * Aggregated view of the current conversation for guidance decisions.
  */
+/** Compiler error site suitable for LSP hover / goto-def (0-based line/col). */
+export interface CompilerErrorHint {
+  /** Repo-relative path with forward slashes */
+  relPath: string
+  line: number
+  column: number
+}
+
 export interface ContextInsights {
   /** Whether the transcript suggests the agent intends to edit code. */
   editingIntent: EditingContext
@@ -27,6 +35,9 @@ export interface ContextInsights {
 
   /** High-level relevance of recent messages to the codebase. */
   conversationContext: ConversationContext
+
+  /** Recent tool output locations from compiler/linter failures. */
+  compilerErrors?: CompilerErrorHint[]
 }
 
 /**

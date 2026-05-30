@@ -21,6 +21,7 @@ import {
   type IntelligenceTurnMode,
   classifyIntelligenceTurnMode,
 } from './intelligence-turn.js'
+import { formatCompilerErrorLspGuidance } from './compiler-error-bridge.js'
 import { AgentPatternDetector } from './pattern-detector.js'
 
 /** Legacy hardcoded fallbacks when graph analysis is unavailable. */
@@ -47,6 +48,12 @@ export { classifyIntelligenceTurnMode }
  */
 export class ContextIntelligenceEngine {
   private patternDetector = new AgentPatternDetector()
+  private projectRoot?: string
+
+  /** Optional repo root for compiler-error path normalization. */
+  setProjectRoot(root: string | undefined): void {
+    this.projectRoot = root
+  }
 
   analyzeConversationContext(messages: AgentMessage[], graphAnalysis?: GraphAnalysis | null): ContextInsights {
     let editingIntent = this.patternDetector.detectEditingIntent(messages)
@@ -61,11 +68,14 @@ export class ContextIntelligenceEngine {
       }
     }
 
+    const compilerErrors = this.patternDetector.detectCompilerErrors(messages, this.projectRoot)
+
     return {
       editingIntent,
       navigationRequests,
       suboptimalPatterns,
       conversationContext,
+      compilerErrors,
     }
   }
 
@@ -91,6 +101,11 @@ export class ContextIntelligenceEngine {
     const optimizationBlock = this.formatOptimizationSuggestions(insights)
     if (optimizationBlock) {
       sections.push(optimizationBlock)
+    }
+
+    const compilerBlock = formatCompilerErrorLspGuidance(insights.compilerErrors ?? [])
+    if (compilerBlock) {
+      sections.push(compilerBlock)
     }
 
     if (mode === 'editing' && insights.editingIntent.detected) {
@@ -242,6 +257,11 @@ export class ContextIntelligenceEngine {
     const optimizationBlock = this.formatOptimizationSuggestions(insights)
     if (optimizationBlock) {
       sections.push(optimizationBlock)
+    }
+
+    const compilerBlock = formatCompilerErrorLspGuidance(insights.compilerErrors ?? [])
+    if (compilerBlock) {
+      sections.push(compilerBlock)
     }
 
     if (options.mode === 'editing' && insights.editingIntent.detected && insights.editingIntent.targetSymbols.length > 0) {

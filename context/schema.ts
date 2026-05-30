@@ -62,6 +62,7 @@ const LspSchema = z.object({
   hoverMaxReferencesListed: z.number().int().positive().default(10),
   recordToolMetrics: z.boolean().default(true),
   probeServersOnStart: z.boolean().default(true),
+  suggestHoverOnCompilerErrors: z.boolean().default(true),
 })
 
 // ── Root schema ───────────────────────────────────────────────────────────

@@ -7,8 +7,15 @@
  * sites—when calibration changes.
  */
 
+import { relative } from 'node:path'
 import type { AgentMessage } from '../shared/agent-message.js'
-import type { EditingContext, NavigationContext, OptimizationSuggestion } from '../shared/intelligence-types.js'
+import { detectCompilerErrorLocations } from '../shared/compiler-error-locations.js'
+import type {
+  CompilerErrorHint,
+  EditingContext,
+  NavigationContext,
+  OptimizationSuggestion,
+} from '../shared/intelligence-types.js'
 
 /** Symbols shorter than this length are discarded as noise */
 const MIN_SYMBOL_LENGTH = 3
@@ -258,6 +265,42 @@ export class AgentPatternDetector {
   }
 
   /**
+   * Extract compiler error sites from recent tool results (bash, test runners).
+   */
+  detectCompilerErrors(messages: AgentMessage[], projectRoot?: string): CompilerErrorHint[] {
+    const hints: CompilerErrorHint[] = []
+    const seen = new Set<string>()
+
+    for (const m of messages.slice(-15)) {
+      const role = (m as { role?: string }).role
+      if (role !== 'toolResult') continue
+
+      const text = String(m.content ?? '')
+      if (!text.includes('error') && !text.includes('Error')) continue
+
+      const locs = detectCompilerErrorLocations(text, {
+        projectRoot,
+        validateExistence: false,
+      })
+
+      for (const loc of locs) {
+        const rel =
+          projectRoot && loc.path.startsWith(projectRoot)
+            ? relative(projectRoot, loc.path).replace(/\\/g, '/')
+            : loc.path.replace(/\\/g, '/')
+        const line = loc.startLine - 1
+        const column = loc.startColumn
+        const key = `${rel}:${line}:${column}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        hints.push({ relPath: rel, line, column })
+      }
+    }
+
+    return hints.slice(0, 8)
+  }
+
+  /**
    * Surface steering hints when transcript suggests brittle editor habits.
    * Scans all roles in the trailing window (~15 msgs).
    */
@@ -297,6 +340,26 @@ export class AgentPatternDetector {
         confidence: 0.8,
         context: 'LSP tools available for navigation',
         toolSuggestion: 'lsp_go_to_definition',
+      })
+    }
+
+    const hasCompilerErrors = allContents.some(
+      c =>
+        /\berror\s+ts\d+/i.test(c) ||
+        /:\s*error\s+ts/i.test(c) ||
+        /\(\d+,\d+\):\s*error/i.test(c) ||
+        /-->.*\.(?:ts|tsx|rs|py):\d+:\d+/.test(c)
+    )
+
+    if (hasCompilerErrors) {
+      suggestions.push({
+        type: 'tool_usage',
+        pattern: 'compiler_error_bridge',
+        recommendation:
+          'Compiler errors detected — use `lsp_hover` at each error line/column (0-based) before guessing fixes',
+        confidence: 0.85,
+        context: 'build or test output contains file:line errors',
+        toolSuggestion: 'lsp_hover',
       })
     }
 

@@ -389,6 +389,8 @@ export class SessionManager {
       symbolIndex: new Map(),
     }
     await this.pluginManager.runHook('onSessionStart', SessionManager.DEFAULT_EXTENSION_CONTEXT)
+    this.intelligenceEngine.setProjectRoot(projectRoot)
+
     this.state = this.initState({
       index: emptyIndex,
       repoMap: '',
@@ -474,7 +476,9 @@ export class SessionManager {
       this.telemetry.onCacheHit(idx.skeletons.size)
 
       const retrieval = new RetrievalEngine(idx)
-      this.state = this.initState({
+      this.intelligenceEngine.setProjectRoot(projectRoot)
+
+    this.state = this.initState({
         index: idx,
         repoMap: this.indexService.repoMap!,
         injector,
@@ -512,7 +516,9 @@ export class SessionManager {
         : []
 
       const retrieval = new RetrievalEngine(result.index)
-      this.state = this.initState({
+      this.intelligenceEngine.setProjectRoot(projectRoot)
+
+    this.state = this.initState({
         index: result.index,
         repoMap: result.repoMap,
         injector,
@@ -946,6 +952,14 @@ export class SessionManager {
         }
       }
 
+      if (s.config.lsp.enabled && s.config.lsp.suggestHoverOnCompilerErrors) {
+        for (const hint of snapshot.insights.compilerErrors ?? []) {
+          const abs = resolveProjectPath(s.projectRoot, hint.relPath)
+          extraPaths.add(abs)
+          this.lspResolvedPathsThisTurn.add(abs)
+        }
+      }
+
       if (s.config.lsp.enabled && s.config.lsp.recordToolMetrics) {
         for (const msg of event.messages ?? []) {
           const rec = msg as Record<string, unknown>
@@ -1209,6 +1223,8 @@ export class SessionManager {
         currentState.stats.recordIndexAge(0, false)
 
         await this.loadGraph(currentState.projectRoot, this.state)
+
+        this.intelligenceEngine.setProjectRoot(currentState.projectRoot)
 
         this.state = this.initState({
           index: result.index,
