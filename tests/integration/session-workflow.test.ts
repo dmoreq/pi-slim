@@ -1,14 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('pi-telemetry', () => ({
-  getTelemetry: vi.fn(() => ({
-    recordToolInvocation: vi.fn(),
-    recordToolResult: vi.fn(),
-    heartbeat: vi.fn(),
-  })),
-  default: vi.fn(),
-}))
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { produceDefaults } from '../../context/schema.js'

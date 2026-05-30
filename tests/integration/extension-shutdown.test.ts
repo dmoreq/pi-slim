@@ -9,7 +9,6 @@ vi.mock('../../tools/lsp-navigation.js', () => ({
   shutdownLsp: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('../../tools/graph-impact-tool.js', () => ({ registerGraphImpactTool: vi.fn() }))
-vi.mock('pi-telemetry', () => ({ default: vi.fn() }))
 
 describe('extension.ts lifecycle', () => {
   beforeEach(() => {

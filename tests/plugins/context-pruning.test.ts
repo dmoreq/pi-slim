@@ -2,17 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExtensionContext } from '../../extension.js'
 import { ContextPruningPlugin } from '../../plugins/context-pruning.js'
 
-// ── Mock telemetry ─────────────────────────────────────────────────────────
-
-vi.mock('pi-telemetry', () => ({
-  getTelemetry: vi.fn(() => ({
-    recordToolInvocation: vi.fn(),
-    recordToolResult: vi.fn(),
-    heartbeat: vi.fn(),
-  })),
-  default: vi.fn(),
-}))
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const mockCtx = {} as ExtensionContext

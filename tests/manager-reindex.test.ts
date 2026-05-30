@@ -1,15 +1,6 @@
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('pi-telemetry', () => ({
-  getTelemetry: vi.fn(() => ({
-    recordToolInvocation: vi.fn(),
-    recordToolResult: vi.fn(),
-    heartbeat: vi.fn(),
-  })),
-  default: vi.fn(),
-}))
-
 const watcherCallbacks: Array<(eventType: string, filename?: string | Buffer) => void> = []
 const watcherCloses: Array<ReturnType<typeof vi.fn>> = []
 

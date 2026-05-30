@@ -14,18 +14,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('pi-telemetry', () => ({
-  getTelemetry: vi.fn(() => ({
-    deregister: vi.fn(),
-    heartbeat: vi.fn(),
-    notify: vi.fn(),
-    recordError: vi.fn(),
-    recordTokens: vi.fn(),
-    register: vi.fn(),
-  })),
-  default: vi.fn(),
-}))
-
 import { graphCacheExists } from '../../persistence/graph-cache.js'
 import { scopeDir } from '../../shared/paths.js'
 import type { BeforeAgentStartEvent, ContextEvent, ExtensionContext } from '../../manager.js'
